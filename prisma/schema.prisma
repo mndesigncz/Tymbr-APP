@@ -56,7 +56,7 @@ model Task {
 }
 
 model Comment {
-  id        String   @id @default(now())
+  id        String   @id @default(cuid())
   content   String
   createdAt DateTime @default(now())
 
