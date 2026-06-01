@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Tymbr – Firemní správa úkolů
 
-## Getting Started
+Moderní task management aplikace pro týmy. Sdílená kanban nástěnka, správa úkolů, kategorie, komentáře.
 
-First, run the development server:
+## Rychlé nasazení na Vercel (veřejná URL)
+
+Klikněte na tlačítko níže – Vercel propojí GitHub repo a vygeneruje veřejnou URL:
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fmndesigncz%2FTymbr-APP&env=NEXTAUTH_SECRET,DATABASE_URL,DATABASE_AUTH_TOKEN&envDescription=Viz%20README%20pro%20popis%20prom%C4%9Bnn%C3%BDch&project-name=tymbr-app)
+
+### Potřebné proměnné prostředí
+
+| Proměnná | Popis | Kde získat |
+|---|---|---|
+| `NEXTAUTH_SECRET` | Libovolný náhodný řetězec (32+ znaků) | `openssl rand -hex 32` |
+| `DATABASE_URL` | URL Turso databáze | Viz níže |
+| `DATABASE_AUTH_TOKEN` | Auth token Turso | Viz níže |
+
+### Nastavení databáze (Turso – zdarma)
+
+1. Zaregistrujte se na [turso.tech](https://turso.tech) (GitHub přihlášení)
+2. Vytvořte novou databázi: **Dashboard → Create database**
+3. Zkopírujte `libsql://...` URL a vygenerujte auth token
+4. Po nasazení spusťte seed přes Vercel CLI nebo lokálně:
+   ```bash
+   DATABASE_URL=libsql://... DATABASE_AUTH_TOKEN=... npm run seed
+   ```
+
+---
+
+## Lokální vývoj
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run seed        # vytvoří demo data (SQLite)
+npm run dev         # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+**Testovací přihlášení:**
+- Email: `admin@tymbr.cz`
+- Heslo: `demo1234`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Funkce
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Přihlášení / registrace
+- Sdílená kanban nástěnka (drag & drop)
+- Úkoly: název, popis, status, priorita, termín, kategorie, přiřazení
+- Komentáře k úkolům
+- Správa kategorií s výběrem barvy
+- Dashboard se statistikami a přehledem
+- Filtry podle statusu, priority, kategorie
+- Responsivní design (desktop + mobil)
 
-## Learn More
+## Stack
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Next.js 16 · TypeScript · Tailwind CSS 4 · Prisma 7 · SQLite/Turso · NextAuth 4
