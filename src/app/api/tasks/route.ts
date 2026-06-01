@@ -1,0 +1,71 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth";
+
+const taskInclude = {
+  category: true,
+  createdBy: { select: { id: true, name: true, email: true, avatar: true } },
+  assignee: { select: { id: true, name: true, email: true, avatar: true } },
+  _count: { select: { comments: true } },
+};
+
+export async function GET(req: NextRequest) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Neautorizováno" }, { status: 401 });
+
+  const { searchParams } = new URL(req.url);
+  const status = searchParams.get("status");
+  const categoryId = searchParams.get("categoryId");
+  const assigneeId = searchParams.get("assigneeId");
+  const priority = searchParams.get("priority");
+  const search = searchParams.get("search");
+
+  const where: Record<string, any> = {};
+  if (status) where.status = status;
+  if (categoryId) where.categoryId = categoryId;
+  if (assigneeId) where.assigneeId = assigneeId;
+  if (priority) where.priority = priority;
+  if (search) {
+    where.OR = [
+      { title: { contains: search } },
+      { description: { contains: search } },
+    ];
+  }
+
+  const tasks = await prisma.task.findMany({
+    where,
+    include: taskInclude,
+    orderBy: [{ createdAt: "desc" }],
+  });
+  return NextResponse.json(tasks);
+}
+
+export async function POST(req: NextRequest) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Neautorizováno" }, { status: 401 });
+
+  try {
+    const body = await req.json();
+    const { title, description, status, priority, dueDate, startDate, categoryId, assigneeId } = body;
+
+    if (!title) return NextResponse.json({ error: "Název je povinný" }, { status: 400 });
+
+    const task = await prisma.task.create({
+      data: {
+        title,
+        description,
+        status: status || "todo",
+        priority: priority || "medium",
+        dueDate: dueDate ? new Date(dueDate) : null,
+        startDate: startDate ? new Date(startDate) : null,
+        categoryId: categoryId || null,
+        assigneeId: assigneeId || null,
+        createdById: session.user.id,
+      },
+      include: taskInclude,
+    });
+    return NextResponse.json(task, { status: 201 });
+  } catch {
+    return NextResponse.json({ error: "Chyba serveru" }, { status: 500 });
+  }
+}
