@@ -1,9 +1,3 @@
 {
-  "buildCommand": "npx prisma generate && next build",
-  "env": {
-    "DATABASE_URL": "@database_url",
-    "DATABASE_AUTH_TOKEN": "@database_auth_token",
-    "NEXTAUTH_SECRET": "@nextauth_secret",
-    "NEXTAUTH_URL": "@nextauth_url"
-  }
+  "buildCommand": "npx prisma generate && next build"
 }
