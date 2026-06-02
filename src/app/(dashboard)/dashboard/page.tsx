@@ -80,9 +80,9 @@ export default async function DashboardPage() {
         }
       />
 
-      <div className="px-6 lg:px-8 pt-6 pb-10 space-y-6">
+      <div className="px-6 lg:px-8 pt-2 pb-12 space-y-8">
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
           <StatsCard title="Celkem úkolů" value={allTasks.length} icon={CheckSquare} highlight />
           <StatsCard title="K provedení"  value={todo}            icon={Clock}        color="#6366f1" />
           <StatsCard title="Probíhá"      value={inProgress}      icon={CheckCircle2} color="#eab308" />
@@ -90,19 +90,19 @@ export default async function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          <div className="xl:col-span-2 space-y-6">
+          <div className="xl:col-span-2 space-y-7">
             <RecentTasks tasks={recent} title="Poslední úkoly týmu" />
 
             {overdueList.length > 0 && (
               <div className="rounded-3xl border" style={{ background: "var(--bg-card)", borderColor: "rgba(239,68,68,0.18)", boxShadow: "var(--shadow-sm)" }}>
-                <div className="flex items-center gap-2 px-6 pt-6 pb-4">
+                <div className="flex items-center gap-2 px-6 pt-6 pb-5">
                   <AlertCircle className="w-[18px] h-[18px] text-red-500" />
                   <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>Po termínu</h2>
                   <span className="text-[11.5px] font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded-md">
                     {overdueList.length}
                   </span>
                 </div>
-                <div className="px-6 pb-6 space-y-3">
+                <div className="px-6 pb-6 space-y-4">
                   {overdueList.map((task) => (
                     <TaskCard key={task.id} task={task} compact />
                   ))}
@@ -114,10 +114,10 @@ export default async function DashboardPage() {
           <div className="space-y-6">
             {myTasksList.length > 0 && (
               <div className="rounded-3xl border" style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
-                <div className="px-6 pt-6 pb-4">
+                <div className="px-6 pt-6 pb-5">
                   <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>Moje úkoly</h2>
                 </div>
-                <div className="px-6 pb-6 space-y-3">
+                <div className="px-6 pb-7 space-y-4">
                   {myTasksList.map((task) => (
                     <TaskCard key={task.id} task={task} compact />
                   ))}
@@ -126,14 +126,14 @@ export default async function DashboardPage() {
             )}
 
             <div className="rounded-3xl border" style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
-              <div className="flex items-center justify-between px-6 pt-6 pb-4">
+              <div className="flex items-center justify-between px-6 pt-6 pb-5">
                 <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>Kategorie</h2>
                 <Link href="/categories" className="text-[13px] font-semibold hover:opacity-80 transition-opacity"
                   style={{ color: "var(--accent)" }}>
                   Spravovat
                 </Link>
               </div>
-              <div className="px-4 pb-4 space-y-0.5">
+              <div className="px-4 pb-5 space-y-1">
                 {categories.length === 0 && (
                   <p className="text-[13px] px-2 py-3" style={{ color: "var(--text-3)" }}>Žádné kategorie</p>
                 )}
@@ -141,7 +141,7 @@ export default async function DashboardPage() {
                   <Link
                     key={cat.id}
                     href={`/tasks?categoryId=${cat.id}`}
-                    className="flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors hover:bg-black/[0.03]"
+                    className="flex items-center justify-between px-3 py-3 rounded-xl transition-colors hover:bg-black/[0.03]"
                     style={{ color: "var(--text-2)" }}
                   >
                     <div className="flex items-center gap-3">

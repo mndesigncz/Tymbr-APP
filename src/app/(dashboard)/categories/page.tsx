@@ -84,14 +84,14 @@ export default function CategoriesPage() {
         }
       />
 
-      <div className="px-6 lg:px-8 pt-6 pb-10">
+      <div className="px-6 lg:px-8 pt-2 pb-12">
         {loading ? (
           <div className="flex items-center justify-center py-24">
             <div className="w-7 h-7 border-[2.5px] rounded-full animate-spin"
               style={{ borderColor: "var(--accent)", borderTopColor: "transparent" }} />
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {categories.length === 0 && (
               <div className="col-span-full flex flex-col items-center justify-center py-20"
                 style={{ color: "var(--text-3)" }}>

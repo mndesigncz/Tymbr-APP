@@ -96,7 +96,7 @@ function TasksContent() {
         }
       />
 
-      <div className="px-6 lg:px-8 pt-6 pb-10 space-y-5">
+      <div className="px-6 lg:px-8 pt-2 pb-12 space-y-6">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex-1 min-w-48">
             <Input
@@ -196,7 +196,7 @@ function TasksContent() {
         ) : view === "kanban" ? (
           <KanbanBoard tasks={tasks} onStatusChange={handleStatusChange} />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
             {tasks.length === 0 && (
               <div className="col-span-full flex flex-col items-center justify-center py-24" style={{ color: "var(--text-3)" }}>
                 <CheckSquareIcon className="w-12 h-12 mb-3 opacity-40" />

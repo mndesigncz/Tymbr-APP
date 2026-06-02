@@ -18,11 +18,11 @@ export function TaskCard({ task, compact }: TaskCardProps) {
   return (
     <Link href={`/tasks/${task.id}`}>
       <div
-        className="rounded-2xl border p-4 transition-all duration-150 cursor-pointer group hover:-translate-y-0.5"
+        className="rounded-2xl border p-5 transition-all duration-150 cursor-pointer group hover:-translate-y-0.5"
         style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}
       >
         {/* Title */}
-        <p className="text-[14px] font-semibold leading-snug line-clamp-2 mb-2.5"
+        <p className="text-[14px] font-semibold leading-snug line-clamp-2 mb-3"
           style={{ color: "var(--text-1)" }}>
           {task.title}
         </p>
@@ -35,7 +35,7 @@ export function TaskCard({ task, compact }: TaskCardProps) {
         )}
 
         {/* Meta row */}
-        <div className="flex flex-wrap items-center gap-2 mb-3">
+        <div className="flex flex-wrap items-center gap-2 mb-4">
           <PriorityBadge priority={task.priority} />
           {task.category && (
             <span
@@ -49,7 +49,7 @@ export function TaskCard({ task, compact }: TaskCardProps) {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-2 pt-3 border-t" style={{ borderColor: "var(--border)" }}>
+        <div className="flex items-center justify-between gap-2 pt-4 border-t" style={{ borderColor: "var(--border)" }}>
           <div className="flex items-center gap-3">
             {task.dueDate && (
               <span className="flex items-center gap-1 text-[11.5px] font-medium"

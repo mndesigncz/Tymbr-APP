@@ -8,7 +8,7 @@ interface HeaderProps {
 
 export function Header({ title, subtitle, actions }: HeaderProps) {
   return (
-    <header className="flex items-end justify-between px-6 lg:px-8 pt-7 pb-2">
+    <header className="flex items-end justify-between px-6 lg:px-8 pt-8 pb-6">
       <div>
         <h1 className="text-[26px] font-bold tracking-tight leading-tight" style={{ color: "var(--text-1)" }}>
           {title}

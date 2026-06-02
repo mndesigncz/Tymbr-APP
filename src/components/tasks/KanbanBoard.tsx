@@ -47,7 +47,7 @@ export function KanbanBoard({ tasks, onStatusChange }: KanbanBoardProps) {
   };
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
       {COLUMNS.map((status) => {
         const color = STATUS_COLORS[status];
         const colTasks = grouped[status] || [];
@@ -56,7 +56,7 @@ export function KanbanBoard({ tasks, onStatusChange }: KanbanBoardProps) {
         return (
           <div
             key={status}
-            className="flex flex-col rounded-3xl p-3 transition-all"
+            className="flex flex-col rounded-3xl p-4 transition-all"
             style={isOver
               ? { background: "var(--accent-soft)", outline: "2px dashed var(--accent)", outlineOffset: "-2px" }
               : { background: "var(--bg-subtle)" }
@@ -66,7 +66,7 @@ export function KanbanBoard({ tasks, onStatusChange }: KanbanBoardProps) {
             onDragLeave={() => setOverColumn(null)}
           >
             {/* Column header */}
-            <div className="flex items-center justify-between mb-3 px-1.5">
+            <div className="flex items-center justify-between mb-4 px-1.5">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
                 <span className="text-[13px] font-semibold" style={{ color: "var(--text-1)" }}>
@@ -86,7 +86,7 @@ export function KanbanBoard({ tasks, onStatusChange }: KanbanBoardProps) {
             </div>
 
             {/* Column body */}
-            <div className="flex-1 flex flex-col gap-3 min-h-[120px]">
+            <div className="flex-1 flex flex-col gap-4 min-h-[140px]">
               {colTasks.map((task) => (
                 <div
                   key={task.id}
