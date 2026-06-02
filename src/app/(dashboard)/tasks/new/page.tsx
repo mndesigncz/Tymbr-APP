@@ -10,8 +10,9 @@ export default async function NewTaskPage({ searchParams }: Props) {
   return (
     <div>
       <Header title="Nový úkol" />
-      <div className="p-6 max-w-2xl mx-auto">
-        <div className="bg-[#1a1a1a] border border-[#2d2d2d] rounded-2xl p-6">
+      <div className="p-6 max-w-xl mx-auto">
+        <div className="rounded-xl border p-5"
+          style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
           <TaskForm defaultStatus={status} />
         </div>
       </div>

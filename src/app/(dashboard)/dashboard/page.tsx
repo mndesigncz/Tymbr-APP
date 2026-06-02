@@ -63,12 +63,13 @@ export default async function DashboardPage() {
   return (
     <div>
       <Header
-        title={`Dobrý den, ${session?.user.name?.split(" ")[0]} 👋`}
-        subtitle={`${new Date().toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}`}
+        title={`Přehled`}
+        subtitle={new Date().toLocaleDateString("cs-CZ", { weekday: "long", day: "numeric", month: "long" })}
         actions={
           <Link href="/tasks/new">
-            <button className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors">
-              <Plus className="w-4 h-4" />
+            <button className="flex items-center gap-2 text-white px-3 py-1.5 rounded-lg text-[13px] font-medium transition-colors hover:opacity-90"
+              style={{ background: "var(--accent)" }}>
+              <Plus className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Nový úkol</span>
             </button>
           </Link>
@@ -76,27 +77,28 @@ export default async function DashboardPage() {
       />
 
       <div className="p-6 space-y-6">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatsCard title="Celkem úkolů" value={allTasks.length} icon={CheckSquare} color="#F97316" />
-          <StatsCard title="K provedení" value={todo} icon={Clock} color="#3B82F6" />
-          <StatsCard title="Probíhá" value={inProgress} icon={CheckCircle2} color="#EAB308" />
-          <StatsCard title="Po termínu" value={overdueCount} icon={AlertCircle} color="#EF4444" />
+        {/* Stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <StatsCard title="Celkem úkolů" value={allTasks.length} icon={CheckSquare} color="#f97316" />
+          <StatsCard title="K provedení"  value={todo}            icon={Clock}        color="#6366f1" />
+          <StatsCard title="Probíhá"      value={inProgress}      icon={CheckCircle2} color="#eab308" />
+          <StatsCard title="Po termínu"   value={overdueCount}    icon={AlertCircle}  color="#ef4444" />
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          <div className="xl:col-span-2 space-y-6">
-            <RecentTasks tasks={recent} title="Sdílená nástěnka – poslední úkoly" />
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+          <div className="xl:col-span-2 space-y-5">
+            <RecentTasks tasks={recent} title="Poslední úkoly týmu" />
 
             {overdueList.length > 0 && (
-              <div className="bg-[#1a1a1a] border border-red-500/20 rounded-2xl p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <AlertCircle className="w-5 h-5 text-red-400" />
-                  <h2 className="text-base font-semibold text-white">Po termínu</h2>
-                  <span className="text-xs text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full">
+              <div className="rounded-xl border" style={{ background: "var(--bg-card)", borderColor: "rgba(239,68,68,0.2)" }}>
+                <div className="flex items-center gap-2 px-5 py-4 border-b" style={{ borderColor: "rgba(239,68,68,0.15)" }}>
+                  <AlertCircle className="w-4 h-4 text-red-400" />
+                  <h2 className="text-[13.5px] font-semibold" style={{ color: "var(--text-1)" }}>Po termínu</h2>
+                  <span className="text-[11px] font-medium text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded">
                     {overdueList.length}
                   </span>
                 </div>
-                <div className="space-y-3">
+                <div className="p-3 space-y-2">
                   {overdueList.map((task) => (
                     <TaskCard key={task.id} task={task} compact />
                   ))}
@@ -105,11 +107,13 @@ export default async function DashboardPage() {
             )}
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-5">
             {myTasksList.length > 0 && (
-              <div className="bg-[#1a1a1a] border border-[#2d2d2d] rounded-2xl p-5">
-                <h2 className="text-base font-semibold text-white mb-4">Moje úkoly</h2>
-                <div className="space-y-3">
+              <div className="rounded-xl border" style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
+                <div className="px-5 py-4 border-b" style={{ borderColor: "var(--border)" }}>
+                  <h2 className="text-[13.5px] font-semibold" style={{ color: "var(--text-1)" }}>Moje úkoly</h2>
+                </div>
+                <div className="p-3 space-y-2">
                   {myTasksList.map((task) => (
                     <TaskCard key={task.id} task={task} compact />
                   ))}
@@ -117,30 +121,32 @@ export default async function DashboardPage() {
               </div>
             )}
 
-            <div className="bg-[#1a1a1a] border border-[#2d2d2d] rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-semibold text-white">Kategorie</h2>
-                <Link href="/categories" className="text-sm text-orange-400 hover:text-orange-300 transition-colors">
+            <div className="rounded-xl border" style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
+              <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: "var(--border)" }}>
+                <h2 className="text-[13.5px] font-semibold" style={{ color: "var(--text-1)" }}>Kategorie</h2>
+                <Link href="/categories" className="text-[12px] font-medium hover:opacity-80 transition-opacity"
+                  style={{ color: "var(--accent)" }}>
                   Spravovat
                 </Link>
               </div>
-              <div className="space-y-2">
+              <div className="p-3 space-y-0.5">
                 {categories.length === 0 && (
-                  <p className="text-sm text-gray-500">Žádné kategorie</p>
+                  <p className="text-[12px] px-2 py-3" style={{ color: "var(--text-3)" }}>Žádné kategorie</p>
                 )}
                 {categories.map((cat) => (
                   <Link
                     key={cat.id}
                     href={`/tasks?categoryId=${cat.id}`}
-                    className="flex items-center justify-between p-2 rounded-xl hover:bg-[#2a2a2a] transition-colors group"
+                    className="flex items-center justify-between px-2 py-2 rounded-lg transition-colors"
+                    style={{ color: "var(--text-2)" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-hover)")}
+                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                   >
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color }} />
-                      <span className="text-sm text-gray-300 group-hover:text-white transition-colors">
-                        {cat.name}
-                      </span>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
+                      <span className="text-[13px]">{cat.name}</span>
                     </div>
-                    <span className="text-xs text-gray-500">{cat._count.tasks}</span>
+                    <span className="text-[11px]" style={{ color: "var(--text-3)" }}>{cat._count.tasks}</span>
                   </Link>
                 ))}
               </div>

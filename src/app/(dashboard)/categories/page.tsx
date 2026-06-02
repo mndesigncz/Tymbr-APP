@@ -90,13 +90,14 @@ export default function CategoriesPage() {
             <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {categories.length === 0 && (
-              <div className="col-span-full flex flex-col items-center justify-center py-20 text-gray-500">
-                <Tag className="w-12 h-12 mb-3 text-gray-700" />
-                <p className="text-lg font-medium">Žádné kategorie</p>
-                <p className="text-sm mt-1">Vytvořte první kategorii</p>
-                <Button icon={<Plus className="w-4 h-4" />} className="mt-4" onClick={openNew}>
+              <div className="col-span-full flex flex-col items-center justify-center py-20"
+                style={{ color: "var(--text-3)" }}>
+                <Tag className="w-10 h-10 mb-3" />
+                <p className="text-[14px] font-medium" style={{ color: "var(--text-2)" }}>Žádné kategorie</p>
+                <p className="text-[13px] mt-1">Vytvořte první kategorii</p>
+                <Button icon={<Plus className="w-3.5 h-3.5" />} className="mt-4" onClick={openNew}>
                   Nová kategorie
                 </Button>
               </div>
@@ -104,35 +105,39 @@ export default function CategoriesPage() {
             {categories.map((cat) => (
               <div
                 key={cat.id}
-                className="bg-[#1a1a1a] border border-[#2d2d2d] rounded-2xl p-5 hover:border-[#3d3d3d] transition-all group"
+                className="border rounded-xl p-4 transition-all group"
+                style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--border-md)")}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border)")}
               >
                 <div className="flex items-start justify-between mb-4">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center"
-                    style={{ backgroundColor: `${cat.color}20` }}
-                  >
-                    <Tag className="w-5 h-5" style={{ color: cat.color }} />
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center"
+                    style={{ background: `${cat.color}15` }}>
+                    <Tag className="w-4 h-4" style={{ color: cat.color }} />
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => openEdit(cat)}
-                      className="p-1.5 rounded-lg hover:bg-[#2a2a2a] text-gray-400 hover:text-white transition-colors"
+                      className="p-1.5 rounded-md transition-colors hover:text-white"
+                      style={{ color: "var(--text-3)" }}
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => handleDelete(cat.id)}
-                      className="p-1.5 rounded-lg hover:bg-red-500/10 text-gray-400 hover:text-red-400 transition-colors"
+                      className="p-1.5 rounded-md transition-colors hover:text-red-400"
+                      style={{ color: "var(--text-3)" }}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
 
-                <h3 className="font-semibold text-white mb-1">{cat.name}</h3>
+                <p className="text-[13.5px] font-semibold mb-1" style={{ color: "var(--text-1)" }}>{cat.name}</p>
                 <Link href={`/tasks?categoryId=${cat.id}`}>
-                  <div className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-300 transition-colors">
-                    <CheckSquare className="w-3.5 h-3.5" />
+                  <div className="flex items-center gap-1.5 text-[12px] transition-colors hover:opacity-80"
+                    style={{ color: "var(--text-3)" }}>
+                    <CheckSquare className="w-3 h-3" />
                     {cat._count?.tasks ?? 0} úkolů
                   </div>
                 </Link>
@@ -157,7 +162,7 @@ export default function CategoriesPage() {
           />
 
           <div>
-            <label className="text-sm font-medium text-gray-300 block mb-2">Barva</label>
+            <label className="text-[12px] font-medium block mb-2" style={{ color: "var(--text-2)" }}>Barva</label>
             <div className="flex flex-wrap gap-2">
               {COLORS.map((c) => (
                 <button

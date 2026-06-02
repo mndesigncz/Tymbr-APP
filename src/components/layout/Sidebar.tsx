@@ -5,15 +5,13 @@ import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
-import {
-  LayoutDashboard, CheckSquare, Tag, Settings, LogOut, ChevronRight,
-} from "lucide-react";
+import { LayoutDashboard, CheckSquare, Tag, Settings, LogOut } from "lucide-react";
 
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Přehled" },
-  { href: "/tasks", icon: CheckSquare, label: "Úkoly" },
-  { href: "/categories", icon: Tag, label: "Kategorie" },
-  { href: "/settings", icon: Settings, label: "Nastavení" },
+  { href: "/tasks",     icon: CheckSquare,     label: "Úkoly"   },
+  { href: "/categories",icon: Tag,             label: "Kategorie"},
+  { href: "/settings",  icon: Settings,        label: "Nastavení"},
 ];
 
 export function Sidebar() {
@@ -21,17 +19,24 @@ export function Sidebar() {
   const { data: session } = useSession();
 
   return (
-    <aside className="hidden lg:flex flex-col w-64 bg-[#111111] border-r border-[#1e1e1e] h-screen sticky top-0">
-      <div className="p-6 border-b border-[#1e1e1e]">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center">
-            <CheckSquare className="w-4 h-4 text-white" />
+    <aside className="hidden lg:flex flex-col w-60 h-screen sticky top-0 border-r"
+      style={{ background: "var(--bg-surface)", borderColor: "var(--border)" }}>
+
+      {/* Logo */}
+      <div className="px-5 h-14 flex items-center border-b" style={{ borderColor: "var(--border)" }}>
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+            style={{ background: "var(--accent)" }}>
+            <CheckSquare className="w-3.5 h-3.5 text-white" />
           </div>
-          <span className="text-lg font-bold text-white tracking-tight">Tymbr</span>
+          <span className="text-[15px] font-semibold tracking-tight" style={{ color: "var(--text-1)" }}>
+            Tymbr
+          </span>
         </div>
       </div>
 
-      <nav className="flex-1 p-4 space-y-1">
+      {/* Navigation */}
+      <nav className="flex-1 px-3 py-3 space-y-0.5">
         {navItems.map(({ href, icon: Icon, label }) => {
           const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
           return (
@@ -39,35 +44,48 @@ export function Sidebar() {
               key={href}
               href={href}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group",
+                "flex items-center gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors",
                 active
-                  ? "bg-orange-500/10 text-orange-400"
-                  : "text-gray-400 hover:bg-[#1e1e1e] hover:text-white"
+                  ? "text-white"
+                  : "hover:text-white transition-colors"
               )}
+              style={active
+                ? { background: "var(--bg-hover)", color: "var(--text-1)" }
+                : { color: "var(--text-2)" }
+              }
             >
-              <Icon className={cn("w-5 h-5 flex-shrink-0", active ? "text-orange-400" : "")} />
-              <span className="flex-1">{label}</span>
-              {active && <ChevronRight className="w-4 h-4 text-orange-400" />}
+              <Icon className="w-4 h-4 flex-shrink-0" />
+              {label}
+              {active && (
+                <span className="ml-auto w-1.5 h-1.5 rounded-full" style={{ background: "var(--accent)" }} />
+              )}
             </Link>
           );
         })}
       </nav>
 
-      <div className="p-4 border-t border-[#1e1e1e]">
+      {/* User */}
+      <div className="px-3 py-3 border-t space-y-0.5" style={{ borderColor: "var(--border)" }}>
         {session?.user && (
-          <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-[#1e1e1e] transition-colors group mb-2">
-            <Avatar name={session.user.name || "?"} src={session.user.image} size="md" />
+          <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg"
+            style={{ color: "var(--text-2)" }}>
+            <Avatar name={session.user.name || "?"} src={session.user.image} size="sm" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{session.user.name}</p>
-              <p className="text-xs text-gray-500 truncate">{session.user.email}</p>
+              <p className="text-[13px] font-medium truncate" style={{ color: "var(--text-1)" }}>
+                {session.user.name}
+              </p>
+              <p className="text-[11px] truncate" style={{ color: "var(--text-3)" }}>
+                {session.user.email}
+              </p>
             </div>
           </div>
         )}
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-400 hover:bg-red-500/10 hover:text-red-400 transition-all"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors hover:text-red-400"
+          style={{ color: "var(--text-2)" }}
         >
-          <LogOut className="w-5 h-5" />
+          <LogOut className="w-4 h-4" />
           Odhlásit se
         </button>
       </div>

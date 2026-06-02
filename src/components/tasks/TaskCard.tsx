@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { cn, formatDate, isOverdue } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
-import { StatusBadge } from "./StatusBadge";
 import { PriorityBadge } from "./PriorityBadge";
-import { Calendar, MessageSquare, Tag } from "lucide-react";
+import { Calendar, MessageSquare } from "lucide-react";
 import type { Task } from "@/types";
 
 interface TaskCardProps {
@@ -20,56 +19,67 @@ export function TaskCard({ task, compact }: TaskCardProps) {
     <Link href={`/tasks/${task.id}`}>
       <div
         className={cn(
-          "bg-[#1a1a1a] border border-[#2d2d2d] rounded-2xl p-4 hover:border-orange-500/40 hover:bg-[#1e1e1e] transition-all duration-200 cursor-pointer group",
-          compact && "p-3"
+          "border rounded-xl transition-all duration-150 cursor-pointer group",
+          compact ? "p-3" : "p-4"
         )}
+        style={{
+          background: "var(--bg-card)",
+          borderColor: "var(--border)",
+        }}
+        onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--border-md)")}
+        onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border)")}
       >
-        <div className="flex items-start justify-between gap-3 mb-3">
-          <h3 className="text-sm font-semibold text-white group-hover:text-orange-100 transition-colors line-clamp-2 flex-1">
-            {task.title}
-          </h3>
-          <StatusBadge status={task.status} />
-        </div>
+        {/* Title */}
+        <p className={cn(
+          "font-medium leading-snug line-clamp-2 mb-2 transition-colors",
+          compact ? "text-[13px]" : "text-[13.5px]"
+        )}
+          style={{ color: "var(--text-1)" }}>
+          {task.title}
+        </p>
 
+        {/* Description */}
         {task.description && !compact && (
-          <p className="text-xs text-gray-500 line-clamp-2 mb-3">{task.description}</p>
+          <p className="text-[12px] line-clamp-2 mb-3" style={{ color: "var(--text-3)" }}>
+            {task.description}
+          </p>
         )}
 
-        <div className="flex flex-wrap gap-2 mb-3">
-          <PriorityBadge priority={task.priority} />
-          {task.category && (
-            <span
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
-              style={{ backgroundColor: `${task.category.color}20`, color: task.category.color }}
-            >
-              <Tag className="w-3 h-3" />
-              {task.category.name}
-            </span>
-          )}
-        </div>
+        {/* Footer */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <PriorityBadge priority={task.priority} />
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+            {task.category && (
+              <span
+                className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded"
+                style={{ color: task.category.color, background: `${task.category.color}15` }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: task.category.color }} />
+                {task.category.name}
+              </span>
+            )}
+
             {task.dueDate && (
               <span
-                className={cn(
-                  "flex items-center gap-1 text-xs",
-                  overdue ? "text-red-400" : "text-gray-500"
-                )}
+                className="flex items-center gap-1 text-[11px]"
+                style={{ color: overdue ? "#f87171" : "var(--text-3)" }}
               >
                 <Calendar className="w-3 h-3" />
                 {formatDate(task.dueDate)}
               </span>
             )}
+
             {(task._count?.comments ?? 0) > 0 && (
-              <span className="flex items-center gap-1 text-xs text-gray-500">
+              <span className="flex items-center gap-1 text-[11px]" style={{ color: "var(--text-3)" }}>
                 <MessageSquare className="w-3 h-3" />
                 {task._count?.comments}
               </span>
             )}
           </div>
+
           {task.assignee && (
-            <Avatar name={task.assignee.name} src={task.assignee.avatar} size="sm" />
+            <Avatar name={task.assignee.name} src={task.assignee.avatar} size="sm" className="flex-shrink-0" />
           )}
         </div>
       </div>

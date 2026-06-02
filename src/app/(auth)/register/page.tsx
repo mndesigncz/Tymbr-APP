@@ -39,70 +39,45 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0f0f0f] flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: "var(--bg-page)" }}>
+      <div className="w-full max-w-[340px]">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-orange-500 flex items-center justify-center mb-4">
-            <CheckSquare className="w-6 h-6 text-white" />
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-5"
+            style={{ background: "var(--accent)" }}>
+            <CheckSquare className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Registrace</h1>
-          <p className="text-gray-500 text-sm mt-1">Vytvořte si účet v Tymbr</p>
+          <h1 className="text-xl font-semibold" style={{ color: "var(--text-1)" }}>Registrace do Tymbr</h1>
+          <p className="text-[13px] mt-1" style={{ color: "var(--text-3)" }}>Vytvořte si nový účet</p>
         </div>
 
-        <div className="bg-[#1a1a1a] border border-[#2d2d2d] rounded-2xl p-6">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <Input
-              label="Celé jméno"
-              type="text"
-              placeholder="Jan Novák"
-              value={form.name}
-              onChange={set("name")}
-              icon={<User className="w-4 h-4" />}
-              required
-            />
-            <Input
-              label="Email"
-              type="email"
-              placeholder="vas@email.cz"
-              value={form.email}
-              onChange={set("email")}
-              icon={<Mail className="w-4 h-4" />}
-              required
-            />
-            <Input
-              label="Heslo"
-              type="password"
-              placeholder="••••••••"
-              value={form.password}
-              onChange={set("password")}
-              icon={<Lock className="w-4 h-4" />}
-              required
-            />
-            <Input
-              label="Potvrdit heslo"
-              type="password"
-              placeholder="••••••••"
-              value={form.confirm}
-              onChange={set("confirm")}
-              icon={<Lock className="w-4 h-4" />}
-              required
-            />
+        <div className="rounded-xl border p-5 space-y-3"
+          style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <Input label="Celé jméno" type="text" placeholder="Jan Novák"
+              value={form.name} onChange={set("name")}
+              icon={<User className="w-3.5 h-3.5" />} required />
+            <Input label="Email" type="email" placeholder="vas@email.cz"
+              value={form.email} onChange={set("email")}
+              icon={<Mail className="w-3.5 h-3.5" />} required />
+            <Input label="Heslo" type="password" placeholder="••••••••"
+              value={form.password} onChange={set("password")}
+              icon={<Lock className="w-3.5 h-3.5" />} required />
+            <Input label="Potvrdit heslo" type="password" placeholder="••••••••"
+              value={form.confirm} onChange={set("confirm")}
+              icon={<Lock className="w-3.5 h-3.5" />} required />
 
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3">
-                <p className="text-sm text-red-400">{error}</p>
-              </div>
-            )}
+            {error && <p className="text-[12px] text-red-400 px-1">{error}</p>}
 
-            <Button type="submit" loading={loading} size="lg" className="w-full mt-2">
+            <Button type="submit" loading={loading} className="w-full" style={{ marginTop: "4px" }}>
               Registrovat se
             </Button>
           </form>
         </div>
 
-        <p className="text-center text-sm text-gray-500 mt-4">
+        <p className="text-center text-[12px] mt-4" style={{ color: "var(--text-3)" }}>
           Máte účet?{" "}
-          <Link href="/login" className="text-orange-400 hover:text-orange-300 font-medium transition-colors">
+          <Link href="/login" className="font-medium hover:opacity-80 transition-opacity"
+            style={{ color: "var(--accent)" }}>
             Přihlásit se
           </Link>
         </p>

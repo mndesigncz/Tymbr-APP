@@ -21,33 +21,25 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
 
   if (!open) return null;
 
-  const sizes = {
-    sm: "max-w-sm",
-    md: "max-w-lg",
-    lg: "max-w-2xl",
-    xl: "max-w-4xl",
-  };
+  const sizes = { sm: "max-w-sm", md: "max-w-lg", lg: "max-w-2xl", xl: "max-w-4xl" };
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" onClick={onClose} />
       <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <div
-        className={cn(
-          "relative w-full bg-[#1a1a1a] rounded-2xl border border-[#2d2d2d] shadow-2xl z-10",
-          sizes[size]
-        )}
+        className={cn("relative w-full rounded-xl border shadow-2xl z-10", sizes[size])}
+        style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}
       >
         {title && (
-          <div className="flex items-center justify-between p-5 border-b border-[#2d2d2d]">
-            <h2 className="text-lg font-semibold text-white">{title}</h2>
+          <div className="flex items-center justify-between px-5 py-4 border-b"
+            style={{ borderColor: "var(--border)" }}>
+            <h2 className="text-[15px] font-semibold" style={{ color: "var(--text-1)" }}>{title}</h2>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-[#2a2a2a] text-gray-400 hover:text-white transition-colors"
+              className="p-1.5 rounded-lg transition-colors hover:text-white"
+              style={{ color: "var(--text-2)" }}
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         )}

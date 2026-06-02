@@ -12,7 +12,7 @@ export default async function DashboardLayout({
   if (!session) redirect("/login");
 
   return (
-    <div className="flex h-screen bg-[#0f0f0f] overflow-hidden">
+    <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg-page)" }}>
       <Sidebar />
       <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
         {children}

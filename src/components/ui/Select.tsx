@@ -13,26 +13,34 @@ export function Select({ label, error, options, placeholder, className, ...props
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
-        <label className="text-sm font-medium text-gray-300">{label}</label>
+        <label className="text-[12px] font-medium" style={{ color: "var(--text-2)" }}>{label}</label>
       )}
       <div className="relative">
         <select
           className={cn(
-            "w-full bg-[#1a1a1a] border border-[#2d2d2d] rounded-xl px-4 py-2.5 text-sm text-white appearance-none pr-10",
-            "focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-all",
-            error && "border-red-500",
+            "w-full border rounded-lg px-3 py-2 text-[13px] appearance-none pr-8 transition-colors",
+            "focus:outline-none",
+            error && "border-red-500/60",
             className
           )}
+          style={{
+            background: "var(--bg-card)",
+            borderColor: error ? undefined : "var(--border-md)",
+            color: "var(--text-1)",
+          }}
           {...props}
         >
           {placeholder && <option value="">{placeholder}</option>}
           {options.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
+            <option key={o.value} value={o.value} style={{ background: "#18181b" }}>
+              {o.label}
+            </option>
           ))}
         </select>
-        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" />
+        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none"
+          style={{ color: "var(--text-3)" }} />
       </div>
-      {error && <span className="text-xs text-red-400">{error}</span>}
+      {error && <span className="text-[11px] text-red-400">{error}</span>}
     </div>
   );
 }

@@ -9,16 +9,17 @@ interface RecentTasksProps {
 
 export function RecentTasks({ tasks, title = "Nedávné úkoly" }: RecentTasksProps) {
   return (
-    <div className="bg-[#1a1a1a] border border-[#2d2d2d] rounded-2xl p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-base font-semibold text-white">{title}</h2>
-        <Link href="/tasks" className="text-sm text-orange-400 hover:text-orange-300 transition-colors">
-          Zobrazit vše
+    <div className="rounded-xl border" style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
+      <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: "var(--border)" }}>
+        <h2 className="text-[13.5px] font-semibold" style={{ color: "var(--text-1)" }}>{title}</h2>
+        <Link href="/tasks" className="text-[12px] font-medium transition-colors hover:opacity-80"
+          style={{ color: "var(--accent)" }}>
+          Vše
         </Link>
       </div>
-      <div className="space-y-3">
+      <div className="p-3 space-y-2">
         {tasks.length === 0 && (
-          <p className="text-sm text-gray-500 text-center py-6">Žádné úkoly</p>
+          <p className="text-[13px] text-center py-6" style={{ color: "var(--text-3)" }}>Žádné úkoly</p>
         )}
         {tasks.map((task) => (
           <TaskCard key={task.id} task={task} compact />

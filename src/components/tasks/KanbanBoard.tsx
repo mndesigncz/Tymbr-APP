@@ -47,7 +47,7 @@ export function KanbanBoard({ tasks, onStatusChange }: KanbanBoardProps) {
   };
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 h-full">
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
       {COLUMNS.map((status) => {
         const color = STATUS_COLORS[status];
         const colTasks = grouped[status] || [];
@@ -56,30 +56,44 @@ export function KanbanBoard({ tasks, onStatusChange }: KanbanBoardProps) {
         return (
           <div
             key={status}
-            className="flex flex-col min-h-0"
+            className="flex flex-col"
             onDragOver={(e) => handleDragOver(e, status)}
             onDrop={(e) => handleDrop(e, status)}
             onDragLeave={() => setOverColumn(null)}
           >
-            <div className="flex items-center justify-between mb-3 px-1">
+            {/* Column header */}
+            <div className="flex items-center justify-between mb-3 px-0.5">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-                <span className="text-sm font-semibold text-gray-300">{STATUS_LABELS[status]}</span>
-                <span className="text-xs text-gray-500 bg-[#2a2a2a] px-1.5 py-0.5 rounded-md font-medium">
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+                <span className="text-[12.5px] font-medium" style={{ color: "var(--text-2)" }}>
+                  {STATUS_LABELS[status]}
+                </span>
+                <span
+                  className="text-[11px] px-1.5 py-0.5 rounded font-medium"
+                  style={{ background: "var(--bg-card)", color: "var(--text-3)" }}
+                >
                   {colTasks.length}
                 </span>
               </div>
               <Link href={`/tasks/new?status=${status}`}>
-                <button className="p-1 rounded-lg hover:bg-[#2a2a2a] text-gray-500 hover:text-white transition-colors">
-                  <Plus className="w-4 h-4" />
+                <button
+                  className="p-1 rounded-md transition-colors"
+                  style={{ color: "var(--text-3)" }}
+                  onMouseEnter={e => (e.currentTarget.style.color = "var(--text-1)")}
+                  onMouseLeave={e => (e.currentTarget.style.color = "var(--text-3)")}
+                >
+                  <Plus className="w-3.5 h-3.5" />
                 </button>
               </Link>
             </div>
 
+            {/* Column body */}
             <div
-              className={`flex-1 flex flex-col gap-3 min-h-[200px] p-2 rounded-2xl transition-all duration-200 ${
-                isOver ? "bg-orange-500/5 border border-dashed border-orange-500/40" : "bg-[#141414] border border-[#1e1e1e]"
-              }`}
+              className="flex-1 flex flex-col gap-2.5 min-h-[160px] p-2 rounded-xl border transition-all"
+              style={isOver
+                ? { background: "rgba(249,115,22,0.04)", borderColor: "rgba(249,115,22,0.3)", borderStyle: "dashed" }
+                : { background: "var(--bg-surface)", borderColor: "var(--border)" }
+              }
             >
               {colTasks.map((task) => (
                 <div
@@ -87,14 +101,14 @@ export function KanbanBoard({ tasks, onStatusChange }: KanbanBoardProps) {
                   draggable
                   onDragStart={(e) => handleDragStart(e, task.id)}
                   onDragEnd={() => { setDraggingId(null); setOverColumn(null); }}
-                  className={draggingId === task.id ? "opacity-40" : ""}
+                  className={draggingId === task.id ? "opacity-30" : ""}
                 >
                   <TaskCard task={task} />
                 </div>
               ))}
               {colTasks.length === 0 && (
-                <div className="flex-1 flex items-center justify-center text-xs text-gray-600 py-8">
-                  Žádné úkoly
+                <div className="flex-1 flex items-center justify-center py-8">
+                  <span className="text-[12px]" style={{ color: "var(--text-3)" }}>Prázdné</span>
                 </div>
               )}
             </div>
