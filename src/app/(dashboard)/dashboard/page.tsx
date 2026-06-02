@@ -137,10 +137,8 @@ export default async function DashboardPage() {
                   <Link
                     key={cat.id}
                     href={`/tasks?categoryId=${cat.id}`}
-                    className="flex items-center justify-between px-2 py-2 rounded-lg transition-colors"
+                    className="flex items-center justify-between px-2 py-2 rounded-lg transition-colors hover:bg-white/5"
                     style={{ color: "var(--text-2)" }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-hover)")}
-                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                   >
                     <div className="flex items-center gap-2.5">
                       <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }} />
