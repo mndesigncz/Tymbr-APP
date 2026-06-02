@@ -54,6 +54,12 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  // Auto-advance: if the task is still in "todo", move it to "in_progress"
+  const task = await prisma.task.findUnique({ where: { id: taskId }, select: { status: true } });
+  if (task?.status === "todo") {
+    await prisma.task.update({ where: { id: taskId }, data: { status: "in_progress" } });
+  }
+
   const entry = await prisma.timeEntry.create({
     data: { userId: session.user.id, taskId },
     include: entryInclude,

@@ -2,6 +2,7 @@ import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { WorkMode } from "@/components/layout/WorkMode";
 import { TimeTrackerProvider } from "@/context/TimeTrackerContext";
 
 export default async function DashboardLayout({
@@ -21,6 +22,7 @@ export default async function DashboardLayout({
         </main>
         <BottomNav />
       </div>
+      <WorkMode />
     </TimeTrackerProvider>
   );
 }

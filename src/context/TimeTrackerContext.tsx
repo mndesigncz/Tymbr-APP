@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
 
 export interface ActiveEntry {
   id: string;
@@ -14,23 +14,33 @@ interface TimeTrackerState {
   active: ActiveEntry | null;
   elapsed: number;
   isLoading: boolean;
+  focusOpen: boolean;
   start: (taskId: string, taskTitle: string, categoryColor?: string) => Promise<void>;
   stop: () => Promise<void>;
+  openFocus: () => void;
+  closeFocus: () => void;
 }
 
 const TimeTrackerContext = createContext<TimeTrackerState>({
   active: null,
   elapsed: 0,
   isLoading: false,
+  focusOpen: false,
   start: async () => {},
   stop: async () => {},
+  openFocus: () => {},
+  closeFocus: () => {},
 });
 
 export function TimeTrackerProvider({ children }: { children: React.ReactNode }) {
   const [active, setActive] = useState<ActiveEntry | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [focusOpen, setFocusOpen] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const activeRef = useRef<ActiveEntry | null>(null);
+
+  useEffect(() => { activeRef.current = active; }, [active]);
 
   useEffect(() => {
     fetch("/api/time-entries/active")
@@ -61,7 +71,7 @@ export function TimeTrackerProvider({ children }: { children: React.ReactNode })
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [active]);
 
-  const start = async (taskId: string, taskTitle: string, categoryColor?: string) => {
+  const start = useCallback(async (taskId: string, taskTitle: string, categoryColor?: string) => {
     setIsLoading(true);
     try {
       const res = await fetch("/api/time-entries", {
@@ -72,25 +82,31 @@ export function TimeTrackerProvider({ children }: { children: React.ReactNode })
       if (res.ok) {
         const entry = await res.json();
         setActive({ id: entry.id, taskId, taskTitle, categoryColor, startedAt: entry.startedAt });
+        setFocusOpen(true);
       }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const stop = async () => {
-    if (!active) return;
+  const stop = useCallback(async () => {
+    const cur = activeRef.current;
+    if (!cur) return;
     setIsLoading(true);
     try {
-      await fetch(`/api/time-entries/${active.id}`, { method: "PATCH" });
+      await fetch(`/api/time-entries/${cur.id}`, { method: "PATCH" });
       setActive(null);
+      setFocusOpen(false);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  const openFocus = useCallback(() => setFocusOpen(true), []);
+  const closeFocus = useCallback(() => setFocusOpen(false), []);
 
   return (
-    <TimeTrackerContext.Provider value={{ active, elapsed, isLoading, start, stop }}>
+    <TimeTrackerContext.Provider value={{ active, elapsed, isLoading, focusOpen, start, stop, openFocus, closeFocus }}>
       {children}
     </TimeTrackerContext.Provider>
   );

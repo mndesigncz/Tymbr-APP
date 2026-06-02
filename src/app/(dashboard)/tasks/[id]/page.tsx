@@ -6,6 +6,7 @@ import { Header } from "@/components/layout/Header";
 import { StatusBadge } from "@/components/tasks/StatusBadge";
 import { PriorityBadge } from "@/components/tasks/PriorityBadge";
 import { TaskForm } from "@/components/tasks/TaskForm";
+import { Subtasks } from "@/components/tasks/Subtasks";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
@@ -139,6 +140,13 @@ export default function TaskDetailPage() {
             </div>
 
             <div className="rounded-3xl border p-6" style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
+              <h3 className="text-[16px] font-bold tracking-tight mb-4" style={{ color: "var(--text-1)" }}>
+                Podúkoly
+              </h3>
+              <Subtasks taskId={task.id} />
+            </div>
+
+            <div className="rounded-3xl border p-6" style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
               <div className="flex items-center gap-2 mb-5">
                 <MessageSquare className="w-[18px] h-[18px]" style={{ color: "var(--text-2)" }} />
                 <h3 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>
@@ -265,6 +273,24 @@ export default function TaskDetailPage() {
                     <span className="text-[14px]" style={{ color: "var(--text-1)" }}>{formatDate(task.dueDate)}</span>
                   </div>
                 )}
+
+                {task.hourlyRate ? (
+                  <div>
+                    <p className="text-[12px] mb-1" style={{ color: "var(--text-3)" }}>Hodinová sazba</p>
+                    <span className="text-[14px] font-semibold" style={{ color: "var(--text-1)" }}>
+                      {task.hourlyRate.toLocaleString("cs-CZ")} Kč/h
+                    </span>
+                  </div>
+                ) : null}
+
+                {task.completedAt ? (
+                  <div>
+                    <p className="text-[12px] mb-1" style={{ color: "var(--text-3)" }}>Dokončeno</p>
+                    <span className="text-[14px] font-semibold" style={{ color: "#22C55E" }}>
+                      {formatRelative(task.completedAt)}
+                    </span>
+                  </div>
+                ) : null}
 
                 <div>
                   <p className="text-[12px] mb-1" style={{ color: "var(--text-3)" }}>Vytvořeno</p>

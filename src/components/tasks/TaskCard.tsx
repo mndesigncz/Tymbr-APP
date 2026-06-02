@@ -23,12 +23,16 @@ const NEXT_LABEL: Partial<Record<TaskStatus, string>> = {
 interface TaskCardProps {
   task: Task;
   compact?: boolean;
+  urgent?: boolean;
   onStatusAdvance?: (taskId: string, newStatus: TaskStatus) => void;
 }
 
-export function TaskCard({ task, compact, onStatusAdvance }: TaskCardProps) {
+export function TaskCard({ task, compact, urgent, onStatusAdvance }: TaskCardProps) {
   const overdue = task.status !== "done" && isOverdue(task.dueDate);
   const nextStatus = NEXT_STATUS[task.status];
+
+  const isDone = task.status === "done";
+  const compactBg = isDone ? "#22C55E0E" : urgent ? "#EF44440F" : "var(--bg-subtle)";
 
   const AdvanceButton = nextStatus ? (
     <button
@@ -53,7 +57,7 @@ export function TaskCard({ task, compact, onStatusAdvance }: TaskCardProps) {
       <Link href={`/tasks/${task.id}`} className="block">
         <div
           className="flex items-start justify-between gap-3 px-4 py-4 rounded-2xl transition-colors cursor-pointer hover:opacity-90"
-          style={{ background: task.status === "done" ? "#22C55E0E" : "var(--bg-subtle)" }}
+          style={{ background: compactBg }}
         >
           <div className="flex-1 min-w-0">
             <p className="text-[13.5px] font-semibold leading-snug line-clamp-1 mb-2"

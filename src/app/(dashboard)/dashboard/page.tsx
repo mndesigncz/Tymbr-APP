@@ -4,6 +4,7 @@ import { Header } from "@/components/layout/Header";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { RecentTasks } from "@/components/dashboard/RecentTasks";
 import { TaskCard } from "@/components/tasks/TaskCard";
+import { StartWorkButton } from "@/components/layout/StartWorkButton";
 import { CheckSquare, Clock, AlertCircle, CheckCircle2, Plus, CheckCheck } from "lucide-react";
 import Link from "next/link";
 import { formatRelative } from "@/lib/utils";
@@ -19,7 +20,10 @@ const taskInclude = {
 export default async function DashboardPage() {
   const session = await getSession();
 
-  const [allTasks, myTasks, overdueTasks, categories, doneTasks] = await Promise.all([
+  const weekFromNow = new Date();
+  weekFromNow.setDate(weekFromNow.getDate() + 7);
+
+  const [allTasks, myTasks, categories, doneTasks] = await Promise.all([
     prisma.task.findMany({
       where: { status: { not: "done" } },
       include: taskInclude,
@@ -30,31 +34,40 @@ export default async function DashboardPage() {
       where: { assigneeId: session!.user.id, status: { not: "done" } },
       include: taskInclude,
       orderBy: { dueDate: "asc" },
-      take: 8,
-    }),
-    prisma.task.findMany({
-      where: { dueDate: { lt: new Date() }, status: { not: "done" } },
-      include: taskInclude,
-      orderBy: { dueDate: "asc" },
-      take: 5,
+      take: 12,
     }),
     prisma.category.findMany({ include: { _count: { select: { tasks: true } } } }),
     prisma.task.findMany({
       where: { status: "done" },
       include: taskInclude,
       orderBy: { completedAt: "desc" },
-      take: 5,
+      take: 6,
     }),
   ]);
 
   const todo = allTasks.filter((t) => t.status === "todo").length;
   const inProgress = allTasks.filter((t) => t.status === "in_progress").length;
-  const overdueCount = overdueTasks.length;
   const doneTotal = await prisma.task.count({ where: { status: "done" } });
 
-  const recent = allTasks.slice(0, 6) as unknown as Task[];
-  const myTasksList = myTasks as unknown as Task[];
-  const overdueList = overdueTasks as unknown as Task[];
+  // Priority ordering: urgent > high > medium > low
+  const PRIO: Record<string, number> = { urgent: 3, high: 2, medium: 1, low: 0 };
+  const byPriority = (a: { priority: string; dueDate: Date | null }, b: { priority: string; dueDate: Date | null }) => {
+    const p = (PRIO[b.priority] ?? 0) - (PRIO[a.priority] ?? 0);
+    if (p !== 0) return p;
+    if (a.dueDate && b.dueDate) return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+    if (a.dueDate) return -1;
+    if (b.dueDate) return 1;
+    return 0;
+  };
+
+  // Urgent = urgent priority OR due within a week (and not done)
+  const isUrgent = (t: { priority: string; dueDate: Date | null }) =>
+    t.priority === "urgent" || (t.dueDate != null && new Date(t.dueDate) <= weekFromNow);
+
+  const sortedAll = [...allTasks].sort(byPriority);
+  const urgentList = sortedAll.filter(isUrgent).slice(0, 6) as unknown as Task[];
+  const recent = sortedAll.slice(0, 6) as unknown as Task[];
+  const myTasksList = [...myTasks].sort(byPriority) as unknown as Task[];
   const doneList = doneTasks as unknown as Task[];
 
   const hour = new Date().getHours();
@@ -67,13 +80,16 @@ export default async function DashboardPage() {
         title={`${greeting}, ${firstName}`}
         subtitle="Mějte přehled o úkolech a postupu vašeho týmu."
         actions={
-          <Link href="/tasks/new">
-            <button className="flex items-center gap-2 text-white px-4 py-2.5 rounded-xl text-[13.5px] font-semibold transition-all hover:opacity-90 shadow-sm"
-              style={{ background: "var(--accent)", boxShadow: "0 4px 12px rgba(247,89,47,0.25)" }}>
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">Nový úkol</span>
-            </button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <StartWorkButton />
+            <Link href="/tasks/new">
+              <button className="flex items-center gap-2 text-white px-4 py-2.5 rounded-xl text-[13.5px] font-semibold transition-all hover:opacity-90 shadow-sm"
+                style={{ background: "var(--accent)", boxShadow: "0 4px 12px rgba(247,89,47,0.25)" }}>
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">Nový úkol</span>
+              </button>
+            </Link>
+          </div>
         }
       />
 
@@ -88,24 +104,27 @@ export default async function DashboardPage() {
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className="xl:col-span-2 space-y-7">
-            <RecentTasks allTasks={recent} myTasks={myTasksList} />
-
-            {overdueList.length > 0 && (
-              <div className="rounded-3xl border" style={{ background: "var(--bg-card)", borderColor: "rgba(239,68,68,0.18)", boxShadow: "var(--shadow-sm)" }}>
+            {urgentList.length > 0 && (
+              <div className="rounded-3xl border" style={{ background: "#EF44440A", borderColor: "rgba(239,68,68,0.22)", boxShadow: "var(--shadow-sm)" }}>
                 <div className="flex items-center gap-2 px-6 pt-6 pb-5">
                   <AlertCircle className="w-[18px] h-[18px] text-red-500" />
-                  <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>Po termínu</h2>
+                  <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>Urgentní</h2>
                   <span className="text-[11.5px] font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded-md">
-                    {overdueList.length}
+                    {urgentList.length}
+                  </span>
+                  <span className="text-[12px] ml-1" style={{ color: "var(--text-3)" }}>
+                    urgentní priorita nebo termín do týdne
                   </span>
                 </div>
                 <div className="px-6 pb-6 space-y-4">
-                  {overdueList.map((task) => (
-                    <TaskCard key={task.id} task={task} compact />
+                  {urgentList.map((task) => (
+                    <TaskCard key={task.id} task={task} compact urgent />
                   ))}
                 </div>
               </div>
             )}
+
+            <RecentTasks allTasks={recent} myTasks={myTasksList} />
           </div>
 
           <div className="space-y-6">

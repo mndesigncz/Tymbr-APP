@@ -6,14 +6,14 @@ import { useSession } from "next-auth/react";
 import { Header } from "@/components/layout/Header";
 import { KanbanBoard } from "@/components/tasks/KanbanBoard";
 import { TaskCard } from "@/components/tasks/TaskCard";
+import { StartWorkButton } from "@/components/layout/StartWorkButton";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import type { Task, TaskStatus } from "@/types";
-import { Plus, LayoutGrid, List, Search, SlidersHorizontal, X, CheckCheck, Calendar } from "lucide-react";
+import { Plus, LayoutGrid, List, Search, SlidersHorizontal, X, CheckCheck } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
-import { formatRelative } from "@/lib/utils";
 
 const STATUS_OPTS = [
   { value: "", label: "Všechny statusy" },
@@ -42,28 +42,25 @@ const DATE_RANGE_LABELS: Record<DateRange, string> = {
 
 function getDateRange(range: DateRange, customFrom?: string, customTo?: string): { from: Date; to: Date } {
   const now = new Date();
-  const to = new Date(now);
-  to.setHours(23, 59, 59, 999);
+  const to = new Date(now); to.setHours(23, 59, 59, 999);
   const from = new Date(now);
-
-  if (range === "today") {
-    from.setHours(0, 0, 0, 0);
-  } else if (range === "week") {
-    from.setDate(from.getDate() - 7);
-    from.setHours(0, 0, 0, 0);
-  } else if (range === "month") {
-    from.setMonth(from.getMonth() - 1);
-    from.setHours(0, 0, 0, 0);
-  } else if (range === "year") {
-    from.setFullYear(from.getFullYear() - 1);
-    from.setHours(0, 0, 0, 0);
-  } else if (range === "custom") {
+  if (range === "today") from.setHours(0, 0, 0, 0);
+  else if (range === "week") { from.setDate(from.getDate() - 7); from.setHours(0, 0, 0, 0); }
+  else if (range === "month") { from.setMonth(from.getMonth() - 1); from.setHours(0, 0, 0, 0); }
+  else if (range === "year") { from.setFullYear(from.getFullYear() - 1); from.setHours(0, 0, 0, 0); }
+  else if (range === "custom") {
     return {
       from: customFrom ? new Date(customFrom) : new Date(0),
       to: customTo ? new Date(customTo + "T23:59:59") : to,
     };
   }
   return { from, to };
+}
+
+function startOfToday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
 }
 
 function TasksContent() {
@@ -85,10 +82,11 @@ function TasksContent() {
   });
   const [categories, setCategories] = useState<{ id: string; name: string; color: string }[]>([]);
 
-  // Done tab state
   const [dateRange, setDateRange] = useState<DateRange>("month");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
+
+  const myId = (session?.user as any)?.id;
 
   const fetchActive = useCallback(async () => {
     setLoading(true);
@@ -97,14 +95,23 @@ function TasksContent() {
     if (filters.status) params.set("status", filters.status);
     if (filters.priority) params.set("priority", filters.priority);
     if (filters.categoryId) params.set("categoryId", filters.categoryId);
-    if (scope === "mine" && (session?.user as any)?.id) {
-      params.set("assigneeId", (session?.user as any).id);
-    }
-    const res = await fetch(`/api/tasks?${params}`);
-    const data = await res.json();
-    setTasks(Array.isArray(data) ? data.filter((t: Task) => t.status !== "done") : []);
+    if (scope === "mine" && myId) params.set("assigneeId", myId);
+
+    // Also pull tasks completed today so the "Hotovo" column isn't empty
+    const doneParams = new URLSearchParams(params);
+    doneParams.set("status", "done");
+    doneParams.set("completedFrom", startOfToday().toISOString());
+
+    const [activeRes, doneRes] = await Promise.all([
+      fetch(`/api/tasks?${params}`).then((r) => r.json()),
+      fetch(`/api/tasks?${doneParams}`).then((r) => r.json()),
+    ]);
+
+    const activeTasks = Array.isArray(activeRes) ? activeRes.filter((t: Task) => t.status !== "done") : [];
+    const doneToday = Array.isArray(doneRes) ? doneRes : [];
+    setTasks([...activeTasks, ...doneToday]);
     setLoading(false);
-  }, [filters, scope, session]);
+  }, [filters, scope, myId]);
 
   const fetchDone = useCallback(async () => {
     setLoading(true);
@@ -138,11 +145,8 @@ function TasksContent() {
     });
     if (res.ok) {
       const updated = await res.json();
-      if (newStatus === "done") {
-        setTasks((prev) => prev.filter((t) => t.id !== taskId));
-      } else {
-        setTasks((prev) => prev.map((t) => (t.id === taskId ? updated : t)));
-      }
+      // Keep done-today visible; just update in place
+      setTasks((prev) => prev.map((t) => (t.id === taskId ? updated : t)));
     }
   };
 
@@ -154,118 +158,80 @@ function TasksContent() {
         title="Úkoly"
         subtitle="Sdílená nástěnka celého týmu"
         actions={
-          <Link href="/tasks/new">
-            <Button icon={<Plus className="w-4 h-4" />}>
-              <span className="hidden sm:inline">Nový úkol</span>
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <StartWorkButton />
+            <Link href="/tasks/new">
+              <Button icon={<Plus className="w-4 h-4" />}>
+                <span className="hidden sm:inline">Nový úkol</span>
+              </Button>
+            </Link>
+          </div>
         }
       />
 
       <div className="px-6 lg:px-8 pt-2 pb-12 space-y-5">
-        {/* Main tab: Aktivní / Hotové */}
-        <div className="flex items-center gap-1 p-1 rounded-xl border w-fit"
-          style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
-          <button
-            onClick={() => setTab("active")}
-            className="px-4 py-2 rounded-lg text-[13px] font-semibold transition-all"
-            style={tab === "active"
-              ? { background: "var(--accent)", color: "#fff" }
-              : { color: "var(--text-2)" }}
-          >
-            Aktivní
-          </button>
-          <button
-            onClick={() => setTab("done")}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-[13px] font-semibold transition-all"
-            style={tab === "done"
-              ? { background: "#22C55E", color: "#fff" }
-              : { color: "var(--text-2)" }}
-          >
-            <CheckCheck className="w-3.5 h-3.5" />
-            Hotové
-          </button>
-        </div>
-
-        {/* Done tab: date range filter */}
-        {tab === "done" && (
-          <div className="space-y-3">
-            <div className="flex flex-wrap gap-2 items-center">
-              {(Object.keys(DATE_RANGE_LABELS) as DateRange[]).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setDateRange(r)}
-                  className="px-3 py-1.5 rounded-xl text-[12.5px] font-semibold border transition-all"
-                  style={dateRange === r
-                    ? { background: "#22C55E15", color: "#22C55E", borderColor: "#22C55E" }
-                    : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}
-                >
-                  {DATE_RANGE_LABELS[r]}
-                </button>
-              ))}
-              <div className="flex-1 min-w-48">
-                <Input
-                  placeholder="Hledat hotové úkoly..."
-                  value={filters.search}
-                  onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
-                  icon={<Search className="w-4 h-4" />}
-                />
-              </div>
+        {/* Toggles row: Moje/Všechny + Aktivní/Hotové + search */}
+        <div className="flex flex-wrap items-center gap-3">
+          {tab === "active" && (
+            <div className="flex items-center gap-1 p-1 rounded-xl border"
+              style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
+              <button
+                onClick={() => setScope("mine")}
+                className="px-3.5 py-2 rounded-lg text-[13px] font-semibold transition-all"
+                style={scope === "mine" ? { background: "var(--accent)", color: "#fff" } : { color: "var(--text-2)" }}
+              >
+                Moje
+              </button>
+              <button
+                onClick={() => setScope("all")}
+                className="px-3.5 py-2 rounded-lg text-[13px] font-semibold transition-all"
+                style={scope === "all" ? { background: "var(--accent)", color: "#fff" } : { color: "var(--text-2)" }}
+              >
+                Všechny
+              </button>
             </div>
-            {dateRange === "custom" && (
-              <div className="flex gap-3">
-                <Input type="date" label="Od" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
-                <Input type="date" label="Do" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
-              </div>
-            )}
+          )}
+
+          <div className="flex items-center gap-1 p-1 rounded-xl border"
+            style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
+            <button
+              onClick={() => setTab("active")}
+              className="px-3.5 py-2 rounded-lg text-[13px] font-semibold transition-all"
+              style={tab === "active" ? { background: "var(--text-1)", color: "#fff" } : { color: "var(--text-2)" }}
+            >
+              Aktivní
+            </button>
+            <button
+              onClick={() => setTab("done")}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13px] font-semibold transition-all"
+              style={tab === "done" ? { background: "#22C55E", color: "#fff" } : { color: "var(--text-2)" }}
+            >
+              <CheckCheck className="w-3.5 h-3.5" />
+              Hotové
+            </button>
           </div>
-        )}
 
-        {/* Active tab: scope + search + filters */}
-        {tab === "active" && (
-          <>
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-1 p-1 rounded-xl border"
-                style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
-                <button
-                  onClick={() => setScope("mine")}
-                  className="px-3.5 py-2 rounded-lg text-[13px] font-semibold transition-all"
-                  style={scope === "mine"
-                    ? { background: "var(--accent)", color: "#fff" }
-                    : { color: "var(--text-2)" }}
-                >
-                  Moje
-                </button>
-                <button
-                  onClick={() => setScope("all")}
-                  className="px-3.5 py-2 rounded-lg text-[13px] font-semibold transition-all"
-                  style={scope === "all"
-                    ? { background: "var(--accent)", color: "#fff" }
-                    : { color: "var(--text-2)" }}
-                >
-                  Všechny
-                </button>
-              </div>
+          {/* Shorter search */}
+          <div className="w-full sm:w-56">
+            <Input
+              placeholder="Hledat..."
+              value={filters.search}
+              onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
+              icon={<Search className="w-4 h-4" />}
+            />
+          </div>
 
-              <div className="flex-1 min-w-48">
-                <Input
-                  placeholder="Hledat úkoly..."
-                  value={filters.search}
-                  onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
-                  icon={<Search className="w-4 h-4" />}
-                />
-              </div>
-
+          {tab === "active" && (
+            <>
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13.5px] font-medium border transition-all hover:bg-black/[0.03]"
                 style={showFilters || activeFiltersCount > 0
                   ? { background: "var(--accent-soft)", borderColor: "var(--accent)", color: "var(--accent)" }
-                  : { background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-2)" }
-                }
+                  : { background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-2)" }}
               >
                 <SlidersHorizontal className="w-4 h-4" />
-                Filtry
+                <span className="hidden sm:inline">Filtry</span>
                 {activeFiltersCount > 0 && (
                   <span className="text-white text-[11px] font-semibold w-4 h-4 rounded-full flex items-center justify-center"
                     style={{ background: "var(--accent)" }}>
@@ -274,46 +240,63 @@ function TasksContent() {
                 )}
               </button>
 
-              <div className="flex items-center gap-1 rounded-xl p-1 border"
+              <div className="flex items-center gap-1 rounded-xl p-1 border ml-auto"
                 style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
-                <button
-                  onClick={() => setView("kanban")}
-                  className="p-2 rounded-lg transition-all"
-                  style={view === "kanban" ? { background: "var(--accent)", color: "#fff" } : { color: "var(--text-3)" }}
-                >
+                <button onClick={() => setView("kanban")} className="p-2 rounded-lg transition-all"
+                  style={view === "kanban" ? { background: "var(--accent)", color: "#fff" } : { color: "var(--text-3)" }}>
                   <LayoutGrid className="w-4 h-4" />
                 </button>
-                <button
-                  onClick={() => setView("list")}
-                  className="p-2 rounded-lg transition-all"
-                  style={view === "list" ? { background: "var(--accent)", color: "#fff" } : { color: "var(--text-3)" }}
-                >
+                <button onClick={() => setView("list")} className="p-2 rounded-lg transition-all"
+                  style={view === "list" ? { background: "var(--accent)", color: "#fff" } : { color: "var(--text-3)" }}>
                   <List className="w-4 h-4" />
                 </button>
               </div>
-            </div>
+            </>
+          )}
+        </div>
 
-            {/* Category chips */}
+        {/* Done tab: date range chips */}
+        {tab === "done" && (
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-2 items-center">
+              {(Object.keys(DATE_RANGE_LABELS) as DateRange[]).map((r) => (
+                <button key={r} onClick={() => setDateRange(r)}
+                  className="px-3 py-1.5 rounded-xl text-[12.5px] font-semibold border transition-all"
+                  style={dateRange === r
+                    ? { background: "#22C55E15", color: "#22C55E", borderColor: "#22C55E" }
+                    : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}>
+                  {DATE_RANGE_LABELS[r]}
+                </button>
+              ))}
+            </div>
+            {dateRange === "custom" && (
+              <div className="flex gap-3 max-w-md">
+                <Input type="date" label="Od" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
+                <Input type="date" label="Do" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Active tab: category chips + filters */}
+        {tab === "active" && (
+          <>
             {categories.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => setFilters((f) => ({ ...f, categoryId: "" }))}
+                <button onClick={() => setFilters((f) => ({ ...f, categoryId: "" }))}
                   className="px-3 py-1.5 rounded-xl text-[12.5px] font-semibold border transition-all"
                   style={!filters.categoryId
                     ? { background: "var(--text-1)", color: "#fff", borderColor: "var(--text-1)" }
-                    : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}
-                >
+                    : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}>
                   Vše
                 </button>
                 {categories.map((cat) => (
-                  <button
-                    key={cat.id}
+                  <button key={cat.id}
                     onClick={() => setFilters((f) => ({ ...f, categoryId: f.categoryId === cat.id ? "" : cat.id }))}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12.5px] font-semibold border transition-all"
                     style={filters.categoryId === cat.id
                       ? { background: `${cat.color}18`, color: cat.color, borderColor: cat.color }
-                      : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}
-                  >
+                      : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}>
                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: cat.color }} />
                     {cat.name}
                   </button>
@@ -333,13 +316,10 @@ function TasksContent() {
                     onChange={(e) => setFilters((f) => ({ ...f, priority: e.target.value }))} />
                 </div>
                 {activeFiltersCount > 0 && (
-                  <button
-                    onClick={() => setFilters((f) => ({ ...f, status: "", priority: "" }))}
+                  <button onClick={() => setFilters((f) => ({ ...f, status: "", priority: "" }))}
                     className="flex items-center gap-1 text-[13px] font-medium hover:text-red-500 transition-colors px-2"
-                    style={{ color: "var(--text-3)" }}
-                  >
-                    <X className="w-4 h-4" />
-                    Vymazat
+                    style={{ color: "var(--text-3)" }}>
+                    <X className="w-4 h-4" /> Vymazat
                   </button>
                 )}
               </div>

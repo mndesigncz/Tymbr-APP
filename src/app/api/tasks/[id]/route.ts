@@ -10,6 +10,7 @@ const taskInclude = {
     include: { user: { select: { id: true, name: true, avatar: true } } },
     orderBy: { createdAt: "asc" as const },
   },
+  subtasks: { orderBy: { order: "asc" as const } },
 };
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

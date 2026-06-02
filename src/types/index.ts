@@ -40,7 +40,17 @@ export interface Task {
   assignee?: User | null;
   comments?: Comment[];
   timeEntries?: TimeEntry[];
+  subtasks?: SubTask[];
   _count?: { comments: number };
+}
+
+export interface SubTask {
+  id: string;
+  title: string;
+  done: boolean;
+  order: number;
+  createdAt: Date | string;
+  taskId: string;
 }
 
 export interface Comment {

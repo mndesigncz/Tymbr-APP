@@ -57,6 +57,18 @@ model Task {
 
   comments    Comment[]
   timeEntries TimeEntry[]
+  subtasks    SubTask[]
+}
+
+model SubTask {
+  id        String   @id @default(cuid())
+  title     String
+  done      Boolean  @default(false)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 }
 
 model Comment {
