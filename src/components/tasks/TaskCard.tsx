@@ -15,26 +15,62 @@ interface TaskCardProps {
 export function TaskCard({ task, compact }: TaskCardProps) {
   const overdue = task.status !== "done" && isOverdue(task.dueDate);
 
+  if (compact) {
+    return (
+      <Link href={`/tasks/${task.id}`}>
+        <div
+          className="flex items-start justify-between gap-3 px-4 py-4 rounded-2xl transition-colors cursor-pointer hover:opacity-90"
+          style={{ background: "var(--bg-subtle)" }}
+        >
+          <div className="flex-1 min-w-0">
+            <p className="text-[13.5px] font-semibold leading-snug line-clamp-1 mb-2"
+              style={{ color: "var(--text-1)" }}>
+              {task.title}
+            </p>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <PriorityBadge priority={task.priority} />
+              {task.category && (
+                <span
+                  className="text-[11px] font-medium px-1.5 py-0.5 rounded-md"
+                  style={{ color: task.category.color, background: `${task.category.color}15` }}
+                >
+                  {task.category.name}
+                </span>
+              )}
+              {task.dueDate && (
+                <span className="flex items-center gap-1 text-[11px]"
+                  style={{ color: overdue ? "#ef4444" : "var(--text-3)" }}>
+                  <Calendar className="w-3 h-3" />
+                  {formatDate(task.dueDate)}
+                </span>
+              )}
+            </div>
+          </div>
+          {task.assignee && (
+            <Avatar name={task.assignee.name} src={task.assignee.avatar} size="sm" className="flex-shrink-0 mt-0.5" />
+          )}
+        </div>
+      </Link>
+    );
+  }
+
   return (
     <Link href={`/tasks/${task.id}`}>
       <div
         className="rounded-2xl border p-5 transition-all duration-150 cursor-pointer group hover:-translate-y-0.5"
         style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}
       >
-        {/* Title */}
         <p className="text-[14px] font-semibold leading-snug line-clamp-2 mb-3"
           style={{ color: "var(--text-1)" }}>
           {task.title}
         </p>
 
-        {/* Description */}
-        {task.description && !compact && (
+        {task.description && (
           <p className="text-[12.5px] line-clamp-2 mb-3.5 leading-relaxed" style={{ color: "var(--text-3)" }}>
             {task.description}
           </p>
         )}
 
-        {/* Meta row */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <PriorityBadge priority={task.priority} />
           {task.category && (
@@ -48,7 +84,6 @@ export function TaskCard({ task, compact }: TaskCardProps) {
           )}
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-between gap-2 pt-4 border-t" style={{ borderColor: "var(--border)" }}>
           <div className="flex items-center gap-3">
             {task.dueDate && (
