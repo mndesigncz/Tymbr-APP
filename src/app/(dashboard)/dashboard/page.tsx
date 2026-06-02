@@ -6,7 +6,6 @@ import { RecentTasks } from "@/components/dashboard/RecentTasks";
 import { TaskCard } from "@/components/tasks/TaskCard";
 import { CheckSquare, Clock, AlertCircle, CheckCircle2, Plus } from "lucide-react";
 import Link from "next/link";
-import { formatDate } from "@/lib/utils";
 import type { Task } from "@/types";
 
 export default async function DashboardPage() {
@@ -91,7 +90,7 @@ export default async function DashboardPage() {
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className="xl:col-span-2 space-y-7">
-            <RecentTasks tasks={recent} title="Poslední úkoly týmu" />
+            <RecentTasks allTasks={recent} myTasks={myTasksList} />
 
             {overdueList.length > 0 && (
               <div className="rounded-3xl border" style={{ background: "var(--bg-card)", borderColor: "rgba(239,68,68,0.18)", boxShadow: "var(--shadow-sm)" }}>
@@ -112,19 +111,6 @@ export default async function DashboardPage() {
           </div>
 
           <div className="space-y-6">
-            {myTasksList.length > 0 && (
-              <div className="rounded-3xl border" style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
-                <div className="px-6 pt-6 pb-5">
-                  <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>Moje úkoly</h2>
-                </div>
-                <div className="px-6 pb-7 space-y-4">
-                  {myTasksList.map((task) => (
-                    <TaskCard key={task.id} task={task} compact />
-                  ))}
-                </div>
-              </div>
-            )}
-
             <div className="rounded-3xl border" style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
               <div className="flex items-center justify-between px-6 pt-6 pb-5">
                 <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>Kategorie</h2>

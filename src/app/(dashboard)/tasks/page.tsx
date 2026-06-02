@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Header } from "@/components/layout/Header";
 import { KanbanBoard } from "@/components/tasks/KanbanBoard";
 import { TaskCard } from "@/components/tasks/TaskCard";
@@ -31,9 +32,13 @@ const PRIORITY_OPTS = [
 
 function TasksContent() {
   const searchParams = useSearchParams();
+  const { data: session } = useSession();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"kanban" | "list">("kanban");
+  const [scope, setScope] = useState<"all" | "mine">(
+    searchParams.get("mine") === "1" ? "mine" : "all"
+  );
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     search: "",
@@ -41,7 +46,7 @@ function TasksContent() {
     priority: "",
     categoryId: searchParams.get("categoryId") || "",
   });
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string; color: string }[]>([]);
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
@@ -50,12 +55,13 @@ function TasksContent() {
     if (filters.status) params.set("status", filters.status);
     if (filters.priority) params.set("priority", filters.priority);
     if (filters.categoryId) params.set("categoryId", filters.categoryId);
+    if (scope === "mine" && session?.user?.id) params.set("assigneeId", session.user.id);
 
     const res = await fetch(`/api/tasks?${params}`);
     const data = await res.json();
     setTasks(Array.isArray(data) ? data : []);
     setLoading(false);
-  }, [filters]);
+  }, [filters, scope, session?.user?.id]);
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
@@ -75,12 +81,7 @@ function TasksContent() {
     }
   };
 
-  const catOptions = [
-    { value: "", label: "Všechny kategorie" },
-    ...categories.map((c) => ({ value: c.id, label: c.name })),
-  ];
-
-  const activeFiltersCount = [filters.status, filters.priority, filters.categoryId].filter(Boolean).length;
+  const activeFiltersCount = [filters.status, filters.priority].filter(Boolean).length;
 
   return (
     <div>
@@ -96,8 +97,32 @@ function TasksContent() {
         }
       />
 
-      <div className="px-6 lg:px-8 pt-2 pb-12 space-y-6">
+      <div className="px-6 lg:px-8 pt-2 pb-12 space-y-5">
+        {/* Scope toggle + search + view switcher */}
         <div className="flex flex-wrap items-center gap-3">
+          {/* Všechny / Moje toggle */}
+          <div className="flex items-center gap-1 p-1 rounded-xl border"
+            style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
+            <button
+              onClick={() => setScope("all")}
+              className="px-3.5 py-2 rounded-lg text-[13px] font-semibold transition-all"
+              style={scope === "all"
+                ? { background: "var(--accent)", color: "#fff" }
+                : { color: "var(--text-2)" }}
+            >
+              Všechny
+            </button>
+            <button
+              onClick={() => setScope("mine")}
+              className="px-3.5 py-2 rounded-lg text-[13px] font-semibold transition-all"
+              style={scope === "mine"
+                ? { background: "var(--accent)", color: "#fff" }
+                : { color: "var(--text-2)" }}
+            >
+              Moje
+            </button>
+          </div>
+
           <div className="flex-1 min-w-48">
             <Input
               placeholder="Hledat úkoly..."
@@ -148,6 +173,35 @@ function TasksContent() {
           </div>
         </div>
 
+        {/* Category chips */}
+        {categories.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setFilters((f) => ({ ...f, categoryId: "" }))}
+              className="px-3 py-1.5 rounded-xl text-[12.5px] font-semibold border transition-all"
+              style={!filters.categoryId
+                ? { background: "var(--text-1)", color: "#fff", borderColor: "var(--text-1)" }
+                : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}
+            >
+              Vše
+            </button>
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setFilters((f) => ({ ...f, categoryId: f.categoryId === cat.id ? "" : cat.id }))}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12.5px] font-semibold border transition-all"
+                style={filters.categoryId === cat.id
+                  ? { background: `${cat.color}18`, color: cat.color, borderColor: cat.color }
+                  : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}
+              >
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: cat.color }} />
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Advanced filters (status + priority) */}
         {showFilters && (
           <div className="flex flex-wrap gap-3 rounded-2xl border p-4"
             style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
@@ -167,17 +221,9 @@ function TasksContent() {
                 placeholder="Priorita"
               />
             </div>
-            <div className="flex-1 min-w-36">
-              <Select
-                options={catOptions}
-                value={filters.categoryId}
-                onChange={(e) => setFilters((f) => ({ ...f, categoryId: e.target.value }))}
-                placeholder="Kategorie"
-              />
-            </div>
             {activeFiltersCount > 0 && (
               <button
-                onClick={() => setFilters({ search: filters.search, status: "", priority: "", categoryId: "" })}
+                onClick={() => setFilters((f) => ({ ...f, status: "", priority: "" }))}
                 className="flex items-center gap-1 text-[13px] font-medium hover:text-red-500 transition-colors px-2"
                 style={{ color: "var(--text-3)" }}
               >
@@ -208,7 +254,7 @@ function TasksContent() {
               </div>
             )}
             {tasks.map((task) => (
-              <TaskCard key={task.id} task={task} />
+              <TaskCard key={task.id} task={task} onStatusAdvance={handleStatusChange} />
             ))}
           </div>
         )}

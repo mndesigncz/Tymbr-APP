@@ -95,7 +95,7 @@ export function KanbanBoard({ tasks, onStatusChange }: KanbanBoardProps) {
                   onDragEnd={() => { setDraggingId(null); setOverColumn(null); }}
                   className={draggingId === task.id ? "opacity-40" : ""}
                 >
-                  <TaskCard task={task} />
+                  <TaskCard task={task} onStatusAdvance={onStatusChange} />
                 </div>
               ))}
               {colTasks.length === 0 && (

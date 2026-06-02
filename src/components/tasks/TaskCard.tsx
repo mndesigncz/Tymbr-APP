@@ -4,16 +4,49 @@ import Link from "next/link";
 import { formatDate, isOverdue } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
 import { PriorityBadge } from "./PriorityBadge";
-import { Calendar, MessageSquare } from "lucide-react";
-import type { Task } from "@/types";
+import { Calendar, MessageSquare, ChevronRight } from "lucide-react";
+import type { Task, TaskStatus } from "@/types";
+import { STATUS_COLORS } from "@/types";
+
+const NEXT_STATUS: Partial<Record<TaskStatus, TaskStatus>> = {
+  todo: "in_progress",
+  in_progress: "review",
+  review: "done",
+};
+
+const NEXT_LABEL: Partial<Record<TaskStatus, string>> = {
+  todo: "Zahájit",
+  in_progress: "Ke schválení",
+  review: "Hotovo",
+};
 
 interface TaskCardProps {
   task: Task;
   compact?: boolean;
+  onStatusAdvance?: (taskId: string, newStatus: TaskStatus) => void;
 }
 
-export function TaskCard({ task, compact }: TaskCardProps) {
+export function TaskCard({ task, compact, onStatusAdvance }: TaskCardProps) {
   const overdue = task.status !== "done" && isOverdue(task.dueDate);
+  const nextStatus = NEXT_STATUS[task.status];
+
+  const AdvanceButton = nextStatus ? (
+    <button
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onStatusAdvance?.(task.id, nextStatus);
+      }}
+      className="flex items-center gap-0.5 text-[11px] font-semibold px-2 py-1 rounded-lg transition-all hover:opacity-80 flex-shrink-0 whitespace-nowrap"
+      style={{
+        background: `${STATUS_COLORS[nextStatus]}15`,
+        color: STATUS_COLORS[nextStatus],
+      }}
+    >
+      {NEXT_LABEL[task.status]}
+      <ChevronRight className="w-3 h-3" />
+    </button>
+  ) : null;
 
   if (compact) {
     return (
@@ -46,9 +79,12 @@ export function TaskCard({ task, compact }: TaskCardProps) {
               )}
             </div>
           </div>
-          {task.assignee && (
-            <Avatar name={task.assignee.name} src={task.assignee.avatar} size="sm" className="flex-shrink-0 mt-0.5" />
-          )}
+          <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
+            {onStatusAdvance && AdvanceButton}
+            {task.assignee && (
+              <Avatar name={task.assignee.name} src={task.assignee.avatar} size="sm" />
+            )}
+          </div>
         </div>
       </Link>
     );
@@ -103,9 +139,12 @@ export function TaskCard({ task, compact }: TaskCardProps) {
               <span className="text-[11.5px]" style={{ color: "var(--text-3)" }}>Bez termínu</span>
             )}
           </div>
-          {task.assignee && (
-            <Avatar name={task.assignee.name} src={task.assignee.avatar} size="sm" className="flex-shrink-0" />
-          )}
+          <div className="flex items-center gap-2">
+            {onStatusAdvance && AdvanceButton}
+            {task.assignee && (
+              <Avatar name={task.assignee.name} src={task.assignee.avatar} size="sm" className="flex-shrink-0" />
+            )}
+          </div>
         </div>
       </div>
     </Link>
