@@ -4,60 +4,58 @@ import { Header } from "@/components/layout/Header";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { RecentTasks } from "@/components/dashboard/RecentTasks";
 import { TaskCard } from "@/components/tasks/TaskCard";
-import { CheckSquare, Clock, AlertCircle, CheckCircle2, Plus } from "lucide-react";
+import { CheckSquare, Clock, AlertCircle, CheckCircle2, Plus, CheckCheck } from "lucide-react";
 import Link from "next/link";
+import { formatRelative } from "@/lib/utils";
 import type { Task } from "@/types";
+
+const taskInclude = {
+  category: true,
+  assignee: { select: { id: true, name: true, email: true, avatar: true } },
+  createdBy: { select: { id: true, name: true, email: true, avatar: true } },
+  _count: { select: { comments: true } },
+};
 
 export default async function DashboardPage() {
   const session = await getSession();
 
-  const [allTasks, myTasks, overdueTasks, categories] = await Promise.all([
+  const [allTasks, myTasks, overdueTasks, categories, doneTasks] = await Promise.all([
     prisma.task.findMany({
-      include: {
-        category: true,
-        assignee: { select: { id: true, name: true, email: true, avatar: true } },
-        createdBy: { select: { id: true, name: true, email: true, avatar: true } },
-        _count: { select: { comments: true } },
-      },
+      where: { status: { not: "done" } },
+      include: taskInclude,
       orderBy: { createdAt: "desc" },
       take: 50,
     }),
     prisma.task.findMany({
-      where: { assigneeId: session!.user.id },
-      include: {
-        category: true,
-        assignee: { select: { id: true, name: true, email: true, avatar: true } },
-        createdBy: { select: { id: true, name: true, email: true, avatar: true } },
-        _count: { select: { comments: true } },
-      },
+      where: { assigneeId: session!.user.id, status: { not: "done" } },
+      include: taskInclude,
       orderBy: { dueDate: "asc" },
-      take: 5,
+      take: 8,
     }),
     prisma.task.findMany({
-      where: {
-        dueDate: { lt: new Date() },
-        status: { not: "done" },
-      },
-      include: {
-        category: true,
-        assignee: { select: { id: true, name: true, email: true, avatar: true } },
-        createdBy: { select: { id: true, name: true, email: true, avatar: true } },
-        _count: { select: { comments: true } },
-      },
+      where: { dueDate: { lt: new Date() }, status: { not: "done" } },
+      include: taskInclude,
       orderBy: { dueDate: "asc" },
       take: 5,
     }),
     prisma.category.findMany({ include: { _count: { select: { tasks: true } } } }),
+    prisma.task.findMany({
+      where: { status: "done" },
+      include: taskInclude,
+      orderBy: { completedAt: "desc" },
+      take: 5,
+    }),
   ]);
 
   const todo = allTasks.filter((t) => t.status === "todo").length;
   const inProgress = allTasks.filter((t) => t.status === "in_progress").length;
-  const done = allTasks.filter((t) => t.status === "done").length;
   const overdueCount = overdueTasks.length;
+  const doneTotal = await prisma.task.count({ where: { status: "done" } });
 
   const recent = allTasks.slice(0, 6) as unknown as Task[];
   const myTasksList = myTasks as unknown as Task[];
   const overdueList = overdueTasks as unknown as Task[];
+  const doneList = doneTasks as unknown as Task[];
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Dobré ráno" : hour < 18 ? "Dobrý den" : "Dobrý večer";
@@ -82,10 +80,10 @@ export default async function DashboardPage() {
       <div className="px-6 lg:px-8 pt-2 pb-12 space-y-8">
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-          <StatsCard title="Celkem úkolů" value={allTasks.length} icon={CheckSquare} highlight />
-          <StatsCard title="K provedení"  value={todo}            icon={Clock}        color="#6366f1" />
-          <StatsCard title="Probíhá"      value={inProgress}      icon={CheckCircle2} color="#eab308" />
-          <StatsCard title="Po termínu"   value={overdueCount}    icon={AlertCircle}  color="#ef4444" />
+          <StatsCard title="Aktivní úkoly"  value={allTasks.length} icon={CheckSquare}  highlight />
+          <StatsCard title="K provedení"    value={todo}            icon={Clock}        color="#6366f1" />
+          <StatsCard title="Probíhá"        value={inProgress}      icon={CheckCircle2} color="#eab308" />
+          <StatsCard title="Hotovo celkem"  value={doneTotal}       icon={CheckCheck}   color="#22c55e" />
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -111,6 +109,7 @@ export default async function DashboardPage() {
           </div>
 
           <div className="space-y-6">
+            {/* Categories */}
             <div className="rounded-3xl border" style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
               <div className="flex items-center justify-between px-6 pt-6 pb-5">
                 <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>Kategorie</h2>
@@ -140,6 +139,42 @@ export default async function DashboardPage() {
                 ))}
               </div>
             </div>
+
+            {/* Done tasks */}
+            {doneList.length > 0 && (
+              <div className="rounded-3xl border" style={{ background: "var(--bg-card)", borderColor: "#22C55E20", boxShadow: "var(--shadow-sm)" }}>
+                <div className="flex items-center justify-between px-6 pt-6 pb-5">
+                  <div className="flex items-center gap-2">
+                    <CheckCheck className="w-[18px] h-[18px]" style={{ color: "#22C55E" }} />
+                    <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>Hotové</h2>
+                    <span className="text-[11.5px] font-semibold px-2 py-0.5 rounded-md"
+                      style={{ background: "#22C55E15", color: "#22C55E" }}>{doneTotal}</span>
+                  </div>
+                  <Link href="/tasks?tab=done" className="text-[13px] font-semibold hover:opacity-80 transition-opacity"
+                    style={{ color: "var(--accent)" }}>
+                    Vše
+                  </Link>
+                </div>
+                <div className="px-4 pb-5 space-y-1">
+                  {doneList.map((task) => (
+                    <Link key={task.id} href={`/tasks/${task.id}`}
+                      className="flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors hover:bg-black/[0.03]">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <CheckCheck className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#22C55E" }} />
+                        <span className="text-[13px] font-medium line-clamp-1" style={{ color: "var(--text-1)" }}>
+                          {task.title}
+                        </span>
+                      </div>
+                      {task.completedAt && (
+                        <span className="text-[11px] flex-shrink-0 ml-2" style={{ color: "var(--text-3)" }}>
+                          {formatRelative(task.completedAt)}
+                        </span>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

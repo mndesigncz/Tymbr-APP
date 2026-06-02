@@ -1,0 +1,107 @@
+"use client";
+
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+
+export interface ActiveEntry {
+  id: string;
+  taskId: string;
+  taskTitle: string;
+  categoryColor?: string;
+  startedAt: string;
+}
+
+interface TimeTrackerState {
+  active: ActiveEntry | null;
+  elapsed: number;
+  isLoading: boolean;
+  start: (taskId: string, taskTitle: string, categoryColor?: string) => Promise<void>;
+  stop: () => Promise<void>;
+}
+
+const TimeTrackerContext = createContext<TimeTrackerState>({
+  active: null,
+  elapsed: 0,
+  isLoading: false,
+  start: async () => {},
+  stop: async () => {},
+});
+
+export function TimeTrackerProvider({ children }: { children: React.ReactNode }) {
+  const [active, setActive] = useState<ActiveEntry | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    fetch("/api/time-entries/active")
+      .then((r) => r.json())
+      .then((entry) => {
+        if (entry?.id) {
+          setActive({
+            id: entry.id,
+            taskId: entry.taskId,
+            taskTitle: entry.task?.title ?? "",
+            categoryColor: entry.task?.category?.color,
+            startedAt: entry.startedAt,
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    if (active) {
+      const calc = () => Math.floor((Date.now() - new Date(active.startedAt).getTime()) / 1000);
+      setElapsed(calc());
+      intervalRef.current = setInterval(() => setElapsed(calc()), 1000);
+    } else {
+      setElapsed(0);
+    }
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [active]);
+
+  const start = async (taskId: string, taskTitle: string, categoryColor?: string) => {
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/time-entries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskId }),
+      });
+      if (res.ok) {
+        const entry = await res.json();
+        setActive({ id: entry.id, taskId, taskTitle, categoryColor, startedAt: entry.startedAt });
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const stop = async () => {
+    if (!active) return;
+    setIsLoading(true);
+    try {
+      await fetch(`/api/time-entries/${active.id}`, { method: "PATCH" });
+      setActive(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <TimeTrackerContext.Provider value={{ active, elapsed, isLoading, start, stop }}>
+      {children}
+    </TimeTrackerContext.Provider>
+  );
+}
+
+export const useTimeTracker = () => useContext(TimeTrackerContext);
+
+export function formatElapsed(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}

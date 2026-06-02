@@ -11,7 +11,7 @@ interface RecentTasksProps {
 }
 
 export function RecentTasks({ allTasks, myTasks }: RecentTasksProps) {
-  const [view, setView] = useState<"all" | "mine">("all");
+  const [view, setView] = useState<"all" | "mine">("mine");
   const [state, setState] = useState({ all: allTasks, mine: myTasks });
 
   const visible = view === "all" ? state.all : state.mine;

@@ -44,6 +44,7 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
     startDate: task?.startDate ? new Date(task.startDate).toISOString().slice(0, 10) : "",
     categoryId: task?.categoryId || "",
     assigneeId: task?.assigneeId || "",
+    hourlyRate: task?.hourlyRate ? String(task.hourlyRate) : "",
   });
 
   useEffect(() => {
@@ -78,6 +79,7 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
           startDate: form.startDate || null,
           categoryId: form.categoryId || null,
           assigneeId: form.assigneeId || null,
+          hourlyRate: form.hourlyRate ? Number(form.hourlyRate) : null,
         }),
       });
       if (!res.ok) {
@@ -160,6 +162,16 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
           placeholder="Nikomu"
         />
       </div>
+
+      <Input
+        label="Hodinová sazba (Kč/h)"
+        type="number"
+        placeholder="Např. 500"
+        value={form.hourlyRate}
+        onChange={set("hourlyRate")}
+        min="0"
+        step="10"
+      />
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 

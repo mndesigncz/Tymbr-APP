@@ -5,12 +5,14 @@ import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
-import { LayoutDashboard, CheckSquare, Tag, Settings, LogOut } from "lucide-react";
+import { TimeTracker } from "./TimeTracker";
+import { LayoutDashboard, CheckSquare, Tag, Settings, LogOut, Clock } from "lucide-react";
 
 const navItems = [
   { href: "/dashboard",  icon: LayoutDashboard, label: "Přehled"   },
   { href: "/tasks",      icon: CheckSquare,     label: "Úkoly"     },
   { href: "/categories", icon: Tag,             label: "Kategorie" },
+  { href: "/time",       icon: Clock,           label: "Výkazy"    },
   { href: "/settings",   icon: Settings,        label: "Nastavení" },
 ];
 
@@ -60,8 +62,11 @@ export function Sidebar() {
         })}
       </nav>
 
+      {/* Time tracker widget */}
+      <TimeTracker />
+
       {/* User card */}
-      <div className="mt-2">
+      <div className="mt-1">
         {session?.user && (
           <div className="flex items-center gap-3 px-3 py-3 rounded-2xl mb-1"
             style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-sm)" }}>

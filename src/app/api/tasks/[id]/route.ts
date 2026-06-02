@@ -29,7 +29,21 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params;
   try {
     const body = await req.json();
-    const { title, description, status, priority, dueDate, startDate, categoryId, assigneeId } = body;
+    const { title, description, status, priority, dueDate, startDate, categoryId, assigneeId, hourlyRate } = body;
+
+    // Determine completedAt based on status change
+    let completedAtUpdate: { completedAt: Date | null } | undefined;
+    if (status !== undefined) {
+      if (status === "done") {
+        // Only set completedAt if not already set
+        const existing = await prisma.task.findUnique({ where: { id }, select: { completedAt: true } });
+        if (!existing?.completedAt) {
+          completedAtUpdate = { completedAt: new Date() };
+        }
+      } else {
+        completedAtUpdate = { completedAt: null };
+      }
+    }
 
     const task = await prisma.task.update({
       where: { id },
@@ -42,6 +56,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         ...(startDate !== undefined && { startDate: startDate ? new Date(startDate) : null }),
         ...(categoryId !== undefined && { categoryId: categoryId || null }),
         ...(assigneeId !== undefined && { assigneeId: assigneeId || null }),
+        ...(hourlyRate !== undefined && { hourlyRate: hourlyRate ? Number(hourlyRate) : null }),
+        ...completedAtUpdate,
       },
       include: taskInclude,
     });

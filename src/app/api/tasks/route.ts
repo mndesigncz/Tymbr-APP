@@ -19,6 +19,8 @@ export async function GET(req: NextRequest) {
   const assigneeId = searchParams.get("assigneeId");
   const priority = searchParams.get("priority");
   const search = searchParams.get("search");
+  const completedFrom = searchParams.get("completedFrom");
+  const completedTo = searchParams.get("completedTo");
 
   const where: Record<string, any> = {};
   if (status) where.status = status;
@@ -30,6 +32,11 @@ export async function GET(req: NextRequest) {
       { title: { contains: search } },
       { description: { contains: search } },
     ];
+  }
+  if (completedFrom || completedTo) {
+    where.completedAt = {};
+    if (completedFrom) where.completedAt.gte = new Date(completedFrom);
+    if (completedTo) where.completedAt.lte = new Date(completedTo);
   }
 
   const tasks = await prisma.task.findMany({
@@ -46,7 +53,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { title, description, status, priority, dueDate, startDate, categoryId, assigneeId } = body;
+    const { title, description, status, priority, dueDate, startDate, categoryId, assigneeId, hourlyRate } = body;
 
     if (!title) return NextResponse.json({ error: "Název je povinný" }, { status: 400 });
 
@@ -60,6 +67,8 @@ export async function POST(req: NextRequest) {
         startDate: startDate ? new Date(startDate) : null,
         categoryId: categoryId || null,
         assigneeId: assigneeId || null,
+        hourlyRate: hourlyRate ? Number(hourlyRate) : null,
+        completedAt: status === "done" ? new Date() : null,
         createdById: session.user.id,
       },
       include: taskInclude,

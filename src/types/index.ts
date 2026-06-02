@@ -28,6 +28,8 @@ export interface Task {
   priority: TaskPriority;
   dueDate?: Date | null;
   startDate?: Date | null;
+  completedAt?: Date | string | null;
+  hourlyRate?: number | null;
   createdAt: Date;
   updatedAt: Date;
   categoryId?: string | null;
@@ -37,6 +39,7 @@ export interface Task {
   assigneeId?: string | null;
   assignee?: User | null;
   comments?: Comment[];
+  timeEntries?: TimeEntry[];
   _count?: { comments: number };
 }
 
@@ -47,6 +50,17 @@ export interface Comment {
   taskId: string;
   userId: string;
   user?: User;
+}
+
+export interface TimeEntry {
+  id: string;
+  startedAt: Date | string;
+  stoppedAt?: Date | string | null;
+  durationMinutes?: number | null;
+  createdAt: Date | string;
+  userId: string;
+  taskId: string;
+  task?: Task;
 }
 
 export const STATUS_LABELS: Record<TaskStatus, string> = {

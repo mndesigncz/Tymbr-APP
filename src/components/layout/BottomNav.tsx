@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, CheckSquare, Tag, Settings } from "lucide-react";
+import { LayoutDashboard, CheckSquare, Tag, Clock, Settings } from "lucide-react";
 
 const navItems = [
   { href: "/dashboard",  icon: LayoutDashboard, label: "Přehled"   },
   { href: "/tasks",      icon: CheckSquare,     label: "Úkoly"     },
   { href: "/categories", icon: Tag,             label: "Kategorie" },
+  { href: "/time",       icon: Clock,           label: "Výkazy"    },
   { href: "/settings",   icon: Settings,        label: "Nastavení" },
 ];
 
@@ -28,8 +29,8 @@ export function BottomNav() {
               className="flex-1 flex flex-col items-center gap-1 py-3 transition-colors"
               style={{ color: active ? "var(--accent)" : "var(--text-3)" }}
             >
-              <Icon className={cn("w-[22px] h-[22px]", active && "stroke-[2.4]")} />
-              <span className="text-[10px] font-medium">{label}</span>
+              <Icon className={cn("w-[20px] h-[20px]", active && "stroke-[2.4]")} />
+              <span className="text-[9.5px] font-medium">{label}</span>
             </Link>
           );
         })}

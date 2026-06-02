@@ -17,9 +17,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tasksCreated  Task[]    @relation("TaskCreator")
-  tasksAssigned Task[]    @relation("TaskAssignee")
+  tasksCreated  Task[]      @relation("TaskCreator")
+  tasksAssigned Task[]      @relation("TaskAssignee")
   comments      Comment[]
+  timeEntries   TimeEntry[]
 }
 
 model Category {
@@ -40,6 +41,8 @@ model Task {
   priority    String    @default("medium")
   dueDate     DateTime?
   startDate   DateTime?
+  completedAt DateTime?
+  hourlyRate  Float?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -52,7 +55,8 @@ model Task {
   assigneeId String?
   assignee   User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
 
-  comments Comment[]
+  comments    Comment[]
+  timeEntries TimeEntry[]
 }
 
 model Comment {
@@ -65,4 +69,18 @@ model Comment {
 
   userId String
   user   User   @relation(fields: [userId], references: [id])
+}
+
+model TimeEntry {
+  id              String    @id @default(cuid())
+  startedAt       DateTime  @default(now())
+  stoppedAt       DateTime?
+  durationMinutes Int?
+  createdAt       DateTime  @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 }

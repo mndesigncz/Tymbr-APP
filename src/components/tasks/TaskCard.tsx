@@ -53,7 +53,7 @@ export function TaskCard({ task, compact, onStatusAdvance }: TaskCardProps) {
       <Link href={`/tasks/${task.id}`} className="block">
         <div
           className="flex items-start justify-between gap-3 px-4 py-4 rounded-2xl transition-colors cursor-pointer hover:opacity-90"
-          style={{ background: "var(--bg-subtle)" }}
+          style={{ background: task.status === "done" ? "#22C55E0E" : "var(--bg-subtle)" }}
         >
           <div className="flex-1 min-w-0">
             <p className="text-[13.5px] font-semibold leading-snug line-clamp-1 mb-2"
@@ -94,7 +94,11 @@ export function TaskCard({ task, compact, onStatusAdvance }: TaskCardProps) {
     <Link href={`/tasks/${task.id}`} className="block">
       <div
         className="rounded-2xl border p-5 transition-all duration-150 cursor-pointer group hover:-translate-y-0.5"
-        style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}
+        style={{
+          background: task.status === "done" ? "#22C55E08" : "var(--bg-card)",
+          borderColor: task.status === "done" ? "#22C55E30" : "var(--border)",
+          boxShadow: "var(--shadow-sm)",
+        }}
       >
         <p className="text-[14px] font-semibold leading-snug line-clamp-2 mb-3"
           style={{ color: "var(--text-1)" }}>
