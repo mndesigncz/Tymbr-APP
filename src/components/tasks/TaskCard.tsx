@@ -17,7 +17,7 @@ export function TaskCard({ task, compact }: TaskCardProps) {
 
   if (compact) {
     return (
-      <Link href={`/tasks/${task.id}`}>
+      <Link href={`/tasks/${task.id}`} className="block">
         <div
           className="flex items-start justify-between gap-3 px-4 py-4 rounded-2xl transition-colors cursor-pointer hover:opacity-90"
           style={{ background: "var(--bg-subtle)" }}
@@ -55,7 +55,7 @@ export function TaskCard({ task, compact }: TaskCardProps) {
   }
 
   return (
-    <Link href={`/tasks/${task.id}`}>
+    <Link href={`/tasks/${task.id}`} className="block">
       <div
         className="rounded-2xl border p-5 transition-all duration-150 cursor-pointer group hover:-translate-y-0.5"
         style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}
