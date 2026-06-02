@@ -78,16 +78,17 @@ export default function CategoriesPage() {
         title="Kategorie"
         subtitle="Spravujte kategorie úkolů"
         actions={
-          <Button icon={<Plus className="w-4 h-4" />} size="sm" onClick={openNew}>
+          <Button icon={<Plus className="w-4 h-4" />} onClick={openNew}>
             <span className="hidden sm:inline">Nová kategorie</span>
           </Button>
         }
       />
 
-      <div className="p-6">
+      <div className="px-6 lg:px-8 pt-6 pb-10">
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+          <div className="flex items-center justify-center py-24">
+            <div className="w-7 h-7 border-[2.5px] rounded-full animate-spin"
+              style={{ borderColor: "var(--accent)", borderTopColor: "transparent" }} />
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -118,14 +119,14 @@ export default function CategoriesPage() {
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => openEdit(cat)}
-                      className="p-1.5 rounded-md transition-colors hover:text-white"
+                      className="p-1.5 rounded-lg transition-colors hover:bg-black/[0.05] hover:text-[var(--text-1)]"
                       style={{ color: "var(--text-3)" }}
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => handleDelete(cat.id)}
-                      className="p-1.5 rounded-md transition-colors hover:text-red-400"
+                      className="p-1.5 rounded-lg transition-colors hover:bg-red-50 hover:text-red-500"
                       style={{ color: "var(--text-3)" }}
                     >
                       <Trash2 className="w-3.5 h-3.5" />

@@ -56,59 +56,51 @@ export function KanbanBoard({ tasks, onStatusChange }: KanbanBoardProps) {
         return (
           <div
             key={status}
-            className="flex flex-col"
+            className="flex flex-col rounded-3xl p-3 transition-all"
+            style={isOver
+              ? { background: "var(--accent-soft)", outline: "2px dashed var(--accent)", outlineOffset: "-2px" }
+              : { background: "var(--bg-subtle)" }
+            }
             onDragOver={(e) => handleDragOver(e, status)}
             onDrop={(e) => handleDrop(e, status)}
             onDragLeave={() => setOverColumn(null)}
           >
             {/* Column header */}
-            <div className="flex items-center justify-between mb-3 px-0.5">
+            <div className="flex items-center justify-between mb-3 px-1.5">
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-                <span className="text-[12.5px] font-medium" style={{ color: "var(--text-2)" }}>
+                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
+                <span className="text-[13px] font-semibold" style={{ color: "var(--text-1)" }}>
                   {STATUS_LABELS[status]}
                 </span>
-                <span
-                  className="text-[11px] px-1.5 py-0.5 rounded font-medium"
-                  style={{ background: "var(--bg-card)", color: "var(--text-3)" }}
-                >
+                <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md"
+                  style={{ background: "var(--bg-card)", color: "var(--text-3)" }}>
                   {colTasks.length}
                 </span>
               </div>
               <Link href={`/tasks/new?status=${status}`}>
-                <button
-                  className="p-1 rounded-md transition-colors"
-                  style={{ color: "var(--text-3)" }}
-                  onMouseEnter={e => (e.currentTarget.style.color = "var(--text-1)")}
-                  onMouseLeave={e => (e.currentTarget.style.color = "var(--text-3)")}
-                >
-                  <Plus className="w-3.5 h-3.5" />
+                <button className="p-1.5 rounded-lg transition-colors hover:bg-black/[0.05]"
+                  style={{ color: "var(--text-2)" }}>
+                  <Plus className="w-4 h-4" />
                 </button>
               </Link>
             </div>
 
             {/* Column body */}
-            <div
-              className="flex-1 flex flex-col gap-2.5 min-h-[160px] p-2 rounded-xl border transition-all"
-              style={isOver
-                ? { background: "rgba(249,115,22,0.04)", borderColor: "rgba(249,115,22,0.3)", borderStyle: "dashed" }
-                : { background: "var(--bg-surface)", borderColor: "var(--border)" }
-              }
-            >
+            <div className="flex-1 flex flex-col gap-3 min-h-[120px]">
               {colTasks.map((task) => (
                 <div
                   key={task.id}
                   draggable
                   onDragStart={(e) => handleDragStart(e, task.id)}
                   onDragEnd={() => { setDraggingId(null); setOverColumn(null); }}
-                  className={draggingId === task.id ? "opacity-30" : ""}
+                  className={draggingId === task.id ? "opacity-40" : ""}
                 >
                   <TaskCard task={task} />
                 </div>
               ))}
               {colTasks.length === 0 && (
-                <div className="flex-1 flex items-center justify-center py-8">
-                  <span className="text-[12px]" style={{ color: "var(--text-3)" }}>Prázdné</span>
+                <div className="flex-1 flex items-center justify-center py-10">
+                  <span className="text-[12.5px]" style={{ color: "var(--text-3)" }}>Prázdné</span>
                 </div>
               )}
             </div>

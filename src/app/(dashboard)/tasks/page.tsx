@@ -86,17 +86,17 @@ function TasksContent() {
     <div>
       <Header
         title="Úkoly"
-        subtitle="Sdílená nástěnka týmu"
+        subtitle="Sdílená nástěnka celého týmu"
         actions={
           <Link href="/tasks/new">
-            <Button icon={<Plus className="w-4 h-4" />} size="sm">
+            <Button icon={<Plus className="w-4 h-4" />}>
               <span className="hidden sm:inline">Nový úkol</span>
             </Button>
           </Link>
         }
       />
 
-      <div className="p-6 space-y-4">
+      <div className="px-6 lg:px-8 pt-6 pb-10 space-y-5">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex-1 min-w-48">
             <Input
@@ -109,31 +109,39 @@ function TasksContent() {
 
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border transition-all ${
-              showFilters || activeFiltersCount > 0
-                ? "bg-orange-500/10 border-orange-500/30 text-orange-400"
-                : "bg-[#1a1a1a] border-[#2d2d2d] text-gray-400 hover:text-white"
-            }`}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13.5px] font-medium border transition-all hover:bg-black/[0.03]"
+            style={showFilters || activeFiltersCount > 0
+              ? { background: "var(--accent-soft)", borderColor: "var(--accent)", color: "var(--accent)" }
+              : { background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-2)" }
+            }
           >
             <SlidersHorizontal className="w-4 h-4" />
             Filtry
             {activeFiltersCount > 0 && (
-              <span className="bg-orange-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center">
+              <span className="text-white text-[11px] font-semibold w-4 h-4 rounded-full flex items-center justify-center"
+                style={{ background: "var(--accent)" }}>
                 {activeFiltersCount}
               </span>
             )}
           </button>
 
-          <div className="flex items-center gap-1 bg-[#1a1a1a] border border-[#2d2d2d] rounded-xl p-1">
+          <div className="flex items-center gap-1 rounded-xl p-1 border"
+            style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
             <button
               onClick={() => setView("kanban")}
-              className={`p-1.5 rounded-lg transition-all ${view === "kanban" ? "bg-orange-500 text-white" : "text-gray-400 hover:text-white"}`}
+              className="p-2 rounded-lg transition-all"
+              style={view === "kanban"
+                ? { background: "var(--accent)", color: "#fff" }
+                : { color: "var(--text-3)" }}
             >
               <LayoutGrid className="w-4 h-4" />
             </button>
             <button
               onClick={() => setView("list")}
-              className={`p-1.5 rounded-lg transition-all ${view === "list" ? "bg-orange-500 text-white" : "text-gray-400 hover:text-white"}`}
+              className="p-2 rounded-lg transition-all"
+              style={view === "list"
+                ? { background: "var(--accent)", color: "#fff" }
+                : { color: "var(--text-3)" }}
             >
               <List className="w-4 h-4" />
             </button>
@@ -141,7 +149,8 @@ function TasksContent() {
         </div>
 
         {showFilters && (
-          <div className="flex flex-wrap gap-3 bg-[#1a1a1a] border border-[#2d2d2d] rounded-2xl p-4">
+          <div className="flex flex-wrap gap-3 rounded-2xl border p-4"
+            style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
             <div className="flex-1 min-w-36">
               <Select
                 options={STATUS_OPTS}
@@ -169,28 +178,30 @@ function TasksContent() {
             {activeFiltersCount > 0 && (
               <button
                 onClick={() => setFilters({ search: filters.search, status: "", priority: "", categoryId: "" })}
-                className="flex items-center gap-1 text-sm text-gray-400 hover:text-red-400 transition-colors px-2"
+                className="flex items-center gap-1 text-[13px] font-medium hover:text-red-500 transition-colors px-2"
+                style={{ color: "var(--text-3)" }}
               >
                 <X className="w-4 h-4" />
-                Vymazat filtry
+                Vymazat
               </button>
             )}
           </div>
         )}
 
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+          <div className="flex items-center justify-center py-24">
+            <div className="w-7 h-7 border-[2.5px] rounded-full animate-spin"
+              style={{ borderColor: "var(--accent)", borderTopColor: "transparent" }} />
           </div>
         ) : view === "kanban" ? (
           <KanbanBoard tasks={tasks} onStatusChange={handleStatusChange} />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {tasks.length === 0 && (
-              <div className="col-span-full flex flex-col items-center justify-center py-20 text-gray-500">
-                <CheckSquareIcon className="w-12 h-12 mb-3 text-gray-700" />
-                <p className="text-lg font-medium">Žádné úkoly</p>
-                <p className="text-sm mt-1">Vytvořte první úkol kliknutím na tlačítko</p>
+              <div className="col-span-full flex flex-col items-center justify-center py-24" style={{ color: "var(--text-3)" }}>
+                <CheckSquareIcon className="w-12 h-12 mb-3 opacity-40" />
+                <p className="text-[15px] font-semibold" style={{ color: "var(--text-2)" }}>Žádné úkoly</p>
+                <p className="text-[13px] mt-1">Vytvořte první úkol kliknutím na tlačítko</p>
                 <Link href="/tasks/new" className="mt-4">
                   <Button icon={<Plus className="w-4 h-4" />}>Nový úkol</Button>
                 </Link>

@@ -10,8 +10,8 @@ interface BadgeProps {
 export function Badge({ children, color, className, dot }: BadgeProps) {
   return (
     <span
-      className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium", className)}
-      style={color ? { backgroundColor: `${color}18`, color } : undefined}
+      className={cn("inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[11.5px] font-medium", className)}
+      style={color ? { backgroundColor: `${color}16`, color } : undefined}
     >
       {dot && (
         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={color ? { backgroundColor: color } : undefined} />

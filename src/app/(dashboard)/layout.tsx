@@ -14,7 +14,7 @@ export default async function DashboardLayout({
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg-page)" }}>
       <Sidebar />
-      <main className="flex-1 overflow-y-auto pb-20 lg:pb-0">
+      <main className="flex-1 overflow-y-auto pb-24 lg:pb-0">
         {children}
       </main>
       <BottomNav />

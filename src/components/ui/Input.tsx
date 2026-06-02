@@ -11,21 +11,20 @@ export function Input({ label, error, icon, className, ...props }: InputProps) {
   return (
     <div className="flex flex-col gap-1.5">
       {label && (
-        <label className="text-[12px] font-medium" style={{ color: "var(--text-2)" }}>{label}</label>
+        <label className="text-[13px] font-medium" style={{ color: "var(--text-2)" }}>{label}</label>
       )}
       <div className="relative">
         {icon && (
-          <div className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "var(--text-3)" }}>
+          <div className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--text-3)" }}>
             {icon}
           </div>
         )}
         <input
           className={cn(
-            "w-full border rounded-lg px-3 py-2 text-[13px] transition-colors",
-            "placeholder:opacity-40",
-            "focus:outline-none",
-            icon && "pl-9",
-            error && "border-red-500/60",
+            "w-full border rounded-xl px-3.5 py-2.5 text-[14px] transition-all",
+            "placeholder:text-[var(--text-3)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]",
+            icon && "pl-10",
+            error && "border-red-400",
             className
           )}
           style={{
@@ -36,7 +35,7 @@ export function Input({ label, error, icon, className, ...props }: InputProps) {
           {...props}
         />
       </div>
-      {error && <span className="text-[11px] text-red-400">{error}</span>}
+      {error && <span className="text-[12px] text-red-500">{error}</span>}
     </div>
   );
 }

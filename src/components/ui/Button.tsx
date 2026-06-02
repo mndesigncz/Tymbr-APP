@@ -22,37 +22,38 @@ export function Button({
   ...props
 }: ButtonProps) {
   const base =
-    "inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer";
+    "inline-flex items-center justify-center gap-2 font-medium rounded-xl transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer";
 
   const variants: Record<string, string> = {
-    primary:   "bg-orange-500 hover:bg-orange-600 text-white",
-    secondary: "hover:text-white border",
-    ghost:     "hover:text-white",
-    danger:    "text-red-400 hover:text-red-300",
-    outline:   "border hover:text-white",
+    primary:   "text-white shadow-sm hover:opacity-90",
+    secondary: "border hover:bg-black/[0.03]",
+    ghost:     "hover:bg-black/[0.04]",
+    danger:    "text-red-500 hover:bg-red-50",
+    outline:   "border hover:bg-black/[0.03]",
   };
 
   const variantStyles: Record<string, React.CSSProperties> = {
-    secondary: { background: "var(--bg-hover)", borderColor: "var(--border)", color: "var(--text-2)" },
+    primary:   { background: "var(--accent)" },
+    secondary: { background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" },
     ghost:     { color: "var(--text-2)" },
     danger:    {},
     outline:   { borderColor: "var(--border-md)", color: "var(--text-2)" },
   };
 
   const sizes = {
-    sm: "px-3 py-1.5 text-[13px]",
-    md: "px-4 py-2 text-[13px]",
-    lg: "px-5 py-2.5 text-[14px]",
+    sm: "px-3.5 py-2 text-[13px]",
+    md: "px-4 py-2.5 text-[13.5px]",
+    lg: "px-5 py-3 text-[14px]",
   };
 
   return (
     <button
       className={cn(base, variants[variant], sizes[size], className)}
-      style={variant !== "primary" && variant !== "danger" ? variantStyles[variant] : undefined}
+      style={variant !== "danger" ? variantStyles[variant] : undefined}
       disabled={disabled || loading}
       {...props}
     >
-      {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : icon}
+      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : icon}
       {children}
     </button>
   );
