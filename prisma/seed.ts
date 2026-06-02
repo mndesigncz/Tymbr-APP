@@ -1,15 +1,9 @@
 import { PrismaClient } from "../src/generated/prisma/client";
-import { PrismaLibSql } from "@prisma/adapter-libsql";
-import { createClient } from "@libsql/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 
-const url = process.env.DATABASE_URL || "file:dev.db";
-const authToken = process.env.DATABASE_AUTH_TOKEN;
-
 const prisma = new PrismaClient({
-  adapter: new PrismaLibSql(
-    authToken ? { url, authToken } : { url }
-  ),
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
 } as any);
 
 async function main() {
@@ -48,61 +42,48 @@ async function main() {
   const tasks = [
     {
       title: "Redesign hlavní stránky",
-      description: "Kompletní přepracování vizuálu hlavní stránky webu. Nový layout, moderní design, responsivita.",
-      status: "in_progress",
-      priority: "high",
-      categoryId: design.id,
-      assigneeId: member.id,
+      description: "Kompletní přepracování vizuálu hlavní stránky webu.",
+      status: "in_progress", priority: "high",
+      categoryId: design.id, assigneeId: member.id,
       dueDate: new Date(Date.now() + 7 * 24 * 3600 * 1000),
     },
     {
       title: "Implementace platební brány",
-      description: "Integrace Stripe pro zpracování plateb. Testovací prostředí + produkce.",
-      status: "todo",
-      priority: "urgent",
-      categoryId: dev.id,
-      assigneeId: admin.id,
+      description: "Integrace Stripe pro zpracování plateb.",
+      status: "todo", priority: "urgent",
+      categoryId: dev.id, assigneeId: admin.id,
       dueDate: new Date(Date.now() + 3 * 24 * 3600 * 1000),
     },
     {
       title: "Příprava marketingové kampaně",
-      description: "Plán kampaně na sociálních sítích pro launch nové verze produktu.",
-      status: "todo",
-      priority: "medium",
+      description: "Plán kampaně na sociálních sítích.",
+      status: "todo", priority: "medium",
       categoryId: marketing.id,
       dueDate: new Date(Date.now() + 14 * 24 * 3600 * 1000),
     },
     {
       title: "Oprava chyby v přihlašování",
-      description: "Uživatelé hlásí problémy s přihlášením přes mobilní zařízení.",
-      status: "done",
-      priority: "urgent",
-      categoryId: dev.id,
-      assigneeId: admin.id,
+      description: "Uživatelé hlásí problémy s přihlášením na mobilu.",
+      status: "done", priority: "urgent",
+      categoryId: dev.id, assigneeId: admin.id,
     },
     {
       title: "Newsletter pro zákazníky",
-      description: "Měsíční newsletter s novinkami produktu a tipy pro uživatele.",
-      status: "review",
-      priority: "low",
-      categoryId: marketing.id,
-      assigneeId: member.id,
+      description: "Měsíční newsletter s novinkami produktu.",
+      status: "review", priority: "low",
+      categoryId: marketing.id, assigneeId: member.id,
       dueDate: new Date(Date.now() + 2 * 24 * 3600 * 1000),
     },
     {
       title: "Vytvoření design systému",
-      description: "Dokumentace a komponenty pro konzistentní UI napříč produkty.",
-      status: "in_progress",
-      priority: "medium",
-      categoryId: design.id,
-      assigneeId: member.id,
+      description: "Dokumentace a komponenty pro konzistentní UI.",
+      status: "in_progress", priority: "medium",
+      categoryId: design.id, assigneeId: member.id,
     },
   ];
 
   for (const t of tasks) {
-    await prisma.task.create({
-      data: { ...t, createdById: admin.id },
-    });
+    await prisma.task.create({ data: { ...t, createdById: admin.id } });
   }
 
   console.log("Seed done! Login: admin@tymbr.cz / demo1234");
