@@ -1,10 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { Header } from "@/components/layout/Header";
 import { Avatar } from "@/components/ui/Avatar";
+import { MessageContent } from "@/components/chat/MessageContent";
 import { Send, MessageSquare, Users } from "lucide-react";
+import type { Task } from "@/types";
+import { STATUS_COLORS } from "@/types";
 
 interface ChatMessage {
   id: string;
@@ -36,6 +39,13 @@ function formatDay(d: string) {
   return date.toLocaleDateString("cs-CZ", { day: "numeric", month: "long" });
 }
 
+function detectMention(text: string, cursorPos: number): { query: string; start: number } | null {
+  const before = text.slice(0, cursorPos);
+  const match = /@([^\s@]*)$/.exec(before);
+  if (!match) return null;
+  return { query: match[1], start: match.index };
+}
+
 export default function ChatPage() {
   const { data: session } = useSession();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -43,18 +53,59 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
-  const [activeDM, setActiveDM] = useState<string | null>(null); // null = team chat
+  const [activeDM, setActiveDM] = useState<string | null>(null);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [mention, setMention] = useState<{ query: string; start: number } | null>(null);
+  const [mentionIdx, setMentionIdx] = useState(0);
   const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const lastTimestamp = useRef<string | null>(null);
   const myId = session?.user?.id;
 
   const scrollToBottom = () => endRef.current?.scrollIntoView({ behavior: "smooth" });
 
+  // Mark chat as visited for unread tracking
+  useEffect(() => {
+    try { localStorage.setItem("chatLastVisit", new Date().toISOString()); } catch {}
+  }, []);
+
   useEffect(() => {
     fetch("/api/users").then((r) => r.json()).then((d) => {
       if (Array.isArray(d)) setMembers(d.filter((m: Member) => m.id !== myId));
     });
+    fetch("/api/tasks").then((r) => r.json()).then((d) => {
+      if (Array.isArray(d)) setTasks(d);
+    });
   }, [myId]);
+
+  const tasksById = useMemo(() => {
+    const m: Record<string, Task> = {};
+    for (const t of tasks) m[t.id] = t;
+    return m;
+  }, [tasks]);
+
+  const mentionResults = useMemo(() => {
+    if (!mention) return [];
+    const q = mention.query.toLowerCase();
+    return tasks
+      .filter((t) => t.title.toLowerCase().includes(q))
+      .sort((a, b) => {
+        if (a.status === "done" && b.status !== "done") return 1;
+        if (b.status === "done" && a.status !== "done") return -1;
+        return a.title.localeCompare(b.title, "cs");
+      })
+      .slice(0, 6);
+  }, [tasks, mention]);
+
+  const selectMentionTask = useCallback((task: Task) => {
+    if (!mention) return;
+    const before = input.slice(0, mention.start);
+    const after = input.slice(mention.start + 1 + mention.query.length);
+    setInput(before + `[[task:${task.id}]]` + after);
+    setMention(null);
+    setMentionIdx(0);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }, [mention, input]);
 
   const loadMessages = useCallback(async (recipientId: string | null) => {
     setLoading(true);
@@ -86,6 +137,8 @@ export default function ChatPage() {
       });
       lastTimestamp.current = list[list.length - 1].createdAt;
       setTimeout(scrollToBottom, 50);
+      // Update last-visit so unread indicator doesn't trigger for current conversation
+      try { localStorage.setItem("chatLastVisit", new Date().toISOString()); } catch {}
     }
   }, [activeDM]);
 
@@ -96,12 +149,51 @@ export default function ChatPage() {
     return () => clearInterval(interval);
   }, [poll]);
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setInput(val);
+    const cursor = e.target.selectionStart ?? val.length;
+    const m = detectMention(val, cursor);
+    setMention(m);
+    setMentionIdx(0);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (mention && mentionResults.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setMentionIdx((i) => Math.min(i + 1, mentionResults.length - 1));
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setMentionIdx((i) => Math.max(i - 1, 0));
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        selectMentionTask(mentionResults[mentionIdx]);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setMention(null);
+        return;
+      }
+    }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      send(e as unknown as React.FormEvent);
+    }
+  };
+
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || sending) return;
     setSending(true);
     const content = input.trim();
     setInput("");
+    setMention(null);
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -112,6 +204,7 @@ export default function ChatPage() {
       setMessages((prev) => [...prev, msg]);
       lastTimestamp.current = msg.createdAt;
       setTimeout(scrollToBottom, 50);
+      try { localStorage.setItem("chatLastVisit", new Date().toISOString()); } catch {}
     }
     setSending(false);
   };
@@ -214,7 +307,11 @@ export default function ChatPage() {
                             style={isMe
                               ? { background: "var(--accent)", color: "#fff", borderBottomRightRadius: "4px" }
                               : { background: "var(--bg-subtle)", color: "var(--text-1)", borderBottomLeftRadius: "4px" }}>
-                            <p className="text-[13.5px] leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
+                            <MessageContent
+                              content={msg.content}
+                              tasksById={tasksById}
+                              textColor={isMe ? "#fff" : undefined}
+                            />
                           </div>
                           <span className="text-[10.5px] mt-1 px-1" style={{ color: "var(--text-3)" }}>
                             {formatTime(msg.createdAt)}
@@ -228,23 +325,75 @@ export default function ChatPage() {
               <div ref={endRef} />
             </div>
 
-            {/* Input */}
-            <form onSubmit={send} className="flex items-center gap-3 p-4 border-t" style={{ borderColor: "var(--border)" }}>
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={activeDM ? `Zpráva pro ${activeMember?.name?.split(" ")[0] ?? ""}...` : "Napiš zprávu týmu..."}
-                className="flex-1 text-[14px] px-4 py-3 rounded-2xl outline-none"
-                style={{ background: "var(--bg-subtle)", color: "var(--text-1)" }}
-              />
-              <button
-                type="submit"
-                disabled={!input.trim() || sending}
-                className="w-11 h-11 rounded-2xl flex items-center justify-center text-white transition-all hover:opacity-90 disabled:opacity-40"
-                style={{ background: "var(--accent)" }}>
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
+            {/* Input with @mention dropdown */}
+            <div className="border-t relative" style={{ borderColor: "var(--border)" }}>
+              {mention && mentionResults.length > 0 && (
+                <div
+                  className="absolute bottom-full left-4 right-4 mb-1 rounded-2xl border overflow-hidden z-20"
+                  style={{
+                    background: "var(--bg-card)",
+                    borderColor: "var(--border-md)",
+                    boxShadow: "0 -8px 24px rgba(0,0,0,0.1)",
+                  }}
+                >
+                  <div className="px-3 py-2 border-b" style={{ borderColor: "var(--border)" }}>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
+                      Vložit úkol
+                    </p>
+                  </div>
+                  {mentionResults.map((task, i) => {
+                    const color = STATUS_COLORS[task.status] ?? "#9a9aa2";
+                    return (
+                      <button
+                        key={task.id}
+                        onMouseDown={(e) => { e.preventDefault(); selectMentionTask(task); }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors"
+                        style={i === mentionIdx
+                          ? { background: "var(--accent-soft)" }
+                          : { background: "transparent" }}
+                      >
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
+                        <span className="text-[13px] font-medium flex-1 truncate" style={{ color: "var(--text-1)" }}>
+                          {task.title}
+                        </span>
+                        {task.category && (
+                          <span className="text-[11px] flex-shrink-0" style={{ color: "var(--text-3)" }}>
+                            {task.category.name}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                  <div className="px-3 py-1.5 border-t" style={{ borderColor: "var(--border)" }}>
+                    <p className="text-[10.5px]" style={{ color: "var(--text-3)" }}>
+                      ↑↓ navigovat · Enter vybrat · Esc zavřít
+                    </p>
+                  </div>
+                </div>
+              )}
+              <form onSubmit={send} className="flex items-center gap-3 p-4">
+                <div className="flex-1 relative">
+                  <input
+                    ref={inputRef}
+                    value={input}
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyDown}
+                    placeholder={activeDM
+                      ? `Zpráva pro ${activeMember?.name?.split(" ")[0] ?? ""}... (@ pro úkol)`
+                      : "Napiš zprávu týmu... (@ pro úkol)"}
+                    className="w-full text-[14px] px-4 py-3 rounded-2xl outline-none"
+                    style={{ background: "var(--bg-subtle)", color: "var(--text-1)" }}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={!input.trim() || sending}
+                  className="w-11 h-11 rounded-2xl flex items-center justify-center text-white transition-all hover:opacity-90 disabled:opacity-40"
+                  style={{ background: "var(--accent)" }}>
+                  <Send className="w-4 h-4" />
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       </div>

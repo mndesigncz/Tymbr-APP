@@ -7,6 +7,7 @@ import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
 import { TimeTracker } from "./TimeTracker";
+import { useChatUnread } from "@/hooks/useChatUnread";
 import {
   LayoutDashboard, CheckSquare, Tag, LogOut, Settings,
   Clock, Users, MessageSquare, ChevronDown, Settings2,
@@ -27,6 +28,7 @@ const teamItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const chatUnread = useChatUnread();
 
   const teamActive = teamItems.some(
     ({ href }) => pathname === href || pathname.startsWith(href)
@@ -49,7 +51,7 @@ export function Sidebar() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [profileOpen]);
 
-  const renderLink = (href: string, Icon: React.ElementType, label: string, indent = false) => {
+  const renderLink = (href: string, Icon: React.ElementType, label: string, indent = false, badge = false) => {
     const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
     return (
       <Link
@@ -65,8 +67,13 @@ export function Sidebar() {
           : { color: "var(--text-2)" }
         }
       >
-        <Icon className="w-[18px] h-[18px] flex-shrink-0"
-          style={{ color: active ? "var(--accent)" : "var(--text-2)" }} />
+        <div className="relative flex-shrink-0">
+          <Icon className="w-[18px] h-[18px]"
+            style={{ color: active ? "var(--accent)" : "var(--text-2)" }} />
+          {badge && !active && (
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500" />
+          )}
+        </div>
         {label}
       </Link>
     );
@@ -120,7 +127,9 @@ export function Sidebar() {
 
           {teamOpen && (
             <div className="mt-1 space-y-1">
-              {teamItems.map(({ href, icon, label }) => renderLink(href, icon, label, true))}
+              {teamItems.map(({ href, icon, label }) =>
+                renderLink(href, icon, label, true, href === "/chat" && chatUnread)
+              )}
             </div>
           )}
         </div>

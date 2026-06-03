@@ -21,9 +21,8 @@ export default async function DashboardPage() {
   const session = await getSession();
   const teamId = (session!.user as any).teamId;
 
-  // Team scope: tasks belonging to the team OR legacy tasks with no team (migration compat)
-  const teamScope = teamId ? { OR: [{ teamId }, { teamId: null }] } : {};
-  const catScope = teamId ? { OR: [{ teamId }, { teamId: null }] } : {};
+  const teamScope = { teamId: teamId ?? "__none__" };
+  const catScope = { teamId: teamId ?? "__none__" };
 
   const weekFromNow = new Date();
   weekFromNow.setDate(weekFromNow.getDate() + 7);
@@ -36,7 +35,7 @@ export default async function DashboardPage() {
       take: 50,
     }),
     prisma.task.findMany({
-      where: { assigneeId: session!.user.id, status: { not: "done" } },
+      where: { ...teamScope, assigneeId: session!.user.id, status: { not: "done" } },
       include: taskInclude,
       orderBy: { dueDate: "asc" },
       take: 20,
