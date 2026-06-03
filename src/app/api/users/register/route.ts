@@ -25,13 +25,17 @@ export async function POST(req: NextRequest) {
       if (invitation.email.toLowerCase() !== email.toLowerCase()) {
         return NextResponse.json({ error: "Email se neshoduje s pozvánkou" }, { status: 400 });
       }
-      const user = await prisma.user.create({
-        data: { name, email, password: hashed },
-        select: { id: true, name: true, email: true, role: true },
-      });
-      await prisma.teamMember.create({
-        data: { teamId: invitation.teamId, userId: user.id, role: invitation.role },
-      });
+      const userRows = await prisma.$queryRaw<any[]>`
+        INSERT INTO "User" (id, name, email, password, role, "createdAt", "updatedAt")
+        VALUES (gen_random_uuid()::text, ${name}, ${email}, ${hashed}, 'member', NOW(), NOW())
+        RETURNING id, name, email, role
+      `;
+      const user = userRows[0];
+      await prisma.$executeRaw`
+        INSERT INTO "TeamMember" (id, role, "joinedAt", "teamId", "userId")
+        VALUES (gen_random_uuid()::text, ${invitation.role}, NOW(), ${invitation.teamId}, ${user.id})
+        ON CONFLICT ("teamId", "userId") DO NOTHING
+      `;
       await prisma.teamInvitation.update({
         where: { id: invitation.id },
         data: { acceptedAt: new Date() },
@@ -39,20 +43,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(user, { status: 201 });
     }
 
-    // New registration → auto-create a personal team
-    const user = await prisma.user.create({
-      data: { name, email, password: hashed, role: "admin" },
-      select: { id: true, name: true, email: true, role: true },
-    });
-    await prisma.team.create({
-      data: {
-        name: teamName?.trim() || `${name.split(" ")[0]}'s tým`,
-        ownerId: user.id,
-        members: { create: { userId: user.id, role: "owner" } },
-      },
-    });
+    // New registration → auto-create a personal team using raw SQL (Prisma 7 adapter cuid() bug)
+    const userRows = await prisma.$queryRaw<any[]>`
+      INSERT INTO "User" (id, name, email, password, role, "createdAt", "updatedAt")
+      VALUES (gen_random_uuid()::text, ${name}, ${email}, ${hashed}, 'admin', NOW(), NOW())
+      RETURNING id, name, email, role
+    `;
+    const user = userRows[0];
+    await prisma.$executeRaw`
+      INSERT INTO "Team" (id, name, "createdAt", "ownerId", "joinCode")
+      VALUES (
+        gen_random_uuid()::text,
+        ${teamName?.trim() || `${name.split(" ")[0]}'s tým`},
+        NOW(),
+        ${user.id},
+        left(md5(gen_random_uuid()::text), 10)
+      )
+    `;
+    const teamRows = await prisma.$queryRaw<any[]>`
+      SELECT id FROM "Team" WHERE "ownerId" = ${user.id} LIMIT 1
+    `;
+    await prisma.$executeRaw`
+      INSERT INTO "TeamMember" (id, role, "joinedAt", "teamId", "userId")
+      VALUES (gen_random_uuid()::text, 'owner', NOW(), ${teamRows[0].id}, ${user.id})
+      ON CONFLICT ("teamId", "userId") DO NOTHING
+    `;
     return NextResponse.json(user, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: "Chyba serveru" }, { status: 500 });
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message ?? "Chyba serveru" }, { status: 500 });
   }
 }
