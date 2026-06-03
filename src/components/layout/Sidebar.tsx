@@ -2,25 +2,63 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
 import { TimeTracker } from "./TimeTracker";
-import { LayoutDashboard, CheckSquare, Tag, Settings, LogOut, Clock, Users, MessageSquare } from "lucide-react";
+import {
+  LayoutDashboard, CheckSquare, Tag, LogOut,
+  Clock, Users, MessageSquare, ChevronDown,
+} from "lucide-react";
 
-const navItems = [
-  { href: "/dashboard",      icon: LayoutDashboard, label: "Přehled"   },
-  { href: "/tasks",          icon: CheckSquare,     label: "Úkoly"     },
-  { href: "/chat",           icon: MessageSquare,   label: "Chat"      },
-  { href: "/categories",     icon: Tag,             label: "Kategorie" },
-  { href: "/time",           icon: Clock,           label: "Výkazy"    },
-  { href: "/settings/team",  icon: Users,           label: "Tým"       },
-  { href: "/settings",       icon: Settings,        label: "Nastavení" },
+const topItems = [
+  { href: "/dashboard",  icon: LayoutDashboard, label: "Přehled"   },
+  { href: "/tasks",      icon: CheckSquare,     label: "Úkoly"     },
+  { href: "/chat",       icon: MessageSquare,   label: "Chat"      },
+  { href: "/categories", icon: Tag,             label: "Kategorie" },
+];
+
+const groupItems = [
+  { href: "/time",          icon: Clock,  label: "Výkazy" },
+  { href: "/settings/team", icon: Users,  label: "Tým"    },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
+
+  const groupActive = groupItems.some(
+    ({ href }) => pathname === href || pathname.startsWith(href)
+  );
+  const [groupOpen, setGroupOpen] = useState(groupActive);
+
+  useEffect(() => {
+    if (groupActive) setGroupOpen(true);
+  }, [groupActive]);
+
+  const renderLink = (href: string, Icon: React.ElementType, label: string, indent = false) => {
+    const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
+    return (
+      <Link
+        key={href}
+        href={href}
+        className={cn(
+          "flex items-center gap-3 py-2.5 rounded-xl text-[14px] font-medium transition-all",
+          indent ? "px-6" : "px-3.5",
+          !active && "hover:bg-black/[0.035]"
+        )}
+        style={active
+          ? { background: "var(--bg-card)", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
+          : { color: "var(--text-2)" }
+        }
+      >
+        <Icon className="w-[18px] h-[18px] flex-shrink-0"
+          style={{ color: active ? "var(--accent)" : "var(--text-2)" }} />
+        {label}
+      </Link>
+    );
+  };
 
   return (
     <aside className="hidden lg:flex flex-col w-[244px] h-screen sticky top-0 p-3"
@@ -41,27 +79,40 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 mt-2 space-y-1">
-        {navItems.map(({ href, icon: Icon, label }) => {
-          const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[14px] font-medium transition-all",
-                !active && "hover:bg-black/[0.035]"
-              )}
-              style={active
-                ? { background: "var(--bg-card)", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
-                : { color: "var(--text-2)" }
-              }
-            >
-              <Icon className="w-[18px] h-[18px] flex-shrink-0"
-                style={{ color: active ? "var(--accent)" : "var(--text-2)" }} />
-              {label}
-            </Link>
-          );
-        })}
+        {topItems.map(({ href, icon, label }) => renderLink(href, icon, label))}
+
+        {/* Collapsible group: Výkazy + Tým */}
+        <div>
+          <button
+            onClick={() => setGroupOpen((o) => !o)}
+            className={cn(
+              "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[14px] font-medium transition-all",
+              groupActive ? "" : "hover:bg-black/[0.035]"
+            )}
+            style={groupActive
+              ? { background: "var(--bg-card)", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
+              : { color: "var(--text-2)" }
+            }
+          >
+            <Clock className="w-[18px] h-[18px] flex-shrink-0"
+              style={{ color: groupActive ? "var(--accent)" : "var(--text-2)" }} />
+            <span className="flex-1 text-left">Výkazy & Tým</span>
+            <ChevronDown
+              className="w-[14px] h-[14px] transition-transform"
+              style={{
+                color: groupActive ? "var(--accent)" : "var(--text-3)",
+                transform: groupOpen ? "rotate(180deg)" : "rotate(0deg)",
+              }}
+            />
+          </button>
+
+          {groupOpen && (
+            <div className="mt-1 space-y-1">
+              {groupItems.map(({ href, icon, label }) => renderLink(href, icon, label, true))}
+            </div>
+          )}
+        </div>
+
       </nav>
 
       {/* Time tracker widget */}

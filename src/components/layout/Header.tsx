@@ -1,5 +1,7 @@
 "use client";
 
+import { ProfileMenu } from "./ProfileMenu";
+
 interface HeaderProps {
   title: string;
   subtitle?: string;
@@ -17,8 +19,9 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
           <p className="text-[14px] mt-1" style={{ color: "var(--text-2)" }}>{subtitle}</p>
         )}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
         {actions}
+        <ProfileMenu />
       </div>
     </header>
   );
