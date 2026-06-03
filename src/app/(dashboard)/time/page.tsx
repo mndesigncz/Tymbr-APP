@@ -9,7 +9,20 @@ import { Input } from "@/components/ui/Input";
 import type { TimeEntry } from "@/types";
 
 type DateRange = "today" | "week" | "month" | "year" | "custom";
-type ReportTab = "task" | "category" | "person" | "status";
+type ReportTab = "task" | "subtask" | "category" | "person" | "status";
+
+// Effective hourly rate for a time entry: subtask rate overrides task rate
+function entryRate(e: any): number | null {
+  const subRate = e.subtask?.hourlyRate;
+  if (subRate != null) return subRate;
+  return e.task?.hourlyRate ?? null;
+}
+
+function entryEarning(e: any): number {
+  const rate = entryRate(e);
+  if (!rate) return 0;
+  return Math.round(((e.durationMinutes ?? 0) / 60) * rate);
+}
 
 const DATE_LABELS: Record<DateRange, string> = {
   today: "Dnes",
@@ -90,12 +103,28 @@ export default function TimePage() {
   };
 
   const totalMinutes = entries.reduce((s, e) => s + (e.durationMinutes ?? 0), 0);
-  const totalEarning = entries.reduce((s, e) => {
-    const rate = (e.task as any)?.hourlyRate;
-    if (!rate) return s;
-    return s + Math.round(((e.durationMinutes ?? 0) / 60) * rate);
-  }, 0);
+  const totalEarning = entries.reduce((s, e) => s + entryEarning(e), 0);
   const uniqueTasks = new Set(entries.map((e) => e.taskId)).size;
+
+  // Group by subtask
+  const bySubtask = entries.reduce((acc, e) => {
+    const sub = (e as any).subtask;
+    if (!sub) return acc;
+    if (!acc[sub.id]) {
+      acc[sub.id] = {
+        title: sub.title,
+        taskTitle: (e.task as any)?.title ?? "",
+        minutes: 0,
+        earning: 0,
+        rate: sub.hourlyRate ?? (e.task as any)?.hourlyRate ?? null,
+      };
+    }
+    acc[sub.id].minutes += e.durationMinutes ?? 0;
+    acc[sub.id].earning += entryEarning(e);
+    return acc;
+  }, {} as Record<string, { title: string; taskTitle: string; minutes: number; earning: number; rate: number | null }>);
+
+  const subtaskRows = Object.values(bySubtask).sort((a, b) => b.minutes - a.minutes);
 
   // Group by task
   const byTask = entries.reduce((acc, e) => {
@@ -121,8 +150,7 @@ export default function TimePage() {
     const color = (e.task as any)?.category?.color ?? "#9a9aa2";
     if (!acc[name]) acc[name] = { name, color, minutes: 0, earning: 0 };
     acc[name].minutes += e.durationMinutes ?? 0;
-    const rate = (e.task as any)?.hourlyRate;
-    if (rate) acc[name].earning += Math.round(((e.durationMinutes ?? 0) / 60) * rate);
+    acc[name].earning += entryEarning(e);
     return acc;
   }, {} as Record<string, { name: string; color: string; minutes: number; earning: number }>);
 
@@ -144,8 +172,7 @@ export default function TimePage() {
     }
     acc[userId].minutes += e.durationMinutes ?? 0;
     acc[userId].tasks.add(e.taskId);
-    const rate = (e.task as any)?.hourlyRate;
-    if (rate) acc[userId].earning += Math.round(((e.durationMinutes ?? 0) / 60) * rate);
+    acc[userId].earning += entryEarning(e);
     return acc;
   }, {} as Record<string, { userId: string; name: string; avatar?: string; minutes: number; earning: number; tasks: Set<string> }>);
 
@@ -163,7 +190,8 @@ export default function TimePage() {
   const statusRows = Object.values(byStatus).sort((a, b) => b.minutes - a.minutes);
 
   const TAB_LABELS: Record<ReportTab, string> = {
-    task: "Podle úkolu",
+    task: "Úkoly",
+    subtask: "Podúkoly",
     category: "Kategorie",
     person: "Lidé",
     status: "Stav",
@@ -292,6 +320,47 @@ export default function TimePage() {
                       </div>
                     );
                   })}
+                </div>
+              )}
+
+              {tab === "subtask" && (
+                <div className="divide-y" style={{ borderColor: "var(--border)" }}>
+                  {subtaskRows.length === 0 ? (
+                    <div className="px-6 py-10 text-center">
+                      <p className="text-[13.5px]" style={{ color: "var(--text-3)" }}>
+                        Žádný čas zaznamenaný na podúkolech. Spusť sledování podúkolu ve focus módu.
+                      </p>
+                    </div>
+                  ) : (
+                    subtaskRows.map((row, i) => {
+                      const pct = totalMinutes > 0 ? (row.minutes / totalMinutes) * 100 : 0;
+                      return (
+                        <div key={i} className="px-6 py-4">
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[13.5px] font-semibold line-clamp-1" style={{ color: "var(--text-1)" }}>{row.title}</p>
+                              <p className="text-[11.5px]" style={{ color: "var(--text-3)" }}>
+                                {row.taskTitle}{row.rate ? ` · ${row.rate} Kč/h` : ""}
+                              </p>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className="text-[13.5px] font-semibold" style={{ color: "var(--text-1)" }}>
+                                {formatMinutes(row.minutes)}
+                              </p>
+                              {row.earning > 0 && (
+                                <p className="text-[12px]" style={{ color: "#22C55E" }}>
+                                  {row.earning.toLocaleString("cs-CZ")} Kč
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="h-1 rounded-full overflow-hidden" style={{ background: "var(--bg-subtle)" }}>
+                            <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "#a855f7" }} />
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               )}
 

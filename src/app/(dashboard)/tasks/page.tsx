@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { Header } from "@/components/layout/Header";
 import { KanbanBoard } from "@/components/tasks/KanbanBoard";
 import { TaskCard } from "@/components/tasks/TaskCard";
+import { Avatar } from "@/components/ui/Avatar";
 import { StartWorkButton } from "@/components/layout/StartWorkButton";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -81,6 +82,8 @@ function TasksContent() {
     categoryId: searchParams.get("categoryId") || "",
   });
   const [categories, setCategories] = useState<{ id: string; name: string; color: string }[]>([]);
+  const [members, setMembers] = useState<{ id: string; name: string; avatar?: string | null }[]>([]);
+  const [assigneeFilter, setAssigneeFilter] = useState("");
 
   const [dateRange, setDateRange] = useState<DateRange>("month");
   const [customFrom, setCustomFrom] = useState("");
@@ -95,7 +98,9 @@ function TasksContent() {
     if (filters.status) params.set("status", filters.status);
     if (filters.priority) params.set("priority", filters.priority);
     if (filters.categoryId) params.set("categoryId", filters.categoryId);
-    if (scope === "mine" && myId) params.set("assigneeId", myId);
+    // Member filter takes precedence; otherwise "mine" scope filters to current user
+    if (assigneeFilter) params.set("assigneeId", assigneeFilter);
+    else if (scope === "mine" && myId) params.set("assigneeId", myId);
 
     // Also pull tasks completed today so the "Hotovo" column isn't empty
     const doneParams = new URLSearchParams(params);
@@ -111,7 +116,7 @@ function TasksContent() {
     const doneToday = Array.isArray(doneRes) ? doneRes : [];
     setTasks([...activeTasks, ...doneToday]);
     setLoading(false);
-  }, [filters, scope, myId]);
+  }, [filters, scope, myId, assigneeFilter]);
 
   const fetchDone = useCallback(async () => {
     setLoading(true);
@@ -142,6 +147,7 @@ function TasksContent() {
 
   useEffect(() => {
     fetch("/api/categories").then((r) => r.json()).then((d) => setCategories(Array.isArray(d) ? d : []));
+    fetch("/api/users").then((r) => r.json()).then((d) => setMembers(Array.isArray(d) ? d : []));
   }, []);
 
   const handleStatusChange = async (taskId: string, newStatus: TaskStatus) => {
@@ -306,6 +312,31 @@ function TasksContent() {
                       : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}>
                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: cat.color }} />
                     {cat.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Member filter chips */}
+            {members.length > 1 && (
+              <div className="flex flex-wrap gap-2 items-center">
+                <span className="text-[12px] font-semibold mr-1" style={{ color: "var(--text-3)" }}>Členové:</span>
+                <button onClick={() => setAssigneeFilter("")}
+                  className="px-3 py-1.5 rounded-xl text-[12.5px] font-semibold border transition-all"
+                  style={!assigneeFilter
+                    ? { background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" }
+                    : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}>
+                  Všichni
+                </button>
+                {members.map((m) => (
+                  <button key={m.id}
+                    onClick={() => setAssigneeFilter(assigneeFilter === m.id ? "" : m.id)}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[12.5px] font-semibold border transition-all"
+                    style={assigneeFilter === m.id
+                      ? { background: "var(--accent-soft)", color: "var(--accent)", borderColor: "var(--accent)" }
+                      : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}>
+                    <Avatar name={m.name} src={m.avatar} size="xs" />
+                    {m.name.split(" ")[0]}
                   </button>
                 ))}
               </div>

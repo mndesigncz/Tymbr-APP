@@ -23,6 +23,7 @@ model User {
   timeEntries     TimeEntry[]
   ownedTeam       Team?        @relation("TeamOwner")
   teamMemberships TeamMember[]
+  chatMessages    ChatMessage[]
 }
 
 model Team {
@@ -37,6 +38,21 @@ model Team {
   invitations TeamInvitation[]
   tasks       Task[]
   categories  Category[]
+  chatMessages ChatMessage[]
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
 }
 
 model TeamMember {

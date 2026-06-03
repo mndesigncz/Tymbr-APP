@@ -4,7 +4,7 @@ import { getSession } from "@/lib/auth";
 
 const entryInclude = {
   task: { include: { category: true } },
-  subtask: { select: { id: true, title: true } },
+  subtask: { select: { id: true, title: true, hourlyRate: true } },
   user: { select: { id: true, name: true, avatar: true } },
 };
 

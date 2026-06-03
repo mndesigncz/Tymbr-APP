@@ -6,11 +6,12 @@ import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
 import { TimeTracker } from "./TimeTracker";
-import { LayoutDashboard, CheckSquare, Tag, Settings, LogOut, Clock, Users } from "lucide-react";
+import { LayoutDashboard, CheckSquare, Tag, Settings, LogOut, Clock, Users, MessageSquare } from "lucide-react";
 
 const navItems = [
   { href: "/dashboard",      icon: LayoutDashboard, label: "Přehled"   },
   { href: "/tasks",          icon: CheckSquare,     label: "Úkoly"     },
+  { href: "/chat",           icon: MessageSquare,   label: "Chat"      },
   { href: "/categories",     icon: Tag,             label: "Kategorie" },
   { href: "/time",           icon: Clock,           label: "Výkazy"    },
   { href: "/settings/team",  icon: Users,           label: "Tým"       },

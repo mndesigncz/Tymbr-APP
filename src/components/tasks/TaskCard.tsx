@@ -4,7 +4,7 @@ import Link from "next/link";
 import { formatDate, isOverdue } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
 import { PriorityBadge } from "./PriorityBadge";
-import { Calendar, MessageSquare, ChevronRight, Play } from "lucide-react";
+import { Calendar, MessageSquare, ChevronRight, Play, AlertTriangle } from "lucide-react";
 import type { Task, TaskStatus } from "@/types";
 import { STATUS_COLORS } from "@/types";
 import { useTimeTracker } from "@/context/TimeTrackerContext";
@@ -25,10 +25,11 @@ interface TaskCardProps {
   task: Task;
   compact?: boolean;
   urgent?: boolean;
+  showUrgentMark?: boolean;
   onStatusAdvance?: (taskId: string, newStatus: TaskStatus) => void;
 }
 
-export function TaskCard({ task, compact, urgent, onStatusAdvance }: TaskCardProps) {
+export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusAdvance }: TaskCardProps) {
   const { start, active } = useTimeTracker();
   const overdue = task.status !== "done" && isOverdue(task.dueDate);
   const nextStatus = NEXT_STATUS[task.status];
@@ -69,8 +70,11 @@ export function TaskCard({ task, compact, urgent, onStatusAdvance }: TaskCardPro
           style={{ background: compactBg }}
         >
           <div className="flex-1 min-w-0">
-            <p className="text-[13.5px] font-semibold leading-snug line-clamp-1 mb-2"
+            <p className="text-[13.5px] font-semibold leading-snug line-clamp-1 mb-2 flex items-center gap-1.5"
               style={{ color: "var(--text-1)" }}>
+              {showUrgentMark && task.priority === "urgent" && (
+                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 fill-red-500/15" style={{ color: "#ef4444" }} />
+              )}
               {task.title}
             </p>
             <div className="flex flex-wrap items-center gap-1.5">

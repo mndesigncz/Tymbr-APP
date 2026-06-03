@@ -3,9 +3,9 @@ import { getSession } from "@/lib/auth";
 import { Header } from "@/components/layout/Header";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { RecentTasks } from "@/components/dashboard/RecentTasks";
-import { TaskCard } from "@/components/tasks/TaskCard";
+import { UrgentTasks } from "@/components/dashboard/UrgentTasks";
 import { StartWorkButton } from "@/components/layout/StartWorkButton";
-import { CheckSquare, Clock, AlertCircle, CheckCircle2, Plus, CheckCheck } from "lucide-react";
+import { CheckSquare, Clock, CheckCircle2, Plus, CheckCheck } from "lucide-react";
 import Link from "next/link";
 import { formatRelative } from "@/lib/utils";
 import type { Task } from "@/types";
@@ -19,13 +19,18 @@ const taskInclude = {
 
 export default async function DashboardPage() {
   const session = await getSession();
+  const teamId = (session!.user as any).teamId;
+
+  // Team scope: tasks belonging to the team OR legacy tasks with no team (migration compat)
+  const teamScope = teamId ? { OR: [{ teamId }, { teamId: null }] } : {};
+  const catScope = teamId ? { OR: [{ teamId }, { teamId: null }] } : {};
 
   const weekFromNow = new Date();
   weekFromNow.setDate(weekFromNow.getDate() + 7);
 
   const [allTasks, myTasks, categories, doneTasks] = await Promise.all([
     prisma.task.findMany({
-      where: { status: { not: "done" } },
+      where: { ...teamScope, status: { not: "done" } },
       include: taskInclude,
       orderBy: { createdAt: "desc" },
       take: 50,
@@ -34,11 +39,11 @@ export default async function DashboardPage() {
       where: { assigneeId: session!.user.id, status: { not: "done" } },
       include: taskInclude,
       orderBy: { dueDate: "asc" },
-      take: 12,
+      take: 20,
     }),
-    prisma.category.findMany({ include: { _count: { select: { tasks: true } } } }),
+    prisma.category.findMany({ where: catScope, include: { _count: { select: { tasks: true } } } }),
     prisma.task.findMany({
-      where: { status: "done" },
+      where: { ...teamScope, status: "done" },
       include: taskInclude,
       orderBy: { completedAt: "desc" },
       take: 6,
@@ -47,7 +52,7 @@ export default async function DashboardPage() {
 
   const todo = allTasks.filter((t) => t.status === "todo").length;
   const inProgress = allTasks.filter((t) => t.status === "in_progress").length;
-  const doneTotal = await prisma.task.count({ where: { status: "done" } });
+  const doneTotal = await prisma.task.count({ where: { ...teamScope, status: "done" } });
 
   // Priority ordering: urgent > high > medium > low
   const PRIO: Record<string, number> = { urgent: 3, high: 2, medium: 1, low: 0 };
@@ -65,9 +70,10 @@ export default async function DashboardPage() {
     t.priority === "urgent" || (t.dueDate != null && new Date(t.dueDate) <= weekFromNow);
 
   const sortedAll = [...allTasks].sort(byPriority);
-  const urgentList = sortedAll.filter(isUrgent).slice(0, 6) as unknown as Task[];
+  const urgentAll = sortedAll.filter(isUrgent).slice(0, 8) as unknown as Task[];
+  const urgentMine = [...myTasks].sort(byPriority).filter(isUrgent).slice(0, 8) as unknown as Task[];
   const recent = sortedAll.slice(0, 6) as unknown as Task[];
-  const myTasksList = [...myTasks].sort(byPriority) as unknown as Task[];
+  const myTasksList = [...myTasks].sort(byPriority).slice(0, 12) as unknown as Task[];
   const doneList = doneTasks as unknown as Task[];
 
   const hour = new Date().getHours();
@@ -104,62 +110,13 @@ export default async function DashboardPage() {
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className="xl:col-span-2 space-y-7">
-            {urgentList.length > 0 && (
-              <div className="rounded-3xl border" style={{ background: "#EF44440A", borderColor: "rgba(239,68,68,0.22)", boxShadow: "var(--shadow-sm)" }}>
-                <div className="flex items-center gap-2 px-6 pt-6 pb-5">
-                  <AlertCircle className="w-[18px] h-[18px] text-red-500" />
-                  <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>Urgentní</h2>
-                  <span className="text-[11.5px] font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded-md">
-                    {urgentList.length}
-                  </span>
-                  <span className="text-[12px] ml-1" style={{ color: "var(--text-3)" }}>
-                    urgentní priorita nebo termín do týdne
-                  </span>
-                </div>
-                <div className="px-6 pb-6 space-y-4">
-                  {urgentList.map((task) => (
-                    <TaskCard key={task.id} task={task} compact urgent />
-                  ))}
-                </div>
-              </div>
-            )}
+            <UrgentTasks allUrgent={urgentAll} myUrgent={urgentMine} />
 
             <RecentTasks allTasks={recent} myTasks={myTasksList} />
           </div>
 
           <div className="space-y-6">
-            {/* Categories */}
-            <div className="rounded-3xl border" style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
-              <div className="flex items-center justify-between px-6 pt-6 pb-5">
-                <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>Kategorie</h2>
-                <Link href="/categories" className="text-[13px] font-semibold hover:opacity-80 transition-opacity"
-                  style={{ color: "var(--accent)" }}>
-                  Spravovat
-                </Link>
-              </div>
-              <div className="px-4 pb-5 space-y-1">
-                {categories.length === 0 && (
-                  <p className="text-[13px] px-2 py-3" style={{ color: "var(--text-3)" }}>Žádné kategorie</p>
-                )}
-                {categories.map((cat) => (
-                  <Link
-                    key={cat.id}
-                    href={`/tasks?categoryId=${cat.id}`}
-                    className="flex items-center justify-between px-3 py-3 rounded-xl transition-colors hover:bg-black/[0.03]"
-                    style={{ color: "var(--text-2)" }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cat.color }} />
-                      <span className="text-[13.5px] font-medium" style={{ color: "var(--text-1)" }}>{cat.name}</span>
-                    </div>
-                    <span className="text-[12px] font-medium px-2 py-0.5 rounded-md"
-                      style={{ background: "var(--bg-subtle)", color: "var(--text-3)" }}>{cat._count.tasks}</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-
-            {/* Done tasks */}
+            {/* Done tasks (moved above categories) */}
             {doneList.length > 0 && (
               <div className="rounded-3xl border" style={{ background: "var(--bg-card)", borderColor: "#22C55E20", boxShadow: "var(--shadow-sm)" }}>
                 <div className="flex items-center justify-between px-6 pt-6 pb-5">
@@ -194,6 +151,37 @@ export default async function DashboardPage() {
                 </div>
               </div>
             )}
+
+            {/* Categories (moved below done) */}
+            <div className="rounded-3xl border" style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
+              <div className="flex items-center justify-between px-6 pt-6 pb-5">
+                <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>Kategorie</h2>
+                <Link href="/categories" className="text-[13px] font-semibold hover:opacity-80 transition-opacity"
+                  style={{ color: "var(--accent)" }}>
+                  Spravovat
+                </Link>
+              </div>
+              <div className="px-4 pb-5 space-y-1">
+                {categories.length === 0 && (
+                  <p className="text-[13px] px-2 py-3" style={{ color: "var(--text-3)" }}>Žádné kategorie</p>
+                )}
+                {categories.map((cat) => (
+                  <Link
+                    key={cat.id}
+                    href={`/tasks?categoryId=${cat.id}`}
+                    className="flex items-center justify-between px-3 py-3 rounded-xl transition-colors hover:bg-black/[0.03]"
+                    style={{ color: "var(--text-2)" }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cat.color }} />
+                      <span className="text-[13.5px] font-medium" style={{ color: "var(--text-1)" }}>{cat.name}</span>
+                    </div>
+                    <span className="text-[12px] font-medium px-2 py-0.5 rounded-md"
+                      style={{ background: "var(--bg-subtle)", color: "var(--text-3)" }}>{cat._count.tasks}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
