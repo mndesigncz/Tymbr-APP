@@ -262,7 +262,7 @@ export default function TeamSettingsPage() {
     return (
       <div>
         <Header title="Tým" subtitle="Správa členů a pozvánek" />
-        <div className="px-6 lg:px-8 pt-2 pb-12">
+        <div className="px-4 sm:px-6 lg:px-8 pt-2 pb-12">
           <NoTeamView />
         </div>
       </div>
@@ -275,7 +275,7 @@ export default function TeamSettingsPage() {
     <div>
       <Header title="Tým" subtitle={team.name} />
 
-      <div className="px-6 lg:px-8 pt-2 pb-12 space-y-6 max-w-3xl">
+      <div className="px-4 sm:px-6 lg:px-8 pt-2 pb-12 space-y-6 max-w-3xl">
         {/* Join code */}
         {(team as any).joinCode && (
           <div className="rounded-3xl border p-5"

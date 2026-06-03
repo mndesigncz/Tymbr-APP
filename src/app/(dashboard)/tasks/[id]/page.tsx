@@ -119,7 +119,7 @@ export default function TaskDetailPage() {
         }
       />
 
-      <div className="px-6 lg:px-8 pt-2 pb-12 max-w-4xl mx-auto">
+      <div className="px-4 sm:px-6 lg:px-8 pt-2 pb-12 max-w-4xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-7">
           <div className="lg:col-span-2 space-y-6">
             <div className="rounded-3xl border p-6" style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>

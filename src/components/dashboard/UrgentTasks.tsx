@@ -8,10 +8,11 @@ import type { Task, TaskStatus } from "@/types";
 interface UrgentTasksProps {
   allUrgent: Task[];
   myUrgent: Task[];
+  isManager?: boolean;
 }
 
-export function UrgentTasks({ allUrgent, myUrgent }: UrgentTasksProps) {
-  const [view, setView] = useState<"all" | "mine">("all");
+export function UrgentTasks({ allUrgent, myUrgent, isManager = true }: UrgentTasksProps) {
+  const [view, setView] = useState<"all" | "mine">(isManager ? "all" : "mine");
   const [state, setState] = useState({ all: allUrgent, mine: myUrgent });
 
   const visible = view === "all" ? state.all : state.mine;
@@ -31,7 +32,8 @@ export function UrgentTasks({ allUrgent, myUrgent }: UrgentTasksProps) {
     }
   };
 
-  if (state.all.length === 0) return null;
+  const totalCount = isManager ? state.all.length : state.mine.length;
+  if (totalCount === 0) return null;
 
   return (
     <div className="rounded-3xl border"
@@ -44,26 +46,28 @@ export function UrgentTasks({ allUrgent, myUrgent }: UrgentTasksProps) {
             {visible.length}
           </span>
         </div>
-        <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: "rgba(255,255,255,0.6)" }}>
-          <button
-            onClick={() => setView("all")}
-            className="px-3 py-1.5 rounded-lg text-[12.5px] font-semibold transition-all"
-            style={view === "all"
-              ? { background: "#fff", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
-              : { color: "var(--text-3)" }}
-          >
-            Všechny
-          </button>
-          <button
-            onClick={() => setView("mine")}
-            className="px-3 py-1.5 rounded-lg text-[12.5px] font-semibold transition-all"
-            style={view === "mine"
-              ? { background: "#fff", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
-              : { color: "var(--text-3)" }}
-          >
-            Moje
-          </button>
-        </div>
+        {isManager && (
+          <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: "rgba(255,255,255,0.6)" }}>
+            <button
+              onClick={() => setView("all")}
+              className="px-3 py-1.5 rounded-lg text-[12.5px] font-semibold transition-all"
+              style={view === "all"
+                ? { background: "#fff", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
+                : { color: "var(--text-3)" }}
+            >
+              Všechny
+            </button>
+            <button
+              onClick={() => setView("mine")}
+              className="px-3 py-1.5 rounded-lg text-[12.5px] font-semibold transition-all"
+              style={view === "mine"
+                ? { background: "#fff", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
+                : { color: "var(--text-3)" }}
+            >
+              Moje
+            </button>
+          </div>
+        )}
       </div>
       <div className="px-6 pb-6 space-y-4">
         {visible.length === 0 && (

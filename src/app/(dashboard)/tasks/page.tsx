@@ -208,9 +208,11 @@ function TasksContent() {
         }
       />
 
-      <div className="px-6 lg:px-8 pt-2 pb-12 space-y-5">
-        {/* Main toolbar row */}
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="px-4 sm:px-6 lg:px-8 pt-2 pb-12 space-y-5">
+        {/* Main toolbar */}
+        <div className="flex flex-col lg:flex-row lg:flex-wrap lg:items-center gap-2.5">
+          {/* Toggles row: scope + active/done — scrolls horizontally on small screens */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 lg:flex-shrink-0">
           {/* Scope: Moje / Všechny / Výběr */}
           {tab === "active" && (
             <div className="flex items-center gap-1 p-1 rounded-xl border flex-shrink-0"
@@ -273,9 +275,10 @@ function TasksContent() {
               Hotové
             </button>
           </div>
+          </div>
 
-          {/* Search — fills available space */}
-          <div className="flex-1 min-w-[140px]">
+          {/* Search */}
+          <div className="lg:flex-1 lg:min-w-[160px]">
             <Input
               placeholder="Hledat..."
               value={filters.search}
@@ -284,9 +287,9 @@ function TasksContent() {
             />
           </div>
 
-          {/* Filtry + View — right side */}
+          {/* Filtry + View */}
           {tab === "active" && (
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center justify-between gap-2 lg:justify-start lg:flex-shrink-0">
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[13px] font-medium border transition-all hover:bg-black/[0.03]"

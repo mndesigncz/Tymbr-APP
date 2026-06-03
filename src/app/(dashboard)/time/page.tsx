@@ -220,7 +220,7 @@ export default function TimePage() {
     <div>
       <Header title="Výkazy práce" subtitle="Přehled odpracovaného času a výdělků" />
 
-      <div className="px-6 lg:px-8 pt-2 pb-12 space-y-6">
+      <div className="px-4 sm:px-6 lg:px-8 pt-2 pb-12 space-y-6">
         {/* Filters: date range + member selector inline */}
         <div className="space-y-3">
           <div className="flex flex-wrap gap-2 items-center">
