@@ -163,14 +163,33 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusAdvanc
           )}
         </div>
 
-        <div className="pt-4 border-t" style={{ borderColor: isUrgent ? "rgba(239,68,68,0.15)" : "var(--border)" }}>
-          {/* Action buttons row */}
-          <div className="flex items-center justify-end gap-2 mb-2.5">
+        <div className="flex items-center justify-between gap-2 pt-4 border-t" style={{ borderColor: isUrgent ? "rgba(239,68,68,0.15)" : "var(--border)" }}>
+          {/* Left: date + meta */}
+          <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
+            {task.dueDate && (
+              <span className="flex items-center gap-1 text-[11.5px] font-medium flex-shrink-0 whitespace-nowrap"
+                style={{ color: overdue ? "#ef4444" : "var(--text-3)" }}>
+                <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
+                {formatDate(task.dueDate)}
+              </span>
+            )}
+            {(task._count?.comments ?? 0) > 0 && (
+              <span className="flex items-center gap-1 text-[11.5px] flex-shrink-0" style={{ color: "var(--text-3)" }}>
+                <MessageSquare className="w-3.5 h-3.5" />
+                {task._count?.comments}
+              </span>
+            )}
+            {!task.dueDate && (task._count?.comments ?? 0) === 0 && (
+              <span className="text-[11.5px]" style={{ color: "var(--text-3)" }}>Bez termínu</span>
+            )}
+          </div>
+          {/* Right: action buttons */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
             {task.status !== "done" && (
               <button
                 onClick={handleStartWork}
                 title={isCurrentlyActive ? "Právě probíhá" : "Zahájit práci"}
-                className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 transition-all hover:opacity-80"
+                className="w-7 h-7 rounded-xl flex items-center justify-center transition-all hover:opacity-80"
                 style={isCurrentlyActive
                   ? { background: "#22C55E20", color: "#22C55E" }
                   : { background: "#f7592f14", color: "#f7592f" }}
@@ -183,25 +202,6 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusAdvanc
             {onStatusAdvance && AdvanceButton}
             {task.assignee && (
               <Avatar name={task.assignee.name} src={task.assignee.avatar} size="sm" className="flex-shrink-0" />
-            )}
-          </div>
-          {/* Date / comments row */}
-          <div className="flex items-center gap-3">
-            {task.dueDate && (
-              <span className="flex items-center gap-1 text-[11.5px] font-medium whitespace-nowrap"
-                style={{ color: overdue ? "#ef4444" : "var(--text-3)" }}>
-                <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
-                {formatDate(task.dueDate)}
-              </span>
-            )}
-            {(task._count?.comments ?? 0) > 0 && (
-              <span className="flex items-center gap-1 text-[11.5px]" style={{ color: "var(--text-3)" }}>
-                <MessageSquare className="w-3.5 h-3.5" />
-                {task._count?.comments}
-              </span>
-            )}
-            {!task.dueDate && (task._count?.comments ?? 0) === 0 && (
-              <span className="text-[11.5px]" style={{ color: "var(--text-3)" }}>Bez termínu</span>
             )}
           </div>
         </div>

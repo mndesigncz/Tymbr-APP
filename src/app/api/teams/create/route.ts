@@ -14,6 +14,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const userId = session.user.id;
+    if (!userId) return NextResponse.json({ error: "Relace vypršela — odhlaste se a přihlaste znovu" }, { status: 401 });
     const team = await prisma.team.create({
       data: {
         name: name.trim(),
