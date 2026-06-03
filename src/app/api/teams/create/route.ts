@@ -16,15 +16,22 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: "Relace vypršela — odhlaste se a přihlaste znovu" }, { status: 401 });
 
   try {
-    // Create team and owner membership as two separate operations to avoid
-    // nested-create issues with Prisma 7 adapter-based client
-    const team = await prisma.team.create({
-      data: { name: name.trim(), ownerId: userId },
-    });
+    // Use raw SQL to bypass Prisma 7 adapter cuid() generation issue
+    await prisma.$executeRaw`
+      INSERT INTO "Team" (id, name, "createdAt", "ownerId")
+      VALUES (gen_random_uuid()::text, ${name.trim()}, NOW(), ${userId})
+    `;
 
-    await prisma.teamMember.create({
-      data: { teamId: team.id, userId, role: "owner" },
-    });
+    const rows = await prisma.$queryRaw<any[]>`
+      SELECT * FROM "Team" WHERE "ownerId" = ${userId} ORDER BY "createdAt" DESC LIMIT 1
+    `;
+    const team = rows[0];
+
+    await prisma.$executeRaw`
+      INSERT INTO "TeamMember" (id, role, "joinedAt", "teamId", "userId")
+      VALUES (gen_random_uuid()::text, 'owner', NOW(), ${team.id}, ${userId})
+      ON CONFLICT ("teamId", "userId") DO NOTHING
+    `;
 
     return NextResponse.json(team, { status: 201 });
   } catch (e: any) {
