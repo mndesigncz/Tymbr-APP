@@ -34,6 +34,8 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusAdvanc
   const overdue = task.status !== "done" && isOverdue(task.dueDate);
   const nextStatus = NEXT_STATUS[task.status];
   const isCurrentlyActive = active?.taskId === task.id;
+  const isUrgent = task.priority === "urgent";
+  const isDone = task.status === "done";
 
   const handleStartWork = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -41,8 +43,7 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusAdvanc
     start(task.id, task.title, task.category?.color);
   };
 
-  const isDone = task.status === "done";
-  const compactBg = isDone ? "#22C55E0E" : urgent ? "#EF44440F" : "var(--bg-subtle)";
+  const compactBg = isDone ? "#22C55E0E" : (urgent || isUrgent) ? "#EF44440F" : "var(--bg-subtle)";
 
   const AdvanceButton = nextStatus ? (
     <button
@@ -72,7 +73,7 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusAdvanc
           <div className="flex-1 min-w-0">
             <p className="text-[13.5px] font-semibold leading-snug line-clamp-1 mb-2 flex items-center gap-1.5"
               style={{ color: "var(--text-1)" }}>
-              {showUrgentMark && task.priority === "urgent" && (
+              {showUrgentMark && isUrgent && (
                 <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 fill-red-500/15" style={{ color: "#ef4444" }} />
               )}
               {task.title}
@@ -88,9 +89,9 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusAdvanc
                 </span>
               )}
               {task.dueDate && (
-                <span className="flex items-center gap-1 text-[11px]"
+                <span className="flex items-center gap-1 text-[11px] whitespace-nowrap"
                   style={{ color: overdue ? "#ef4444" : "var(--text-3)" }}>
-                  <Calendar className="w-3 h-3" />
+                  <Calendar className="w-3 h-3 flex-shrink-0" />
                   {formatDate(task.dueDate)}
                 </span>
               )}
@@ -126,11 +127,18 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusAdvanc
       <div
         className="rounded-2xl border p-5 transition-all duration-150 cursor-pointer group hover:-translate-y-0.5"
         style={{
-          background: task.status === "done" ? "#22C55E08" : "var(--bg-card)",
-          borderColor: task.status === "done" ? "#22C55E30" : "var(--border)",
+          background: isDone ? "#22C55E08" : isUrgent ? "#EF444408" : "var(--bg-card)",
+          borderColor: isDone ? "#22C55E30" : isUrgent ? "rgba(239,68,68,0.22)" : "var(--border)",
           boxShadow: "var(--shadow-sm)",
         }}
       >
+        {isUrgent && !isDone && (
+          <div className="flex items-center gap-1.5 mb-2.5">
+            <AlertTriangle className="w-3.5 h-3.5" style={{ color: "#ef4444" }} />
+            <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#ef4444" }}>Urgentní</span>
+          </div>
+        )}
+
         <p className="text-[14px] font-semibold leading-snug line-clamp-2 mb-3"
           style={{ color: "var(--text-1)" }}>
           {task.title}
@@ -155,12 +163,12 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusAdvanc
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-2 pt-4 border-t" style={{ borderColor: "var(--border)" }}>
+        <div className="flex items-center justify-between gap-2 pt-4 border-t" style={{ borderColor: isUrgent ? "rgba(239,68,68,0.15)" : "var(--border)" }}>
           <div className="flex items-center gap-3">
             {task.dueDate && (
-              <span className="flex items-center gap-1 text-[11.5px] font-medium"
+              <span className="flex items-center gap-1 text-[11.5px] font-medium whitespace-nowrap"
                 style={{ color: overdue ? "#ef4444" : "var(--text-3)" }}>
-                <Calendar className="w-3.5 h-3.5" />
+                <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
                 {formatDate(task.dueDate)}
               </span>
             )}
