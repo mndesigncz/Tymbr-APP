@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { isManager } from "@/lib/roles";
 
 function computeJoinCode(teamId: string): string {
   return teamId.slice(-10).toLowerCase();
@@ -60,6 +61,10 @@ export async function PATCH(req: NextRequest) {
 
   const teamId = (session.user as any).teamId;
   if (!teamId) return NextResponse.json({ error: "Tým nenalezen" }, { status: 404 });
+
+  if (!isManager((session.user as any).teamRole)) {
+    return NextResponse.json({ error: "Nedostatečná oprávnění" }, { status: 403 });
+  }
 
   const { name } = await req.json();
   if (!name?.trim()) return NextResponse.json({ error: "Název je povinný" }, { status: 400 });

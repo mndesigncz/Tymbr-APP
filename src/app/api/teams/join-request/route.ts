@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { isManager } from "@/lib/roles";
 
 export async function GET() {
   const session = await getSession();
@@ -74,6 +75,10 @@ export async function PATCH(req: NextRequest) {
   const teamId = (session.user as any).teamId;
   if (!teamId) return NextResponse.json({ error: "Tým nenalezen" }, { status: 404 });
 
+  if (!isManager((session.user as any).teamRole)) {
+    return NextResponse.json({ error: "Nedostatečná oprávnění" }, { status: 403 });
+  }
+
   const { requestId, action } = await req.json();
   if (!requestId || !["approve", "reject"].includes(action)) {
     return NextResponse.json({ error: "Neplatná akce" }, { status: 400 });
@@ -93,7 +98,12 @@ export async function PATCH(req: NextRequest) {
     `;
 
     if (action === "approve") {
-      await prisma.teamMember.create({ data: { teamId, userId: request.userId, role: "member" } });
+      // Raw SQL to bypass Prisma 7 adapter cuid() generation issue
+      await prisma.$executeRaw`
+        INSERT INTO "TeamMember" (id, role, "joinedAt", "teamId", "userId")
+        VALUES (gen_random_uuid()::text, 'member', NOW(), ${teamId}, ${request.userId})
+        ON CONFLICT ("teamId", "userId") DO NOTHING
+      `;
     }
 
     return NextResponse.json({ ok: true });
