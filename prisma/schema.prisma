@@ -93,6 +93,8 @@ model Category {
   team   Team?   @relation(fields: [teamId], references: [id], onDelete: SetNull)
 
   tasks Task[]
+
+  @@index([teamId])
 }
 
 model Task {
@@ -124,6 +126,10 @@ model Task {
   timeEntries    TimeEntry[]
   subtasks       SubTask[]
   statusHistory  TaskStatusHistory[]
+
+  @@index([teamId])
+  @@index([status])
+  @@index([assigneeId])
 }
 
 model SubTask {
@@ -179,4 +185,7 @@ model TimeEntry {
 
   subtaskId String?
   subtask   SubTask? @relation(fields: [subtaskId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([taskId])
 }

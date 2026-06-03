@@ -25,8 +25,9 @@ export async function GET(req: NextRequest) {
   const teamId = (session.user as any).teamId;
 
   const where: Record<string, any> = {};
+  const and: Record<string, any>[] = [];
   // Show tasks belonging to team OR legacy tasks with no teamId (migration compat)
-  if (teamId) where.OR = [{ teamId }, { teamId: null }];
+  if (teamId) and.push({ OR: [{ teamId }, { teamId: null }] });
   if (statuses) {
     where.status = { in: statuses.split(",").map((s) => s.trim()) };
   } else if (status) {
@@ -36,16 +37,19 @@ export async function GET(req: NextRequest) {
   if (assigneeId) where.assigneeId = assigneeId;
   if (priority) where.priority = priority;
   if (search) {
-    where.OR = [
-      { title: { contains: search, mode: "insensitive" } },
-      { description: { contains: search, mode: "insensitive" } },
-    ];
+    and.push({
+      OR: [
+        { title: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+      ],
+    });
   }
   if (completedFrom || completedTo) {
     where.completedAt = {};
     if (completedFrom) where.completedAt.gte = new Date(completedFrom);
     if (completedTo) where.completedAt.lte = new Date(completedTo);
   }
+  if (and.length > 0) where.AND = and;
 
   const tasks = await prisma.task.findMany({
     where,
