@@ -217,9 +217,10 @@ export default function TimePage() {
       <Header title="Výkazy práce" subtitle="Přehled odpracovaného času a výdělků" />
 
       <div className="px-6 lg:px-8 pt-2 pb-12 space-y-6">
-        {/* Date range */}
+        {/* Filters: date range + member selector inline */}
         <div className="space-y-3">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 items-center">
+            {/* Date range buttons */}
             {(Object.keys(DATE_LABELS) as DateRange[]).map((r) => (
               <button key={r} onClick={() => setRange(r)}
                 className="px-3.5 py-2 rounded-xl text-[13px] font-semibold border transition-all"
@@ -229,6 +230,37 @@ export default function TimePage() {
                 {DATE_LABELS[r]}
               </button>
             ))}
+
+            {/* Separator + member chips — inline with date buttons */}
+            {members.length > 0 && (
+              <>
+                <div className="w-px h-6 self-center" style={{ background: "var(--border-md)" }} />
+                {members.length > 1 && (
+                  <button
+                    onClick={isAllSelected ? () => setSelectedUserIds(new Set([myId ?? ""])) : selectAll}
+                    className="px-3 py-1.5 rounded-xl text-[12.5px] font-semibold border transition-all"
+                    style={isAllSelected
+                      ? { background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" }
+                      : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}>
+                    Celý tým
+                  </button>
+                )}
+                {members.map((m) => (
+                  <button key={m.id}
+                    onClick={() => toggleUser(m.id)}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[12.5px] font-semibold border transition-all"
+                    style={selectedUserIds.has(m.id)
+                      ? { background: "var(--accent-soft)", color: "var(--accent)", borderColor: "var(--accent)" }
+                      : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}>
+                    <Avatar name={m.name} src={m.avatar} size="xs" />
+                    {m.name.split(" ")[0]}
+                    {m.id === myId && (
+                      <span className="text-[10px]" style={{ opacity: 0.6 }}>já</span>
+                    )}
+                  </button>
+                ))}
+              </>
+            )}
           </div>
           {range === "custom" && (
             <div className="flex gap-3 max-w-xs">
@@ -237,34 +269,6 @@ export default function TimePage() {
             </div>
           )}
         </div>
-
-        {/* Member selector */}
-        {members.length > 1 && (
-          <div className="flex flex-wrap gap-2 items-center">
-            <button
-              onClick={isAllSelected ? () => setSelectedUserIds(new Set([myId ?? ""])) : selectAll}
-              className="px-3 py-1.5 rounded-xl text-[12.5px] font-semibold border transition-all"
-              style={isAllSelected
-                ? { background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" }
-                : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}>
-              Celý tým
-            </button>
-            {members.map((m) => (
-              <button key={m.id}
-                onClick={() => toggleUser(m.id)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[12.5px] font-semibold border transition-all"
-                style={selectedUserIds.has(m.id)
-                  ? { background: "var(--accent-soft)", color: "var(--accent)", borderColor: "var(--accent)" }
-                  : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}>
-                <Avatar name={m.name} src={m.avatar} size="xs" />
-                {m.name.split(" ")[0]}
-                {m.id === myId && (
-                  <span className="text-[10px]" style={{ opacity: 0.6 }}>já</span>
-                )}
-              </button>
-            ))}
-          </div>
-        )}
 
         {/* Summary cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
