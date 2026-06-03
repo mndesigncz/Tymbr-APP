@@ -17,9 +17,16 @@ export async function POST(req: NextRequest) {
 
   try {
     // Use raw SQL to bypass Prisma 7 adapter cuid() generation issue
+    // joinCode was added via migration_v2.sql and is NOT in Prisma schema
     await prisma.$executeRaw`
-      INSERT INTO "Team" (id, name, "createdAt", "ownerId")
-      VALUES (gen_random_uuid()::text, ${name.trim()}, NOW(), ${userId})
+      INSERT INTO "Team" (id, name, "createdAt", "ownerId", "joinCode")
+      VALUES (
+        gen_random_uuid()::text,
+        ${name.trim()},
+        NOW(),
+        ${userId},
+        left(md5(gen_random_uuid()::text), 10)
+      )
     `;
 
     const rows = await prisma.$queryRaw<any[]>`

@@ -6,6 +6,7 @@ import { Header } from "@/components/layout/Header";
 import { Avatar } from "@/components/ui/Avatar";
 import { Clock, TrendingUp, CheckSquare, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Input } from "@/components/ui/Input";
+import { isManager } from "@/lib/roles";
 import type { TimeEntry } from "@/types";
 
 type DateRange = "today" | "week" | "month" | "year" | "custom";
@@ -83,12 +84,15 @@ export default function TimePage() {
   const [expandedEntry, setExpandedEntry] = useState<string | null>(null);
 
   const myId = session?.user?.id;
+  const manager = isManager((session?.user as any)?.teamRole);
 
   useEffect(() => {
+    // Only managers can browse other members; members never load the team list.
+    if (!manager) return;
     fetch("/api/users").then((r) => r.json()).then((d) => {
       if (Array.isArray(d)) setMembers(d);
     });
-  }, []);
+  }, [manager]);
 
   // Default to current user selected
   useEffect(() => {
@@ -231,8 +235,8 @@ export default function TimePage() {
               </button>
             ))}
 
-            {/* Separator + member chips — inline with date buttons */}
-            {members.length > 0 && (
+            {/* Separator + member chips — managers only */}
+            {manager && members.length > 0 && (
               <>
                 <div className="w-px h-6 self-center" style={{ background: "var(--border-md)" }} />
                 {members.length > 1 && (

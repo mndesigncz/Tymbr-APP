@@ -300,8 +300,8 @@ export default function TeamSettingsPage() {
           </div>
         )}
 
-        {/* Pending join requests */}
-        {joinRequests.length > 0 && (
+        {/* Pending join requests — managers only */}
+        {isOwnerOrAdmin && joinRequests.length > 0 && (
           <div className="rounded-3xl border overflow-hidden"
             style={{ background: "var(--bg-card)", borderColor: "rgba(234,179,8,0.3)", boxShadow: "var(--shadow-sm)" }}>
             <div className="px-6 pt-5 pb-3">

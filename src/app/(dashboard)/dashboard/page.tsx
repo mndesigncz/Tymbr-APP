@@ -24,6 +24,7 @@ export default async function DashboardPage() {
   const teamRole = (session!.user as any).teamRole;
   const manager = isManager(teamRole);
 
+  // Strictly team-scoped. Without a team there is no data to show.
   const teamScope = { teamId: teamId ?? "__none__" };
   const catScope = { teamId: teamId ?? "__none__" };
 

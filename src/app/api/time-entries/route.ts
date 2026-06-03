@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { isManager } from "@/lib/roles";
 
 const entryInclude = {
   task: { include: { category: true } },
@@ -19,8 +20,13 @@ export async function GET(req: NextRequest) {
 
   const allUsers = searchParams.get("allUsers") === "true";
   const teamId = (session.user as any).teamId;
+  const teamRole = (session.user as any).teamRole;
 
-  const where: Record<string, any> = allUsers && teamId
+  // Only managers (owner/admin) may view other members' entries. Regular
+  // members are always restricted to their own data, regardless of the flag.
+  const canSeeTeam = allUsers && teamId && isManager(teamRole);
+
+  const where: Record<string, any> = canSeeTeam
     ? { user: { teamMemberships: { some: { teamId } } } }
     : { userId: session.user.id };
   if (taskId) where.taskId = taskId;
