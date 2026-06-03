@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
 import { TimeTracker } from "./TimeTracker";
 import {
-  LayoutDashboard, CheckSquare, Tag, Settings, LogOut,
+  LayoutDashboard, CheckSquare, Tag, LogOut,
   Clock, Users, MessageSquare, ChevronDown,
 } from "lucide-react";
 
@@ -113,7 +113,6 @@ export function Sidebar() {
           )}
         </div>
 
-        {renderLink("/settings", Settings, "Nastavení")}
       </nav>
 
       {/* Time tracker widget */}
