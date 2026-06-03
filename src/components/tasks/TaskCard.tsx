@@ -4,9 +4,10 @@ import Link from "next/link";
 import { formatDate, isOverdue } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
 import { PriorityBadge } from "./PriorityBadge";
-import { Calendar, MessageSquare, ChevronRight } from "lucide-react";
+import { Calendar, MessageSquare, ChevronRight, Play } from "lucide-react";
 import type { Task, TaskStatus } from "@/types";
 import { STATUS_COLORS } from "@/types";
+import { useTimeTracker } from "@/context/TimeTrackerContext";
 
 const NEXT_STATUS: Partial<Record<TaskStatus, TaskStatus>> = {
   todo: "in_progress",
@@ -28,8 +29,16 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, compact, urgent, onStatusAdvance }: TaskCardProps) {
+  const { start, active } = useTimeTracker();
   const overdue = task.status !== "done" && isOverdue(task.dueDate);
   const nextStatus = NEXT_STATUS[task.status];
+  const isCurrentlyActive = active?.taskId === task.id;
+
+  const handleStartWork = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    start(task.id, task.title, task.category?.color);
+  };
 
   const isDone = task.status === "done";
   const compactBg = isDone ? "#22C55E0E" : urgent ? "#EF44440F" : "var(--bg-subtle)";
@@ -84,6 +93,20 @@ export function TaskCard({ task, compact, urgent, onStatusAdvance }: TaskCardPro
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
+            {task.status !== "done" && (
+              <button
+                onClick={handleStartWork}
+                title={isCurrentlyActive ? "Právě probíhá" : "Zahájit práci"}
+                className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 transition-all hover:opacity-80"
+                style={isCurrentlyActive
+                  ? { background: "#22C55E20", color: "#22C55E" }
+                  : { background: "#f7592f14", color: "#f7592f" }}
+              >
+                {isCurrentlyActive
+                  ? <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#22C55E" }} />
+                  : <Play className="w-3 h-3 fill-current" />}
+              </button>
+            )}
             {onStatusAdvance && AdvanceButton}
             {task.assignee && (
               <Avatar name={task.assignee.name} src={task.assignee.avatar} size="sm" />
@@ -148,6 +171,20 @@ export function TaskCard({ task, compact, urgent, onStatusAdvance }: TaskCardPro
             )}
           </div>
           <div className="flex items-center gap-2">
+            {task.status !== "done" && (
+              <button
+                onClick={handleStartWork}
+                title={isCurrentlyActive ? "Právě probíhá" : "Zahájit práci"}
+                className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 transition-all hover:opacity-80"
+                style={isCurrentlyActive
+                  ? { background: "#22C55E20", color: "#22C55E" }
+                  : { background: "#f7592f14", color: "#f7592f" }}
+              >
+                {isCurrentlyActive
+                  ? <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#22C55E" }} />
+                  : <Play className="w-3.5 h-3.5 fill-current" />}
+              </button>
+            )}
             {onStatusAdvance && AdvanceButton}
             {task.assignee && (
               <Avatar name={task.assignee.name} src={task.assignee.avatar} size="sm" className="flex-shrink-0" />

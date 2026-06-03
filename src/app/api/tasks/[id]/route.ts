@@ -11,6 +11,12 @@ const taskInclude = {
     orderBy: { createdAt: "asc" as const },
   },
   subtasks: { orderBy: { order: "asc" as const } },
+  statusHistory: { orderBy: { startedAt: "asc" as const } },
+  timeEntries: {
+    where: { stoppedAt: { not: null } },
+    select: { id: true, durationMinutes: true, userId: true, subtaskId: true, startedAt: true, stoppedAt: true },
+  },
+  _count: { select: { comments: true } },
 };
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -32,17 +38,32 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const body = await req.json();
     const { title, description, status, priority, dueDate, startDate, categoryId, assigneeId, hourlyRate } = body;
 
-    // Determine completedAt based on status change
+    // Status change: track completedAt and log status history
     let completedAtUpdate: { completedAt: Date | null } | undefined;
     if (status !== undefined) {
+      const existing = await prisma.task.findUnique({
+        where: { id },
+        select: { completedAt: true, status: true, statusHistory: { where: { endedAt: null }, take: 1 } },
+      });
       if (status === "done") {
-        // Only set completedAt if not already set
-        const existing = await prisma.task.findUnique({ where: { id }, select: { completedAt: true } });
-        if (!existing?.completedAt) {
-          completedAtUpdate = { completedAt: new Date() };
-        }
+        if (!existing?.completedAt) completedAtUpdate = { completedAt: new Date() };
       } else {
         completedAtUpdate = { completedAt: null };
+      }
+      // Close current open status history entry and open new one
+      if (existing && existing.status !== status) {
+        const now = new Date();
+        const openEntry = existing.statusHistory[0];
+        if (openEntry) {
+          const minutes = Math.max(1, Math.round((now.getTime() - new Date(openEntry.startedAt).getTime()) / 60000));
+          await prisma.taskStatusHistory.update({
+            where: { id: openEntry.id },
+            data: { endedAt: now, minutes },
+          });
+        }
+        await prisma.taskStatusHistory.create({
+          data: { taskId: id, status, startedAt: now },
+        });
       }
     }
 

@@ -15,22 +15,29 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status");
+  const statuses = searchParams.get("statuses"); // comma-separated e.g. "todo,in_progress,review"
   const categoryId = searchParams.get("categoryId");
   const assigneeId = searchParams.get("assigneeId");
   const priority = searchParams.get("priority");
   const search = searchParams.get("search");
   const completedFrom = searchParams.get("completedFrom");
   const completedTo = searchParams.get("completedTo");
+  const teamId = (session.user as any).teamId;
 
   const where: Record<string, any> = {};
-  if (status) where.status = status;
+  if (teamId) where.teamId = teamId;
+  if (statuses) {
+    where.status = { in: statuses.split(",").map((s) => s.trim()) };
+  } else if (status) {
+    where.status = status;
+  }
   if (categoryId) where.categoryId = categoryId;
   if (assigneeId) where.assigneeId = assigneeId;
   if (priority) where.priority = priority;
   if (search) {
     where.OR = [
-      { title: { contains: search } },
-      { description: { contains: search } },
+      { title: { contains: search, mode: "insensitive" } },
+      { description: { contains: search, mode: "insensitive" } },
     ];
   }
   if (completedFrom || completedTo) {
@@ -57,6 +64,7 @@ export async function POST(req: NextRequest) {
 
     if (!title) return NextResponse.json({ error: "Název je povinný" }, { status: 400 });
 
+    const teamId = (session.user as any).teamId;
     const task = await prisma.task.create({
       data: {
         title,
@@ -70,6 +78,7 @@ export async function POST(req: NextRequest) {
         hourlyRate: hourlyRate ? Number(hourlyRate) : null,
         completedAt: status === "done" ? new Date() : null,
         createdById: session.user.id,
+        teamId: teamId || null,
       },
       include: taskInclude,
     });

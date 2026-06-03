@@ -3,9 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
 const entryInclude = {
-  task: {
-    include: { category: true },
-  },
+  task: { include: { category: true } },
+  subtask: { select: { id: true, title: true } },
+  user: { select: { id: true, name: true, avatar: true } },
 };
 
 export async function GET(req: NextRequest) {
@@ -17,7 +17,12 @@ export async function GET(req: NextRequest) {
   const dateFrom = searchParams.get("dateFrom");
   const dateTo = searchParams.get("dateTo");
 
-  const where: Record<string, any> = { userId: session.user.id };
+  const allUsers = searchParams.get("allUsers") === "true";
+  const teamId = (session.user as any).teamId;
+
+  const where: Record<string, any> = allUsers && teamId
+    ? { user: { teamMemberships: { some: { teamId } } } }
+    : { userId: session.user.id };
   if (taskId) where.taskId = taskId;
   if (dateFrom || dateTo) {
     where.startedAt = {};
@@ -39,7 +44,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Neautorizováno" }, { status: 401 });
 
   const body = await req.json();
-  const { taskId } = body;
+  const { taskId, subtaskId } = body;
   if (!taskId) return NextResponse.json({ error: "taskId je povinný" }, { status: 400 });
 
   // Stop any active entry for this user first
@@ -61,7 +66,7 @@ export async function POST(req: NextRequest) {
   }
 
   const entry = await prisma.timeEntry.create({
-    data: { userId: session.user.id, taskId },
+    data: { userId: session.user.id, taskId, subtaskId: subtaskId || null },
     include: entryInclude,
   });
 

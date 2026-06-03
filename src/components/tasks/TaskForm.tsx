@@ -6,7 +6,14 @@ import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
+import { Plus, X } from "lucide-react";
 import type { Task, Category, User } from "@/types";
+
+interface DraftSubtask {
+  title: string;
+  description: string;
+  hourlyRate: string;
+}
 
 const STATUS_OPTIONS = [
   { value: "todo", label: "K provedení" },
@@ -34,6 +41,9 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [draftSubtasks, setDraftSubtasks] = useState<DraftSubtask[]>([]);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const [expandedSubtask, setExpandedSubtask] = useState<number | null>(null);
 
   const [form, setForm] = useState({
     title: task?.title || "",
@@ -88,11 +98,50 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
         return;
       }
       const saved: Task = await res.json();
+      // Create draft subtasks for new tasks
+      if (!task && draftSubtasks.length > 0) {
+        await Promise.all(
+          draftSubtasks.map((st, i) =>
+            fetch(`/api/tasks/${saved.id}/subtasks`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ title: st.title, order: i }),
+            }).then(async (r) => {
+              if (r.ok && (st.description || st.hourlyRate)) {
+                const created = await r.json();
+                await fetch(`/api/subtasks/${created.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    description: st.description || null,
+                    hourlyRate: st.hourlyRate ? Number(st.hourlyRate) : null,
+                  }),
+                });
+              }
+            })
+          )
+        );
+      }
       if (onSuccess) onSuccess(saved);
       else router.push(`/tasks/${saved.id}`);
     } finally {
       setLoading(false);
     }
+  };
+
+  const addDraftSubtask = () => {
+    if (!newSubtaskTitle.trim()) return;
+    setDraftSubtasks((prev) => [...prev, { title: newSubtaskTitle.trim(), description: "", hourlyRate: "" }]);
+    setNewSubtaskTitle("");
+  };
+
+  const removeDraftSubtask = (i: number) => {
+    setDraftSubtasks((prev) => prev.filter((_, idx) => idx !== i));
+    if (expandedSubtask === i) setExpandedSubtask(null);
+  };
+
+  const updateDraftSubtask = (i: number, field: keyof DraftSubtask, value: string) => {
+    setDraftSubtasks((prev) => prev.map((st, idx) => idx === i ? { ...st, [field]: value } : st));
   };
 
   const catOptions = categories.map((c) => ({ value: c.id, label: c.name }));
@@ -172,6 +221,79 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
         min="0"
         step="10"
       />
+
+      {/* Subtasks (only for new tasks) */}
+      {!task && (
+        <div className="space-y-2">
+          <label className="text-[13px] font-medium" style={{ color: "var(--text-2)" }}>Podúkoly</label>
+          <div className="space-y-1.5">
+            {draftSubtasks.map((st, i) => (
+              <div key={i} className="rounded-xl border overflow-hidden"
+                style={{ borderColor: "var(--border-md)", background: "var(--bg-subtle)" }}>
+                <div className="flex items-center gap-2 px-3 py-2">
+                  <span className="flex-1 text-[13px] font-medium truncate" style={{ color: "var(--text-1)" }}>
+                    {st.title}
+                  </span>
+                  <button type="button" onClick={() => setExpandedSubtask(expandedSubtask === i ? null : i)}
+                    className="text-[11px] px-2 py-0.5 rounded-lg transition-colors"
+                    style={{ color: "var(--text-3)" }}>
+                    {expandedSubtask === i ? "Skrýt" : "Upravit"}
+                  </button>
+                  <button type="button" onClick={() => removeDraftSubtask(i)}
+                    className="p-1 rounded-lg transition-colors hover:text-red-500"
+                    style={{ color: "var(--text-3)" }}>
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                {expandedSubtask === i && (
+                  <div className="px-3 pb-3 space-y-2 border-t" style={{ borderColor: "var(--border)" }}>
+                    <textarea
+                      value={st.description}
+                      onChange={(e) => updateDraftSubtask(i, "description", e.target.value)}
+                      placeholder="Popis podúkolu..."
+                      rows={2}
+                      className="w-full text-[12.5px] rounded-lg px-2.5 py-2 resize-none outline-none mt-2"
+                      style={{ background: "var(--bg-card)", color: "var(--text-1)", border: "1px solid var(--border-md)" }}
+                    />
+                    <div className="flex items-center gap-2">
+                      <label className="text-[11.5px]" style={{ color: "var(--text-3)" }}>Sazba (Kč/h):</label>
+                      <input
+                        type="number"
+                        value={st.hourlyRate}
+                        onChange={(e) => updateDraftSubtask(i, "hourlyRate", e.target.value)}
+                        placeholder="Výchozí"
+                        min="0"
+                        step="10"
+                        className="w-24 text-[12.5px] rounded-lg px-2 py-1 outline-none"
+                        style={{ background: "var(--bg-card)", color: "var(--text-1)", border: "1px solid var(--border-md)" }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newSubtaskTitle}
+              onChange={(e) => setNewSubtaskTitle(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addDraftSubtask(); } }}
+              placeholder="Přidat podúkol..."
+              className="flex-1 text-[13px] rounded-xl px-3 py-2 outline-none"
+              style={{ background: "var(--bg-subtle)", color: "var(--text-1)", border: "1px solid var(--border-md)" }}
+            />
+            <button
+              type="button"
+              onClick={addDraftSubtask}
+              className="p-2.5 rounded-xl transition-all hover:opacity-80"
+              style={{ background: "var(--bg-subtle)", color: "var(--text-2)", border: "1px solid var(--border-md)" }}
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 

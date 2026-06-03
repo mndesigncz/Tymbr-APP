@@ -1,6 +1,6 @@
 export type TaskStatus = "todo" | "in_progress" | "review" | "done";
 export type TaskPriority = "low" | "medium" | "high" | "urgent";
-export type UserRole = "admin" | "member";
+export type TeamRole = "owner" | "admin" | "member";
 
 export interface User {
   id: string;
@@ -9,6 +9,38 @@ export interface User {
   avatar?: string | null;
   role: string;
   createdAt: Date;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  createdAt: Date;
+  ownerId: string;
+  owner?: User;
+  members?: TeamMember[];
+  invitations?: TeamInvitation[];
+}
+
+export interface TeamMember {
+  id: string;
+  teamId: string;
+  userId: string;
+  role: TeamRole;
+  joinedAt: Date;
+  user?: User;
+  team?: Team;
+}
+
+export interface TeamInvitation {
+  id: string;
+  teamId: string;
+  email: string;
+  token: string;
+  role: TeamRole;
+  createdAt: Date;
+  expiresAt?: Date | null;
+  acceptedAt?: Date | null;
+  team?: Team;
 }
 
 export interface Category {
@@ -32,6 +64,7 @@ export interface Task {
   hourlyRate?: number | null;
   createdAt: Date;
   updatedAt: Date;
+  teamId?: string | null;
   categoryId?: string | null;
   category?: Category | null;
   createdById: string;
@@ -41,16 +74,29 @@ export interface Task {
   comments?: Comment[];
   timeEntries?: TimeEntry[];
   subtasks?: SubTask[];
+  statusHistory?: TaskStatusHistory[];
   _count?: { comments: number };
 }
 
 export interface SubTask {
   id: string;
   title: string;
+  description?: string | null;
+  hourlyRate?: number | null;
   done: boolean;
   order: number;
   createdAt: Date | string;
   taskId: string;
+  timeEntries?: TimeEntry[];
+}
+
+export interface TaskStatusHistory {
+  id: string;
+  taskId: string;
+  status: TaskStatus;
+  startedAt: Date | string;
+  endedAt?: Date | string | null;
+  minutes?: number | null;
 }
 
 export interface Comment {
@@ -70,7 +116,10 @@ export interface TimeEntry {
   createdAt: Date | string;
   userId: string;
   taskId: string;
+  subtaskId?: string | null;
   task?: Task;
+  subtask?: SubTask;
+  user?: User;
 }
 
 export const STATUS_LABELS: Record<TaskStatus, string> = {
@@ -99,4 +148,10 @@ export const PRIORITY_COLORS: Record<TaskPriority, string> = {
   medium: "#3B82F6",
   high: "#F97316",
   urgent: "#EF4444",
+};
+
+export const ROLE_LABELS: Record<TeamRole, string> = {
+  owner: "Vlastník",
+  admin: "Admin",
+  member: "Člen",
 };

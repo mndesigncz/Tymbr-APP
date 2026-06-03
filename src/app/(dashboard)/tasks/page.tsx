@@ -133,6 +133,13 @@ function TasksContent() {
     else fetchDone();
   }, [tab, fetchActive, fetchDone]);
 
+  // Refresh tasks when WorkMode changes a task's status
+  useEffect(() => {
+    const handler = () => { if (tab === "active") fetchActive(); };
+    window.addEventListener("tymbr:task-updated", handler);
+    return () => window.removeEventListener("tymbr:task-updated", handler);
+  }, [tab, fetchActive]);
+
   useEffect(() => {
     fetch("/api/categories").then((r) => r.json()).then((d) => setCategories(Array.isArray(d) ? d : []));
   }, []);

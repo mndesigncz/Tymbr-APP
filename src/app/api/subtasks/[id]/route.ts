@@ -8,13 +8,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const body = await req.json();
-  const { title, done } = body;
+  const { title, done, description, hourlyRate } = body;
 
   const subtask = await prisma.subTask.update({
     where: { id },
     data: {
       ...(title !== undefined && { title }),
       ...(done !== undefined && { done }),
+      ...(description !== undefined && { description }),
+      ...(hourlyRate !== undefined && { hourlyRate: hourlyRate ? Number(hourlyRate) : null }),
     },
   });
   return NextResponse.json(subtask);

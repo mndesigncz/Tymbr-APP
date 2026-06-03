@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { CheckSquare, Mail, Lock, User } from "lucide-react";
+import { CheckSquare, Mail, Lock, User, Users } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "" });
+  const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "", teamName: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -26,7 +26,7 @@ export default function RegisterPage() {
     const res = await fetch("/api/users/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: form.name, email: form.email, password: form.password }),
+      body: JSON.stringify({ name: form.name, email: form.email, password: form.password, teamName: form.teamName }),
     });
     setLoading(false);
 
@@ -59,6 +59,9 @@ export default function RegisterPage() {
             <Input label="Email" type="email" placeholder="vas@email.cz"
               value={form.email} onChange={set("email")}
               icon={<Mail className="w-3.5 h-3.5" />} required />
+            <Input label="Název týmu" type="text" placeholder="Můj tým"
+              value={form.teamName} onChange={set("teamName")}
+              icon={<Users className="w-3.5 h-3.5" />} />
             <Input label="Heslo" type="password" placeholder="••••••••"
               value={form.password} onChange={set("password")}
               icon={<Lock className="w-3.5 h-3.5" />} required />

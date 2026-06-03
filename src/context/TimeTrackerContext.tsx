@@ -8,6 +8,7 @@ export interface ActiveEntry {
   taskTitle: string;
   categoryColor?: string;
   startedAt: string;
+  subtaskId?: string | null;
 }
 
 interface TimeTrackerState {
@@ -15,10 +16,11 @@ interface TimeTrackerState {
   elapsed: number;
   isLoading: boolean;
   focusOpen: boolean;
-  start: (taskId: string, taskTitle: string, categoryColor?: string) => Promise<void>;
+  start: (taskId: string, taskTitle: string, categoryColor?: string, subtaskId?: string) => Promise<void>;
   stop: () => Promise<void>;
   openFocus: () => void;
   closeFocus: () => void;
+  setActiveSubtask: (subtaskId: string | null) => void;
 }
 
 const TimeTrackerContext = createContext<TimeTrackerState>({
@@ -30,6 +32,7 @@ const TimeTrackerContext = createContext<TimeTrackerState>({
   stop: async () => {},
   openFocus: () => {},
   closeFocus: () => {},
+  setActiveSubtask: () => {},
 });
 
 export function TimeTrackerProvider({ children }: { children: React.ReactNode }) {
@@ -53,6 +56,7 @@ export function TimeTrackerProvider({ children }: { children: React.ReactNode })
             taskTitle: entry.task?.title ?? "",
             categoryColor: entry.task?.category?.color,
             startedAt: entry.startedAt,
+            subtaskId: entry.subtaskId ?? null,
           });
         }
       })
@@ -71,17 +75,17 @@ export function TimeTrackerProvider({ children }: { children: React.ReactNode })
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [active]);
 
-  const start = useCallback(async (taskId: string, taskTitle: string, categoryColor?: string) => {
+  const start = useCallback(async (taskId: string, taskTitle: string, categoryColor?: string, subtaskId?: string) => {
     setIsLoading(true);
     try {
       const res = await fetch("/api/time-entries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskId }),
+        body: JSON.stringify({ taskId, subtaskId: subtaskId || null }),
       });
       if (res.ok) {
         const entry = await res.json();
-        setActive({ id: entry.id, taskId, taskTitle, categoryColor, startedAt: entry.startedAt });
+        setActive({ id: entry.id, taskId, taskTitle, categoryColor, startedAt: entry.startedAt, subtaskId: subtaskId || null });
         setFocusOpen(true);
       }
     } finally {
@@ -97,6 +101,31 @@ export function TimeTrackerProvider({ children }: { children: React.ReactNode })
       await fetch(`/api/time-entries/${cur.id}`, { method: "PATCH" });
       setActive(null);
       setFocusOpen(false);
+      window.dispatchEvent(new CustomEvent("tymbr:task-updated"));
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const setActiveSubtask = useCallback(async (subtaskId: string | null) => {
+    const cur = activeRef.current;
+    if (!cur) return;
+    // Stop current entry and start new one with the subtask
+    const taskId = cur.taskId;
+    const taskTitle = cur.taskTitle;
+    const categoryColor = cur.categoryColor;
+    setIsLoading(true);
+    try {
+      await fetch(`/api/time-entries/${cur.id}`, { method: "PATCH" });
+      const res = await fetch("/api/time-entries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskId, subtaskId }),
+      });
+      if (res.ok) {
+        const entry = await res.json();
+        setActive({ id: entry.id, taskId, taskTitle, categoryColor, startedAt: entry.startedAt, subtaskId });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -106,7 +135,7 @@ export function TimeTrackerProvider({ children }: { children: React.ReactNode })
   const closeFocus = useCallback(() => setFocusOpen(false), []);
 
   return (
-    <TimeTrackerContext.Provider value={{ active, elapsed, isLoading, focusOpen, start, stop, openFocus, closeFocus }}>
+    <TimeTrackerContext.Provider value={{ active, elapsed, isLoading, focusOpen, start, stop, openFocus, closeFocus, setActiveSubtask }}>
       {children}
     </TimeTrackerContext.Provider>
   );

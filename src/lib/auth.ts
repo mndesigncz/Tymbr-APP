@@ -34,6 +34,19 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = (user as any).role;
+        // Fetch team membership
+        try {
+          const member = await prisma.teamMember.findFirst({
+            where: { userId: user.id },
+            select: { teamId: true, role: true },
+            orderBy: { joinedAt: "asc" },
+          });
+          token.teamId = member?.teamId ?? null;
+          token.teamRole = member?.role ?? null;
+        } catch {
+          token.teamId = null;
+          token.teamRole = null;
+        }
       }
       return token;
     },
@@ -41,6 +54,8 @@ export const authOptions: NextAuthOptions = {
       if (token) {
         session.user.id = token.id as string;
         session.user.role = token.role as string;
+        session.user.teamId = token.teamId as string | null;
+        session.user.teamRole = token.teamRole as string | null;
       }
       return session;
     },

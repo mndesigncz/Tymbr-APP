@@ -17,10 +17,53 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tasksCreated  Task[]      @relation("TaskCreator")
-  tasksAssigned Task[]      @relation("TaskAssignee")
-  comments      Comment[]
-  timeEntries   TimeEntry[]
+  tasksCreated    Task[]       @relation("TaskCreator")
+  tasksAssigned   Task[]       @relation("TaskAssignee")
+  comments        Comment[]
+  timeEntries     TimeEntry[]
+  ownedTeam       Team?        @relation("TeamOwner")
+  teamMemberships TeamMember[]
+}
+
+model Team {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  ownerId String @unique
+  owner   User   @relation("TeamOwner", fields: [ownerId], references: [id])
+
+  members     TeamMember[]
+  invitations TeamInvitation[]
+  tasks       Task[]
+  categories  Category[]
+}
+
+model TeamMember {
+  id       String   @id @default(cuid())
+  role     String   @default("member")
+  joinedAt DateTime @default(now())
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+}
+
+model TeamInvitation {
+  id         String    @id @default(cuid())
+  email      String
+  token      String    @unique @default(cuid())
+  role       String    @default("member")
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime?
+  acceptedAt DateTime?
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
 }
 
 model Category {
@@ -29,6 +72,9 @@ model Category {
   color     String   @default("#F97316")
   icon      String   @default("folder")
   createdAt DateTime @default(now())
+
+  teamId String?
+  team   Team?   @relation(fields: [teamId], references: [id], onDelete: SetNull)
 
   tasks Task[]
 }
@@ -46,6 +92,9 @@ model Task {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  teamId String?
+  team   Team?   @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
   categoryId String?
   category   Category? @relation(fields: [categoryId], references: [id])
 
@@ -55,17 +104,33 @@ model Task {
   assigneeId String?
   assignee   User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
 
-  comments    Comment[]
-  timeEntries TimeEntry[]
-  subtasks    SubTask[]
+  comments       Comment[]
+  timeEntries    TimeEntry[]
+  subtasks       SubTask[]
+  statusHistory  TaskStatusHistory[]
 }
 
 model SubTask {
-  id        String   @id @default(cuid())
-  title     String
-  done      Boolean  @default(false)
-  order     Int      @default(0)
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  hourlyRate  Float?
+  done        Boolean  @default(false)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  timeEntries TimeEntry[]
+}
+
+model TaskStatusHistory {
+  id        String    @id @default(cuid())
+  status    String
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+  minutes   Int?
 
   taskId String
   task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
@@ -95,4 +160,7 @@ model TimeEntry {
 
   taskId String
   task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  subtaskId String?
+  subtask   SubTask? @relation(fields: [subtaskId], references: [id], onDelete: SetNull)
 }
