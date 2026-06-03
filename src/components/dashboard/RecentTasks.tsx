@@ -8,10 +8,11 @@ import type { Task, TaskStatus } from "@/types";
 interface RecentTasksProps {
   allTasks: Task[];
   myTasks: Task[];
+  isManager?: boolean;
 }
 
-export function RecentTasks({ allTasks, myTasks }: RecentTasksProps) {
-  const [view, setView] = useState<"all" | "mine">("mine");
+export function RecentTasks({ allTasks, myTasks, isManager = true }: RecentTasksProps) {
+  const [view, setView] = useState<"all" | "mine">(isManager ? "all" : "mine");
   const [state, setState] = useState({ all: allTasks, mine: myTasks });
 
   const visible = view === "all" ? state.all : state.mine;
@@ -34,25 +35,32 @@ export function RecentTasks({ allTasks, myTasks }: RecentTasksProps) {
   return (
     <div className="rounded-3xl border" style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
       <div className="flex items-center justify-between px-6 pt-6 pb-5">
-        <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: "var(--bg-subtle)" }}>
-          <button
-            onClick={() => setView("all")}
-            className="px-3 py-1.5 rounded-lg text-[13px] font-semibold transition-all"
-            style={view === "all"
-              ? { background: "var(--bg-card)", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
-              : { color: "var(--text-3)" }}
-          >
-            Všechny
-          </button>
-          <button
-            onClick={() => setView("mine")}
-            className="px-3 py-1.5 rounded-lg text-[13px] font-semibold transition-all"
-            style={view === "mine"
-              ? { background: "var(--bg-card)", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
-              : { color: "var(--text-3)" }}
-          >
-            Moje
-          </button>
+        <div className="flex items-center gap-2">
+          <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>
+            {isManager ? "Úkoly" : "Moje úkoly"}
+          </h2>
+          {isManager && (
+            <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: "var(--bg-subtle)" }}>
+              <button
+                onClick={() => setView("all")}
+                className="px-3 py-1.5 rounded-lg text-[13px] font-semibold transition-all"
+                style={view === "all"
+                  ? { background: "var(--bg-card)", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
+                  : { color: "var(--text-3)" }}
+              >
+                Všechny
+              </button>
+              <button
+                onClick={() => setView("mine")}
+                className="px-3 py-1.5 rounded-lg text-[13px] font-semibold transition-all"
+                style={view === "mine"
+                  ? { background: "var(--bg-card)", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
+                  : { color: "var(--text-3)" }}
+              >
+                Moje
+              </button>
+            </div>
+          )}
         </div>
         <Link
           href={view === "mine" ? "/tasks?mine=1" : "/tasks"}

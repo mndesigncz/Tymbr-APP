@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { isManager } from "@/lib/roles";
 import { Header } from "@/components/layout/Header";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { RecentTasks } from "@/components/dashboard/RecentTasks";
@@ -20,6 +21,8 @@ const taskInclude = {
 export default async function DashboardPage() {
   const session = await getSession();
   const teamId = (session!.user as any).teamId;
+  const teamRole = (session!.user as any).teamRole;
+  const manager = isManager(teamRole);
 
   const teamScope = { teamId: teamId ?? "__none__" };
   const catScope = { teamId: teamId ?? "__none__" };
@@ -52,6 +55,11 @@ export default async function DashboardPage() {
   const todo = allTasks.filter((t) => t.status === "todo").length;
   const inProgress = allTasks.filter((t) => t.status === "in_progress").length;
   const doneTotal = await prisma.task.count({ where: { ...teamScope, status: "done" } });
+
+  // Member-specific counts (used when not a manager)
+  const myTodo = myTasks.filter((t) => t.status === "todo").length;
+  const myInProgress = myTasks.filter((t) => t.status === "in_progress").length;
+  const myDoneTotal = await prisma.task.count({ where: { ...teamScope, assigneeId: session!.user.id, status: "done" } });
 
   // Priority ordering: urgent > high > medium > low
   const PRIO: Record<string, number> = { urgent: 3, high: 2, medium: 1, low: 0 };
@@ -99,19 +107,19 @@ export default async function DashboardPage() {
       />
 
       <div className="px-6 lg:px-8 pt-2 pb-12 space-y-8">
-        {/* Stats */}
+        {/* Stats — managers see team-wide, members see their own */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-          <StatsCard title="Aktivní úkoly"  value={allTasks.length} icon={CheckSquare}  highlight />
-          <StatsCard title="K provedení"    value={todo}            icon={Clock}        color="#6366f1" />
-          <StatsCard title="Probíhá"        value={inProgress}      icon={CheckCircle2} color="#eab308" />
-          <StatsCard title="Hotovo celkem"  value={doneTotal}       icon={CheckCheck}   color="#22c55e" />
+          <StatsCard title={manager ? "Aktivní úkoly" : "Moje úkoly"}  value={manager ? allTasks.length : myTasks.length} icon={CheckSquare}  highlight />
+          <StatsCard title="K provedení"    value={manager ? todo : myTodo}            icon={Clock}        color="#6366f1" />
+          <StatsCard title="Probíhá"        value={manager ? inProgress : myInProgress} icon={CheckCircle2} color="#eab308" />
+          <StatsCard title="Hotovo celkem"  value={manager ? doneTotal : myDoneTotal}  icon={CheckCheck}   color="#22c55e" />
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className="xl:col-span-2 space-y-7">
-            <UrgentTasks allUrgent={urgentAll} myUrgent={urgentMine} />
+            <UrgentTasks allUrgent={urgentAll} myUrgent={urgentMine} isManager={manager} />
 
-            <RecentTasks allTasks={recent} myTasks={myTasksList} />
+            <RecentTasks allTasks={recent} myTasks={myTasksList} isManager={manager} />
           </div>
 
           <div className="space-y-6">
