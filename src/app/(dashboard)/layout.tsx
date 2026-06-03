@@ -17,7 +17,7 @@ export default async function DashboardLayout({
     <TimeTrackerProvider>
       <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg-page)" }}>
         <Sidebar />
-        <main className="flex-1 overflow-y-auto pb-24 lg:pb-0">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden pb-24 lg:pb-0 min-w-0">
           {children}
         </main>
         <BottomNav />
