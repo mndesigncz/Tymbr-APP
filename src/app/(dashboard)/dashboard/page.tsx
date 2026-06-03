@@ -21,9 +21,9 @@ export default async function DashboardPage() {
   const session = await getSession();
   const teamId = (session!.user as any).teamId;
 
-  // Team scope: tasks belonging to the team OR legacy tasks with no team (migration compat)
-  const teamScope = teamId ? { OR: [{ teamId }, { teamId: null }] } : {};
-  const catScope = teamId ? { OR: [{ teamId }, { teamId: null }] } : {};
+  // Strictly team-scoped. Without a team there is no data to show.
+  const teamScope = { teamId: teamId ?? "__none__" };
+  const catScope = { teamId: teamId ?? "__none__" };
 
   const weekFromNow = new Date();
   weekFromNow.setDate(weekFromNow.getDate() + 7);
