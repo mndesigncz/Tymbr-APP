@@ -106,7 +106,7 @@ export default async function DashboardPage() {
         }
       />
 
-      <div className="px-6 lg:px-8 pt-2 pb-12 space-y-8">
+      <div className="px-4 sm:px-6 lg:px-8 pt-2 pb-12 space-y-8">
         {/* Stats — managers see team-wide, members see their own */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
           <StatsCard title={manager ? "Aktivní úkoly" : "Moje úkoly"}  value={manager ? allTasks.length : myTasks.length} icon={CheckSquare}  highlight />

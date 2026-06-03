@@ -143,7 +143,7 @@ export default function CategoriesPage() {
         }
       />
 
-      <div className="px-6 lg:px-8 pt-2 pb-12">
+      <div className="px-4 sm:px-6 lg:px-8 pt-2 pb-12">
         {/* Tab toggle */}
         <div className="flex items-center gap-1 p-1 rounded-xl border mb-6 w-fit"
           style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>

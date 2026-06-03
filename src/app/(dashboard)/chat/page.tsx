@@ -220,11 +220,36 @@ export default function ChatPage() {
         subtitle={activeDM ? "Přímá zpráva" : "Komunikace s celým týmem"}
       />
 
-      <div className="px-6 lg:px-8 pb-6">
-        <div className="flex gap-4 h-[calc(100vh-180px)]">
-          {/* Sidebar: channels */}
+      <div className="px-4 sm:px-6 lg:px-8 pb-6">
+        {/* Mobile channel selector — horizontally scrollable */}
+        {members.length > 0 && (
+          <div className="lg:hidden flex items-center gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-3">
+            <button
+              onClick={() => setActiveDM(null)}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl flex-shrink-0 transition-colors"
+              style={!activeDM
+                ? { background: "var(--accent)", color: "#fff" }
+                : { background: "var(--bg-card)", color: "var(--text-2)", border: "1px solid var(--border-md)" }}>
+              <Users className="w-4 h-4" />
+              <span className="text-[13px] font-semibold">Tým</span>
+            </button>
+            {members.map((m) => (
+              <button key={m.id}
+                onClick={() => setActiveDM(m.id)}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl flex-shrink-0 transition-colors"
+                style={activeDM === m.id
+                  ? { background: "var(--accent-soft)", color: "var(--accent)", border: "1px solid var(--accent)" }
+                  : { background: "var(--bg-card)", color: "var(--text-2)", border: "1px solid var(--border-md)" }}>
+                <Avatar name={m.name} src={m.avatar} size="xs" />
+                <span className="text-[13px] font-medium">{m.name.split(" ")[0]}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="flex gap-4 h-[calc(100dvh-220px)] lg:h-[calc(100vh-180px)]">
+          {/* Sidebar: channels — desktop only */}
           {members.length > 0 && (
-            <div className="w-[200px] flex-shrink-0 rounded-3xl border overflow-hidden flex flex-col"
+            <div className="hidden lg:flex w-[200px] flex-shrink-0 rounded-3xl border overflow-hidden flex-col"
               style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
               <div className="px-4 pt-4 pb-2">
                 <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-3)" }}>Kanály</p>

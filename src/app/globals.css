@@ -49,6 +49,10 @@
 ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.20); background-clip: padding-box; }
 
+/* Hide scrollbar for horizontally scrollable chip/toggle rows (mobile) */
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border);

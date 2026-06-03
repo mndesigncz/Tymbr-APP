@@ -16,7 +16,7 @@ export default function SettingsPage() {
     <div>
       <Header title="Nastavení" subtitle="Správa účtu a předvoleb" />
 
-      <div className="px-6 lg:px-8 pt-2 pb-12 max-w-2xl mx-auto space-y-7">
+      <div className="px-4 sm:px-6 lg:px-8 pt-2 pb-12 max-w-2xl mx-auto space-y-7">
         <div className="rounded-3xl border p-6" style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
           <div className="flex items-center gap-2 mb-5">
             <User className="w-[18px] h-[18px]" style={{ color: "var(--accent)" }} />
