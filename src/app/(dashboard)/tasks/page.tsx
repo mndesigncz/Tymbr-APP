@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Header } from "@/components/layout/Header";
@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import type { Task, TaskStatus } from "@/types";
-import { Plus, LayoutGrid, List, Search, SlidersHorizontal, X, CheckCheck } from "lucide-react";
+import { Plus, LayoutGrid, List, Search, SlidersHorizontal, X, CheckCheck, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 
@@ -32,6 +32,7 @@ const PRIORITY_OPTS = [
 ];
 
 type DateRange = "today" | "week" | "month" | "year" | "custom";
+type Scope = "mine" | "all" | "pick";
 
 const DATE_RANGE_LABELS: Record<DateRange, string> = {
   today: "Dnes",
@@ -73,23 +74,34 @@ function TasksContent() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"kanban" | "list">("kanban");
-  const [scope, setScope] = useState<"all" | "mine">("mine");
+  const [scope, setScope] = useState<Scope>("mine");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
-    search: "",
+    search: searchParams.get("search") || "",
     status: searchParams.get("status") || "",
     priority: "",
     categoryId: searchParams.get("categoryId") || "",
   });
   const [categories, setCategories] = useState<{ id: string; name: string; color: string }[]>([]);
   const [members, setMembers] = useState<{ id: string; name: string; avatar?: string | null }[]>([]);
-  const [assigneeFilter, setAssigneeFilter] = useState("");
+  const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
+  const [pickDropOpen, setPickDropOpen] = useState(false);
+  const pickRef = useRef<HTMLDivElement>(null);
 
   const [dateRange, setDateRange] = useState<DateRange>("month");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
 
-  const myId = (session?.user as any)?.id;
+  const myId = session?.user?.id;
+
+  // Close pick dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (pickRef.current && !pickRef.current.contains(e.target as Node)) setPickDropOpen(false);
+    };
+    if (pickDropOpen) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [pickDropOpen]);
 
   const fetchActive = useCallback(async () => {
     setLoading(true);
@@ -98,11 +110,14 @@ function TasksContent() {
     if (filters.status) params.set("status", filters.status);
     if (filters.priority) params.set("priority", filters.priority);
     if (filters.categoryId) params.set("categoryId", filters.categoryId);
-    // Member filter takes precedence; otherwise "mine" scope filters to current user
-    if (assigneeFilter) params.set("assigneeId", assigneeFilter);
-    else if (scope === "mine" && myId) params.set("assigneeId", myId);
 
-    // Also pull tasks completed today so the "Hotovo" column isn't empty
+    if (scope === "pick" && selectedMembers.size > 0) {
+      // Multiple assignees: fetch once per member and merge (or pass comma-separated)
+      params.set("assigneeIds", [...selectedMembers].join(","));
+    } else if (scope === "mine" && myId) {
+      params.set("assigneeId", myId);
+    }
+
     const doneParams = new URLSearchParams(params);
     doneParams.set("status", "done");
     doneParams.set("completedFrom", startOfToday().toISOString());
@@ -116,7 +131,7 @@ function TasksContent() {
     const doneToday = Array.isArray(doneRes) ? doneRes : [];
     setTasks([...activeTasks, ...doneToday]);
     setLoading(false);
-  }, [filters, scope, myId, assigneeFilter]);
+  }, [filters, scope, myId, selectedMembers]);
 
   const fetchDone = useCallback(async () => {
     setLoading(true);
@@ -138,7 +153,6 @@ function TasksContent() {
     else fetchDone();
   }, [tab, fetchActive, fetchDone]);
 
-  // Refresh tasks when WorkMode changes a task's status
   useEffect(() => {
     const handler = () => { if (tab === "active") fetchActive(); };
     window.addEventListener("tymbr:task-updated", handler);
@@ -158,12 +172,24 @@ function TasksContent() {
     });
     if (res.ok) {
       const updated = await res.json();
-      // Keep done-today visible; just update in place
       setTasks((prev) => prev.map((t) => (t.id === taskId ? updated : t)));
     }
   };
 
+  const toggleMember = (id: string) => {
+    setSelectedMembers((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const activeFiltersCount = [filters.status, filters.priority].filter(Boolean).length;
+
+  const pickLabel = scope === "pick" && selectedMembers.size > 0
+    ? `${selectedMembers.size} ${selectedMembers.size === 1 ? "osoba" : selectedMembers.size < 5 ? "osoby" : "osob"}`
+    : "Výběr";
 
   return (
     <div>
@@ -183,49 +209,73 @@ function TasksContent() {
       />
 
       <div className="px-6 lg:px-8 pt-2 pb-12 space-y-5">
-        {/* Toggles row: Moje/Všechny + Aktivní/Hotové + search */}
-        <div className="flex flex-wrap items-center gap-3">
+        {/* Main toolbar row */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Scope: Moje / Všechny / Výběr */}
           {tab === "active" && (
-            <div className="flex items-center gap-1 p-1 rounded-xl border"
+            <div className="flex items-center gap-1 p-1 rounded-xl border flex-shrink-0"
               style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
-              <button
-                onClick={() => setScope("mine")}
-                className="px-3.5 py-2 rounded-lg text-[13px] font-semibold transition-all"
-                style={scope === "mine" ? { background: "var(--accent)", color: "#fff" } : { color: "var(--text-2)" }}
-              >
-                Moje
-              </button>
-              <button
-                onClick={() => setScope("all")}
-                className="px-3.5 py-2 rounded-lg text-[13px] font-semibold transition-all"
-                style={scope === "all" ? { background: "var(--accent)", color: "#fff" } : { color: "var(--text-2)" }}
-              >
-                Všechny
-              </button>
+              {(["mine", "all"] as const).map((s) => (
+                <button key={s}
+                  onClick={() => { setScope(s); setSelectedMembers(new Set()); }}
+                  className="px-3 py-2 rounded-lg text-[13px] font-semibold transition-all"
+                  style={scope === s ? { background: "var(--accent)", color: "#fff" } : { color: "var(--text-2)" }}>
+                  {s === "mine" ? "Moje" : "Všechny"}
+                </button>
+              ))}
+              {/* Pick dropdown */}
+              <div ref={pickRef} className="relative">
+                <button
+                  onClick={() => { setScope("pick"); setPickDropOpen((o) => !o); }}
+                  className="flex items-center gap-1 px-3 py-2 rounded-lg text-[13px] font-semibold transition-all"
+                  style={scope === "pick"
+                    ? { background: "var(--accent)", color: "#fff" }
+                    : { color: "var(--text-2)" }}>
+                  {pickLabel}
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+                {pickDropOpen && members.length > 0 && (
+                  <div className="absolute top-full left-0 mt-1 z-50 rounded-2xl border py-1.5 min-w-[180px]"
+                    style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", boxShadow: "var(--shadow-md, 0 8px 24px rgba(0,0,0,0.1))" }}>
+                    {members.map((m) => (
+                      <label key={m.id}
+                        className="flex items-center gap-2.5 px-3.5 py-2 cursor-pointer hover:bg-black/[0.03] transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={selectedMembers.has(m.id)}
+                          onChange={() => toggleMember(m.id)}
+                          className="w-3.5 h-3.5 rounded accent-[var(--accent)]"
+                        />
+                        <Avatar name={m.name} src={m.avatar} size="xs" />
+                        <span className="text-[13px] font-medium" style={{ color: "var(--text-1)" }}>
+                          {m.name.split(" ")[0]}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
-          <div className="flex items-center gap-1 p-1 rounded-xl border"
+          {/* Active / Done */}
+          <div className="flex items-center gap-1 p-1 rounded-xl border flex-shrink-0"
             style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
-            <button
-              onClick={() => setTab("active")}
+            <button onClick={() => setTab("active")}
               className="px-3.5 py-2 rounded-lg text-[13px] font-semibold transition-all"
-              style={tab === "active" ? { background: "var(--text-1)", color: "#fff" } : { color: "var(--text-2)" }}
-            >
+              style={tab === "active" ? { background: "var(--text-1)", color: "#fff" } : { color: "var(--text-2)" }}>
               Aktivní
             </button>
-            <button
-              onClick={() => setTab("done")}
+            <button onClick={() => setTab("done")}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13px] font-semibold transition-all"
-              style={tab === "done" ? { background: "#22C55E", color: "#fff" } : { color: "var(--text-2)" }}
-            >
+              style={tab === "done" ? { background: "#22C55E", color: "#fff" } : { color: "var(--text-2)" }}>
               <CheckCheck className="w-3.5 h-3.5" />
               Hotové
             </button>
           </div>
 
-          {/* Shorter search */}
-          <div className="w-full sm:w-56">
+          {/* Search — fills available space */}
+          <div className="flex-1 min-w-[140px]">
             <Input
               placeholder="Hledat..."
               value={filters.search}
@@ -234,15 +284,15 @@ function TasksContent() {
             />
           </div>
 
+          {/* Filtry + View — right side */}
           {tab === "active" && (
-            <>
+            <div className="flex items-center gap-2 flex-shrink-0">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13.5px] font-medium border transition-all hover:bg-black/[0.03]"
+                className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[13px] font-medium border transition-all hover:bg-black/[0.03]"
                 style={showFilters || activeFiltersCount > 0
                   ? { background: "var(--accent-soft)", borderColor: "var(--accent)", color: "var(--accent)" }
-                  : { background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-2)" }}
-              >
+                  : { background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-2)" }}>
                 <SlidersHorizontal className="w-4 h-4" />
                 <span className="hidden sm:inline">Filtry</span>
                 {activeFiltersCount > 0 && (
@@ -253,7 +303,7 @@ function TasksContent() {
                 )}
               </button>
 
-              <div className="flex items-center gap-1 rounded-xl p-1 border ml-auto"
+              <div className="flex items-center gap-1 rounded-xl p-1 border"
                 style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
                 <button onClick={() => setView("kanban")} className="p-2 rounded-lg transition-all"
                   style={view === "kanban" ? { background: "var(--accent)", color: "#fff" } : { color: "var(--text-3)" }}>
@@ -264,11 +314,11 @@ function TasksContent() {
                   <List className="w-4 h-4" />
                 </button>
               </div>
-            </>
+            </div>
           )}
         </div>
 
-        {/* Done tab: date range chips */}
+        {/* Done date range */}
         {tab === "done" && (
           <div className="space-y-3">
             <div className="flex flex-wrap gap-2 items-center">
@@ -291,7 +341,7 @@ function TasksContent() {
           </div>
         )}
 
-        {/* Active tab: category chips + filters */}
+        {/* Active: category chips + filter panel */}
         {tab === "active" && (
           <>
             {categories.length > 0 && (
@@ -312,31 +362,6 @@ function TasksContent() {
                       : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}>
                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: cat.color }} />
                     {cat.name}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Member filter chips */}
-            {members.length > 1 && (
-              <div className="flex flex-wrap gap-2 items-center">
-                <span className="text-[12px] font-semibold mr-1" style={{ color: "var(--text-3)" }}>Členové:</span>
-                <button onClick={() => setAssigneeFilter("")}
-                  className="px-3 py-1.5 rounded-xl text-[12.5px] font-semibold border transition-all"
-                  style={!assigneeFilter
-                    ? { background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" }
-                    : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}>
-                  Všichni
-                </button>
-                {members.map((m) => (
-                  <button key={m.id}
-                    onClick={() => setAssigneeFilter(assigneeFilter === m.id ? "" : m.id)}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[12.5px] font-semibold border transition-all"
-                    style={assigneeFilter === m.id
-                      ? { background: "var(--accent-soft)", color: "var(--accent)", borderColor: "var(--accent)" }
-                      : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}>
-                    <Avatar name={m.name} src={m.avatar} size="xs" />
-                    {m.name.split(" ")[0]}
                   </button>
                 ))}
               </div>

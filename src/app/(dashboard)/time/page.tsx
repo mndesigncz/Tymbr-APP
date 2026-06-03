@@ -4,14 +4,13 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { Header } from "@/components/layout/Header";
 import { Avatar } from "@/components/ui/Avatar";
-import { Clock, TrendingUp, CheckSquare, Trash2, Users } from "lucide-react";
+import { Clock, TrendingUp, CheckSquare, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import type { TimeEntry } from "@/types";
 
 type DateRange = "today" | "week" | "month" | "year" | "custom";
 type ReportTab = "task" | "subtask" | "category" | "person" | "status";
 
-// Effective hourly rate for a time entry: subtask rate overrides task rate
 function entryRate(e: any): number | null {
   const subRate = e.subtask?.hourlyRate;
   if (subRate != null) return subRate;
@@ -79,7 +78,24 @@ export default function TimePage() {
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<ReportTab>("task");
-  const [allUsers, setAllUsers] = useState(false);
+  const [members, setMembers] = useState<{ id: string; name: string; avatar?: string | null }[]>([]);
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
+  const [expandedEntry, setExpandedEntry] = useState<string | null>(null);
+
+  const myId = session?.user?.id;
+
+  useEffect(() => {
+    fetch("/api/users").then((r) => r.json()).then((d) => {
+      if (Array.isArray(d)) setMembers(d);
+    });
+  }, []);
+
+  // Default to current user selected
+  useEffect(() => {
+    if (myId && selectedUserIds.size === 0) {
+      setSelectedUserIds(new Set([myId]));
+    }
+  }, [myId]);
 
   const fetchEntries = useCallback(async () => {
     setLoading(true);
@@ -88,12 +104,15 @@ export default function TimePage() {
       dateFrom: from.toISOString(),
       dateTo: to.toISOString(),
     });
-    if (allUsers) params.set("allUsers", "true");
+    // If all members selected or none selected, fetch all; else fetch all and filter client-side
+    if (selectedUserIds.size !== 1 || !selectedUserIds.has(myId ?? "")) {
+      params.set("allUsers", "true");
+    }
     const res = await fetch(`/api/time-entries?${params}`);
     const data = await res.json();
     setEntries(Array.isArray(data) ? data.filter((e: TimeEntry) => e.stoppedAt) : []);
     setLoading(false);
-  }, [range, customFrom, customTo, allUsers]);
+  }, [range, customFrom, customTo, selectedUserIds, myId]);
 
   useEffect(() => { fetchEntries(); }, [fetchEntries]);
 
@@ -102,50 +121,52 @@ export default function TimePage() {
     setEntries((prev) => prev.filter((e) => e.id !== id));
   };
 
-  const totalMinutes = entries.reduce((s, e) => s + (e.durationMinutes ?? 0), 0);
-  const totalEarning = entries.reduce((s, e) => s + entryEarning(e), 0);
-  const uniqueTasks = new Set(entries.map((e) => e.taskId)).size;
+  const toggleUser = (id: string) => {
+    setSelectedUserIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) { next.delete(id); }
+      else { next.add(id); }
+      return next;
+    });
+  };
+
+  const selectAll = () => setSelectedUserIds(new Set(members.map((m) => m.id)));
+  const isAllSelected = members.length > 0 && members.every((m) => selectedUserIds.has(m.id));
+
+  // Filter entries by selected users
+  const filteredEntries = selectedUserIds.size === 0
+    ? entries
+    : entries.filter((e) => selectedUserIds.has(e.userId));
+
+  const totalMinutes = filteredEntries.reduce((s, e) => s + (e.durationMinutes ?? 0), 0);
+  const totalEarning = filteredEntries.reduce((s, e) => s + entryEarning(e), 0);
+  const uniqueTasks = new Set(filteredEntries.map((e) => e.taskId)).size;
 
   // Group by subtask
-  const bySubtask = entries.reduce((acc, e) => {
+  const bySubtask = filteredEntries.reduce((acc, e) => {
     const sub = (e as any).subtask;
     if (!sub) return acc;
     if (!acc[sub.id]) {
-      acc[sub.id] = {
-        title: sub.title,
-        taskTitle: (e.task as any)?.title ?? "",
-        minutes: 0,
-        earning: 0,
-        rate: sub.hourlyRate ?? (e.task as any)?.hourlyRate ?? null,
-      };
+      acc[sub.id] = { title: sub.title, taskTitle: (e.task as any)?.title ?? "", minutes: 0, earning: 0, rate: sub.hourlyRate ?? (e.task as any)?.hourlyRate ?? null };
     }
     acc[sub.id].minutes += e.durationMinutes ?? 0;
     acc[sub.id].earning += entryEarning(e);
     return acc;
   }, {} as Record<string, { title: string; taskTitle: string; minutes: number; earning: number; rate: number | null }>);
-
   const subtaskRows = Object.values(bySubtask).sort((a, b) => b.minutes - a.minutes);
 
   // Group by task
-  const byTask = entries.reduce((acc, e) => {
+  const byTask = filteredEntries.reduce((acc, e) => {
     if (!acc[e.taskId]) {
-      acc[e.taskId] = {
-        title: (e.task as any)?.title ?? "Neznámý úkol",
-        categoryName: (e.task as any)?.category?.name,
-        categoryColor: (e.task as any)?.category?.color,
-        status: (e.task as any)?.status ?? "todo",
-        hourlyRate: (e.task as any)?.hourlyRate,
-        minutes: 0,
-      };
+      acc[e.taskId] = { title: (e.task as any)?.title ?? "Neznámý úkol", categoryName: (e.task as any)?.category?.name, categoryColor: (e.task as any)?.category?.color, status: (e.task as any)?.status ?? "todo", hourlyRate: (e.task as any)?.hourlyRate, minutes: 0 };
     }
     acc[e.taskId].minutes += e.durationMinutes ?? 0;
     return acc;
   }, {} as Record<string, { title: string; categoryName?: string; categoryColor?: string; status: string; hourlyRate?: number; minutes: number }>);
-
   const taskRows = Object.values(byTask).sort((a, b) => b.minutes - a.minutes);
 
   // Group by category
-  const byCat = entries.reduce((acc, e) => {
+  const byCat = filteredEntries.reduce((acc, e) => {
     const name = (e.task as any)?.category?.name ?? "Bez kategorie";
     const color = (e.task as any)?.category?.color ?? "#9a9aa2";
     if (!acc[name]) acc[name] = { name, color, minutes: 0, earning: 0 };
@@ -153,40 +174,28 @@ export default function TimePage() {
     acc[name].earning += entryEarning(e);
     return acc;
   }, {} as Record<string, { name: string; color: string; minutes: number; earning: number }>);
-
   const catRows = Object.values(byCat).sort((a, b) => b.minutes - a.minutes);
 
   // Group by person
-  const byPerson = entries.reduce((acc, e) => {
+  const byPerson = filteredEntries.reduce((acc, e) => {
     const userId = e.userId;
     const user = e.user as any;
-    if (!acc[userId]) {
-      acc[userId] = {
-        userId,
-        name: user?.name ?? "Neznámý",
-        avatar: user?.avatar,
-        minutes: 0,
-        earning: 0,
-        tasks: new Set<string>(),
-      };
-    }
+    if (!acc[userId]) acc[userId] = { userId, name: user?.name ?? "Neznámý", avatar: user?.avatar, minutes: 0, earning: 0, tasks: new Set<string>() };
     acc[userId].minutes += e.durationMinutes ?? 0;
     acc[userId].tasks.add(e.taskId);
     acc[userId].earning += entryEarning(e);
     return acc;
   }, {} as Record<string, { userId: string; name: string; avatar?: string; minutes: number; earning: number; tasks: Set<string> }>);
-
   const personRows = Object.values(byPerson).sort((a, b) => b.minutes - a.minutes);
 
   // Group by status
-  const byStatus = entries.reduce((acc, e) => {
+  const byStatus = filteredEntries.reduce((acc, e) => {
     const s = (e.task as any)?.status ?? "todo";
     if (!acc[s]) acc[s] = { status: s, minutes: 0, count: 0 };
     acc[s].minutes += e.durationMinutes ?? 0;
     acc[s].count += 1;
     return acc;
   }, {} as Record<string, { status: string; minutes: number; count: number }>);
-
   const statusRows = Object.values(byStatus).sort((a, b) => b.minutes - a.minutes);
 
   const TAB_LABELS: Record<ReportTab, string> = {
@@ -197,42 +206,63 @@ export default function TimePage() {
     status: "Stav",
   };
 
+  const BarRow = ({ pct, color }: { pct: number; color: string }) => (
+    <div className="mt-2 h-1 rounded-full overflow-hidden" style={{ background: "var(--bg-subtle)" }}>
+      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+    </div>
+  );
+
   return (
     <div>
       <Header title="Výkazy práce" subtitle="Přehled odpracovaného času a výdělků" />
 
       <div className="px-6 lg:px-8 pt-2 pb-12 space-y-6">
-        {/* Controls */}
-        <div className="flex flex-wrap gap-3 items-center">
+        {/* Date range */}
+        <div className="space-y-3">
           <div className="flex flex-wrap gap-2">
             {(Object.keys(DATE_LABELS) as DateRange[]).map((r) => (
-              <button
-                key={r}
-                onClick={() => setRange(r)}
+              <button key={r} onClick={() => setRange(r)}
                 className="px-3.5 py-2 rounded-xl text-[13px] font-semibold border transition-all"
                 style={range === r
                   ? { background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" }
-                  : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}
-              >
+                  : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}>
                 {DATE_LABELS[r]}
               </button>
             ))}
           </div>
-          <button
-            onClick={() => setAllUsers(!allUsers)}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-[13px] font-semibold border transition-all"
-            style={allUsers
-              ? { background: "#3B82F615", color: "#3B82F6", borderColor: "#3B82F6" }
-              : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}
-          >
-            <Users className="w-3.5 h-3.5" />
-            Celý tým
-          </button>
+          {range === "custom" && (
+            <div className="flex gap-3 max-w-xs">
+              <Input type="date" label="Od" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
+              <Input type="date" label="Do" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
+            </div>
+          )}
         </div>
-        {range === "custom" && (
-          <div className="flex gap-3 max-w-xs">
-            <Input type="date" label="Od" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
-            <Input type="date" label="Do" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
+
+        {/* Member selector */}
+        {members.length > 1 && (
+          <div className="flex flex-wrap gap-2 items-center">
+            <button
+              onClick={isAllSelected ? () => setSelectedUserIds(new Set([myId ?? ""])) : selectAll}
+              className="px-3 py-1.5 rounded-xl text-[12.5px] font-semibold border transition-all"
+              style={isAllSelected
+                ? { background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" }
+                : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}>
+              Celý tým
+            </button>
+            {members.map((m) => (
+              <button key={m.id}
+                onClick={() => toggleUser(m.id)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[12.5px] font-semibold border transition-all"
+                style={selectedUserIds.has(m.id)
+                  ? { background: "var(--accent-soft)", color: "var(--accent)", borderColor: "var(--accent)" }
+                  : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}>
+                <Avatar name={m.name} src={m.avatar} size="xs" />
+                {m.name.split(" ")[0]}
+                {m.id === myId && (
+                  <span className="text-[10px]" style={{ opacity: 0.6 }}>já</span>
+                )}
+              </button>
+            ))}
           </div>
         )}
 
@@ -245,8 +275,7 @@ export default function TimePage() {
           ].map(({ icon: Icon, color, value, label }) => (
             <div key={label} className="rounded-3xl p-6 flex flex-col gap-5 border"
               style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center"
-                style={{ background: `${color}15` }}>
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: `${color}15` }}>
                 <Icon className="w-5 h-5" style={{ color }} />
               </div>
               <div>
@@ -257,17 +286,14 @@ export default function TimePage() {
           ))}
         </div>
 
-        {/* Tabs */}
+        {/* Report tabs */}
         <div className="rounded-3xl border overflow-hidden"
           style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
           <div className="flex items-center gap-1 p-2 border-b" style={{ borderColor: "var(--border)" }}>
             {(Object.keys(TAB_LABELS) as ReportTab[]).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
+              <button key={t} onClick={() => setTab(t)}
                 className="px-4 py-2 rounded-xl text-[13px] font-semibold transition-all"
-                style={tab === t ? { background: "var(--accent)", color: "#fff" } : { color: "var(--text-2)" }}
-              >
+                style={tab === t ? { background: "var(--accent)", color: "#fff" } : { color: "var(--text-2)" }}>
                 {TAB_LABELS[t]}
               </button>
             ))}
@@ -278,230 +304,187 @@ export default function TimePage() {
               <div className="w-7 h-7 border-[2.5px] rounded-full animate-spin"
                 style={{ borderColor: "var(--accent)", borderTopColor: "transparent" }} />
             </div>
-          ) : entries.length === 0 ? (
+          ) : filteredEntries.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16" style={{ color: "var(--text-3)" }}>
               <Clock className="w-10 h-10 mb-3 opacity-40" />
               <p className="text-[14px] font-semibold" style={{ color: "var(--text-2)" }}>Žádné záznamy</p>
               <p className="text-[13px] mt-1">Zahajte práci v přehledu nebo u úkolu</p>
             </div>
           ) : (
-            <>
-              {tab === "task" && (
-                <div className="divide-y" style={{ borderColor: "var(--border)" }}>
-                  {taskRows.map((row, i) => {
-                    const pct = totalMinutes > 0 ? (row.minutes / totalMinutes) * 100 : 0;
-                    const earning = row.hourlyRate ? Math.round((row.minutes / 60) * row.hourlyRate) : null;
-                    return (
-                      <div key={i} className="px-6 py-4">
-                        <div className="flex items-center gap-3 mb-2">
-                          {row.categoryColor && (
-                            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: row.categoryColor }} />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[13.5px] font-semibold line-clamp-1" style={{ color: "var(--text-1)" }}>{row.title}</p>
-                            {row.categoryName && (
-                              <p className="text-[11.5px]" style={{ color: "var(--text-3)" }}>{row.categoryName}</p>
-                            )}
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className="text-[13.5px] font-semibold" style={{ color: "var(--text-1)" }}>
-                              {formatMinutes(row.minutes)}
-                            </p>
-                            {earning && (
-                              <p className="text-[12px]" style={{ color: "#22C55E" }}>
-                                {earning.toLocaleString("cs-CZ")} Kč
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="h-1 rounded-full overflow-hidden" style={{ background: "var(--bg-subtle)" }}>
-                          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: row.categoryColor ?? "var(--accent)" }} />
-                        </div>
+            <div className="p-4 space-y-2">
+              {tab === "task" && taskRows.map((row, i) => {
+                const pct = totalMinutes > 0 ? (row.minutes / totalMinutes) * 100 : 0;
+                const earning = row.hourlyRate ? Math.round((row.minutes / 60) * row.hourlyRate) : null;
+                return (
+                  <div key={i} className="rounded-2xl px-4 py-3.5" style={{ background: "var(--bg-subtle)" }}>
+                    <div className="flex items-center gap-3">
+                      {row.categoryColor && <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: row.categoryColor }} />}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13.5px] font-semibold line-clamp-1" style={{ color: "var(--text-1)" }}>{row.title}</p>
+                        {row.categoryName && <p className="text-[11.5px]" style={{ color: "var(--text-3)" }}>{row.categoryName}</p>}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {tab === "subtask" && (
-                <div className="divide-y" style={{ borderColor: "var(--border)" }}>
-                  {subtaskRows.length === 0 ? (
-                    <div className="px-6 py-10 text-center">
-                      <p className="text-[13.5px]" style={{ color: "var(--text-3)" }}>
-                        Žádný čas zaznamenaný na podúkolech. Spusť sledování podúkolu ve focus módu.
-                      </p>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-[13.5px] font-semibold" style={{ color: "var(--text-1)" }}>{formatMinutes(row.minutes)}</p>
+                        {earning && <p className="text-[12px]" style={{ color: "#22C55E" }}>{earning.toLocaleString("cs-CZ")} Kč</p>}
+                      </div>
                     </div>
-                  ) : (
-                    subtaskRows.map((row, i) => {
-                      const pct = totalMinutes > 0 ? (row.minutes / totalMinutes) * 100 : 0;
-                      return (
-                        <div key={i} className="px-6 py-4">
-                          <div className="flex items-center gap-3 mb-2">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[13.5px] font-semibold line-clamp-1" style={{ color: "var(--text-1)" }}>{row.title}</p>
-                              <p className="text-[11.5px]" style={{ color: "var(--text-3)" }}>
-                                {row.taskTitle}{row.rate ? ` · ${row.rate} Kč/h` : ""}
-                              </p>
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className="text-[13.5px] font-semibold" style={{ color: "var(--text-1)" }}>
-                                {formatMinutes(row.minutes)}
-                              </p>
-                              {row.earning > 0 && (
-                                <p className="text-[12px]" style={{ color: "#22C55E" }}>
-                                  {row.earning.toLocaleString("cs-CZ")} Kč
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="h-1 rounded-full overflow-hidden" style={{ background: "var(--bg-subtle)" }}>
-                            <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "#a855f7" }} />
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              )}
+                    <BarRow pct={pct} color={row.categoryColor ?? "var(--accent)"} />
+                  </div>
+                );
+              })}
 
-              {tab === "category" && (
-                <div className="divide-y" style={{ borderColor: "var(--border)" }}>
-                  {catRows.map((row, i) => {
-                    const pct = totalMinutes > 0 ? Math.round((row.minutes / totalMinutes) * 100) : 0;
-                    return (
-                      <div key={i} className="px-6 py-4">
-                        <div className="flex items-center gap-3 mb-2">
-                          <span className="w-3 h-3 rounded-full" style={{ background: row.color }} />
-                          <span className="text-[13.5px] font-semibold flex-1" style={{ color: "var(--text-1)" }}>{row.name}</span>
-                          <span className="text-[11.5px]" style={{ color: "var(--text-3)" }}>{pct}%</span>
-                          <span className="text-[13.5px] font-semibold" style={{ color: "var(--text-1)" }}>{formatMinutes(row.minutes)}</span>
-                          {row.earning > 0 && (
-                            <span className="text-[12.5px] font-semibold" style={{ color: "#22C55E" }}>
-                              {row.earning.toLocaleString("cs-CZ")} Kč
-                            </span>
-                          )}
-                        </div>
-                        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-subtle)" }}>
-                          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: row.color }} />
-                        </div>
+              {tab === "subtask" && (subtaskRows.length === 0 ? (
+                <p className="text-[13.5px] text-center py-8" style={{ color: "var(--text-3)" }}>
+                  Žádný čas na podúkolech. Spusť sledování podúkolu ve focus módu.
+                </p>
+              ) : subtaskRows.map((row, i) => {
+                const pct = totalMinutes > 0 ? (row.minutes / totalMinutes) * 100 : 0;
+                return (
+                  <div key={i} className="rounded-2xl px-4 py-3.5" style={{ background: "var(--bg-subtle)" }}>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13.5px] font-semibold line-clamp-1" style={{ color: "var(--text-1)" }}>{row.title}</p>
+                        <p className="text-[11.5px]" style={{ color: "var(--text-3)" }}>
+                          {row.taskTitle}{row.rate ? ` · ${row.rate} Kč/h` : ""}
+                        </p>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-[13.5px] font-semibold" style={{ color: "var(--text-1)" }}>{formatMinutes(row.minutes)}</p>
+                        {row.earning > 0 && <p className="text-[12px]" style={{ color: "#22C55E" }}>{row.earning.toLocaleString("cs-CZ")} Kč</p>}
+                      </div>
+                    </div>
+                    <BarRow pct={pct} color="#a855f7" />
+                  </div>
+                );
+              }))}
 
-              {tab === "person" && (
-                <div className="divide-y" style={{ borderColor: "var(--border)" }}>
-                  {personRows.map((row) => {
-                    const pct = totalMinutes > 0 ? Math.round((row.minutes / totalMinutes) * 100) : 0;
-                    const isMe = row.userId === session?.user?.id;
-                    return (
-                      <div key={row.userId} className="px-6 py-4">
-                        <div className="flex items-center gap-3 mb-2">
-                          <Avatar name={row.name} src={row.avatar} size="sm" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[13.5px] font-semibold flex items-center gap-1.5" style={{ color: "var(--text-1)" }}>
-                              {row.name}
-                              {isMe && (
-                                <span className="text-[10px] font-medium px-1 py-0.5 rounded"
-                                  style={{ background: "var(--bg-subtle)", color: "var(--text-3)" }}>
-                                  já
-                                </span>
-                              )}
-                            </p>
-                            <p className="text-[11.5px]" style={{ color: "var(--text-3)" }}>
-                              {row.tasks.size} {row.tasks.size === 1 ? "úkol" : "úkolů"}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-[13.5px] font-semibold" style={{ color: "var(--text-1)" }}>
-                              {formatMinutes(row.minutes)}
-                            </p>
-                            {row.earning > 0 && (
-                              <p className="text-[12px]" style={{ color: "#22C55E" }}>
-                                {row.earning.toLocaleString("cs-CZ")} Kč
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-subtle)" }}>
-                          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "var(--accent)" }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              {tab === "category" && catRows.map((row, i) => {
+                const pct = totalMinutes > 0 ? Math.round((row.minutes / totalMinutes) * 100) : 0;
+                return (
+                  <div key={i} className="rounded-2xl px-4 py-3.5" style={{ background: "var(--bg-subtle)" }}>
+                    <div className="flex items-center gap-3">
+                      <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: row.color }} />
+                      <span className="text-[13.5px] font-semibold flex-1" style={{ color: "var(--text-1)" }}>{row.name}</span>
+                      <span className="text-[11.5px]" style={{ color: "var(--text-3)" }}>{pct}%</span>
+                      <span className="text-[13.5px] font-semibold" style={{ color: "var(--text-1)" }}>{formatMinutes(row.minutes)}</span>
+                      {row.earning > 0 && <span className="text-[12.5px] font-semibold" style={{ color: "#22C55E" }}>{row.earning.toLocaleString("cs-CZ")} Kč</span>}
+                    </div>
+                    <BarRow pct={pct} color={row.color} />
+                  </div>
+                );
+              })}
 
-              {tab === "status" && (
-                <div className="divide-y" style={{ borderColor: "var(--border)" }}>
-                  {statusRows.map((row, i) => {
-                    const pct = totalMinutes > 0 ? Math.round((row.minutes / totalMinutes) * 100) : 0;
-                    return (
-                      <div key={i} className="px-6 py-4">
-                        <div className="flex items-center gap-3 mb-2">
-                          <span className="w-3 h-3 rounded-full" style={{ background: STATUS_COLORS[row.status] ?? "#9a9aa2" }} />
-                          <span className="text-[13.5px] font-semibold flex-1" style={{ color: "var(--text-1)" }}>
-                            {STATUS_LABELS[row.status] ?? row.status}
-                          </span>
-                          <span className="text-[12px]" style={{ color: "var(--text-3)" }}>{row.count} relací</span>
-                          <span className="text-[13.5px] font-semibold" style={{ color: "var(--text-1)" }}>
-                            {formatMinutes(row.minutes)}
-                          </span>
-                        </div>
-                        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-subtle)" }}>
-                          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: STATUS_COLORS[row.status] ?? "#9a9aa2" }} />
-                        </div>
+              {tab === "person" && personRows.map((row) => {
+                const pct = totalMinutes > 0 ? Math.round((row.minutes / totalMinutes) * 100) : 0;
+                const isMe = row.userId === myId;
+                return (
+                  <div key={row.userId} className="rounded-2xl px-4 py-3.5" style={{ background: "var(--bg-subtle)" }}>
+                    <div className="flex items-center gap-3">
+                      <Avatar name={row.name} src={row.avatar} size="sm" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13.5px] font-semibold flex items-center gap-1.5" style={{ color: "var(--text-1)" }}>
+                          {row.name}
+                          {isMe && <span className="text-[10px] font-medium px-1 py-0.5 rounded" style={{ background: "var(--bg-card)", color: "var(--text-3)" }}>já</span>}
+                        </p>
+                        <p className="text-[11.5px]" style={{ color: "var(--text-3)" }}>{row.tasks.size} {row.tasks.size === 1 ? "úkol" : "úkolů"}</p>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </>
+                      <div className="text-right">
+                        <p className="text-[13.5px] font-semibold" style={{ color: "var(--text-1)" }}>{formatMinutes(row.minutes)}</p>
+                        {row.earning > 0 && <p className="text-[12px]" style={{ color: "#22C55E" }}>{row.earning.toLocaleString("cs-CZ")} Kč</p>}
+                      </div>
+                    </div>
+                    <BarRow pct={pct} color="var(--accent)" />
+                  </div>
+                );
+              })}
+
+              {tab === "status" && statusRows.map((row, i) => {
+                const pct = totalMinutes > 0 ? Math.round((row.minutes / totalMinutes) * 100) : 0;
+                return (
+                  <div key={i} className="rounded-2xl px-4 py-3.5" style={{ background: "var(--bg-subtle)" }}>
+                    <div className="flex items-center gap-3">
+                      <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: STATUS_COLORS[row.status] ?? "#9a9aa2" }} />
+                      <span className="text-[13.5px] font-semibold flex-1" style={{ color: "var(--text-1)" }}>{STATUS_LABELS[row.status] ?? row.status}</span>
+                      <span className="text-[12px]" style={{ color: "var(--text-3)" }}>{row.count} relací</span>
+                      <span className="text-[13.5px] font-semibold" style={{ color: "var(--text-1)" }}>{formatMinutes(row.minutes)}</span>
+                    </div>
+                    <BarRow pct={pct} color={STATUS_COLORS[row.status] ?? "#9a9aa2"} />
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
 
         {/* Raw entries */}
-        {entries.length > 0 && (
+        {filteredEntries.length > 0 && (
           <div className="rounded-3xl border overflow-hidden"
             style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
             <div className="px-6 pt-6 pb-4">
               <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>
-                Záznamy ({entries.length})
+                Záznamy ({filteredEntries.length})
               </h2>
             </div>
-            <div className="divide-y" style={{ borderColor: "var(--border)" }}>
-              {entries.map((entry) => {
+            <div className="px-4 pb-4 space-y-2">
+              {filteredEntries.map((entry) => {
                 const d = new Date(entry.startedAt);
+                const d2 = entry.stoppedAt ? new Date(entry.stoppedAt) : null;
                 const dateStr = d.toLocaleDateString("cs-CZ", { day: "numeric", month: "short" });
-                const timeStr = d.toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" });
-                const isMe = entry.userId === session?.user?.id;
+                const timeStart = d.toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" });
+                const timeEnd = d2?.toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" }) ?? "–";
+                const isMe = entry.userId === myId;
+                const expanded = expandedEntry === entry.id;
+                const user = entry.user as any;
                 return (
-                  <div key={entry.id} className="flex items-center gap-4 px-6 py-3.5">
-                    {allUsers && (
-                      <Avatar name={(entry.user as any)?.name ?? "?"} src={(entry.user as any)?.avatar} size="sm" />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-semibold line-clamp-1" style={{ color: "var(--text-1)" }}>
-                        {(entry.task as any)?.title ?? "Neznámý úkol"}
-                      </p>
-                      <p className="text-[11.5px] mt-0.5" style={{ color: "var(--text-3)" }}>
-                        {allUsers && !isMe && `${(entry.user as any)?.name} · `}
-                        {dateStr} · {timeStr}
-                        {(entry as any).subtask && ` · ${(entry as any).subtask.title}`}
-                      </p>
-                    </div>
-                    <span className="text-[13px] font-semibold" style={{ color: "var(--text-2)" }}>
-                      {formatMinutes(entry.durationMinutes ?? 0)}
-                    </span>
-                    {isMe && (
-                      <button
-                        onClick={() => handleDelete(entry.id)}
-                        className="p-1.5 rounded-lg transition-colors hover:bg-red-50 hover:text-red-500"
-                        style={{ color: "var(--text-3)" }}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                  <div key={entry.id} className="rounded-2xl overflow-hidden"
+                    style={{ background: "var(--bg-subtle)" }}>
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
+                      onClick={() => setExpandedEntry(expanded ? null : entry.id)}>
+                      <Avatar name={user?.name ?? "?"} src={user?.avatar} size="sm" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-semibold line-clamp-1" style={{ color: "var(--text-1)" }}>
+                          {(entry.task as any)?.title ?? "Neznámý úkol"}
+                        </p>
+                        <p className="text-[11.5px] mt-0.5" style={{ color: "var(--text-3)" }}>
+                          {user?.name} · {dateStr} · {timeStart}–{timeEnd}
+                          {(entry as any).subtask && ` · ${(entry as any).subtask.title}`}
+                        </p>
+                      </div>
+                      <span className="text-[13px] font-semibold flex-shrink-0" style={{ color: "var(--text-2)" }}>
+                        {formatMinutes(entry.durationMinutes ?? 0)}
+                      </span>
+                      {expanded
+                        ? <ChevronUp className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-3)" }} />
+                        : <ChevronDown className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-3)" }} />}
+                    </button>
+
+                    {expanded && (
+                      <div className="px-4 pb-4 pt-0 space-y-1.5 border-t" style={{ borderColor: "var(--border)" }}>
+                        <div className="grid grid-cols-2 gap-2 mt-3">
+                          {[
+                            ["Začátek", `${dateStr} ${timeStart}`],
+                            ["Konec", `${dateStr} ${timeEnd}`],
+                            ["Délka", formatMinutes(entry.durationMinutes ?? 0)],
+                            ["Stav úkolu", STATUS_LABELS[(entry.task as any)?.status] ?? "–"],
+                            ...(entryRate(entry) ? [["Hodinová sazba", `${entryRate(entry)} Kč/h`]] : []),
+                            ...(entryEarning(entry) > 0 ? [["Výdělek", `${entryEarning(entry).toLocaleString("cs-CZ")} Kč`]] : []),
+                          ].map(([k, v]) => (
+                            <div key={k}>
+                              <p className="text-[11px] font-medium" style={{ color: "var(--text-3)" }}>{k}</p>
+                              <p className="text-[13px] font-semibold" style={{ color: "var(--text-1)" }}>{v}</p>
+                            </div>
+                          ))}
+                        </div>
+                        {isMe && (
+                          <button onClick={() => handleDelete(entry.id)}
+                            className="flex items-center gap-1.5 mt-2 text-[12.5px] font-medium transition-colors hover:text-red-500"
+                            style={{ color: "var(--text-3)" }}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Smazat záznam
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 );

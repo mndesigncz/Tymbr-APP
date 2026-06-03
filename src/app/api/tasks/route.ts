@@ -34,7 +34,12 @@ export async function GET(req: NextRequest) {
     where.status = status;
   }
   if (categoryId) where.categoryId = categoryId;
-  if (assigneeId) where.assigneeId = assigneeId;
+  const assigneeIds = searchParams.get("assigneeIds");
+  if (assigneeIds) {
+    where.assigneeId = { in: assigneeIds.split(",").map((s) => s.trim()) };
+  } else if (assigneeId) {
+    where.assigneeId = assigneeId;
+  }
   if (priority) where.priority = priority;
   if (search) {
     and.push({

@@ -9,33 +9,33 @@ import { Avatar } from "@/components/ui/Avatar";
 import { TimeTracker } from "./TimeTracker";
 import {
   LayoutDashboard, CheckSquare, Tag, LogOut,
-  Clock, Users, MessageSquare, ChevronDown,
+  Clock, Users, MessageSquare, ChevronDown, Settings2,
 } from "lucide-react";
 
 const topItems = [
   { href: "/dashboard",  icon: LayoutDashboard, label: "Přehled"   },
   { href: "/tasks",      icon: CheckSquare,     label: "Úkoly"     },
-  { href: "/chat",       icon: MessageSquare,   label: "Chat"      },
   { href: "/categories", icon: Tag,             label: "Kategorie" },
+  { href: "/time",       icon: Clock,           label: "Výkazy"    },
 ];
 
-const groupItems = [
-  { href: "/time",          icon: Clock,  label: "Výkazy" },
-  { href: "/settings/team", icon: Users,  label: "Tým"    },
+const teamItems = [
+  { href: "/chat",          icon: MessageSquare, label: "Chat"           },
+  { href: "/settings/team", icon: Settings2,     label: "Nastavení týmu" },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
 
-  const groupActive = groupItems.some(
+  const teamActive = teamItems.some(
     ({ href }) => pathname === href || pathname.startsWith(href)
   );
-  const [groupOpen, setGroupOpen] = useState(groupActive);
+  const [teamOpen, setTeamOpen] = useState(teamActive);
 
   useEffect(() => {
-    if (groupActive) setGroupOpen(true);
-  }, [groupActive]);
+    if (teamActive) setTeamOpen(true);
+  }, [teamActive]);
 
   const renderLink = (href: string, Icon: React.ElementType, label: string, indent = false) => {
     const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
@@ -81,38 +81,37 @@ export function Sidebar() {
       <nav className="flex-1 mt-2 space-y-1">
         {topItems.map(({ href, icon, label }) => renderLink(href, icon, label))}
 
-        {/* Collapsible group: Výkazy + Tým */}
+        {/* Collapsible Tým group */}
         <div>
           <button
-            onClick={() => setGroupOpen((o) => !o)}
+            onClick={() => setTeamOpen((o) => !o)}
             className={cn(
               "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[14px] font-medium transition-all",
-              groupActive ? "" : "hover:bg-black/[0.035]"
+              !teamActive && "hover:bg-black/[0.035]"
             )}
-            style={groupActive
+            style={teamActive
               ? { background: "var(--bg-card)", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
               : { color: "var(--text-2)" }
             }
           >
-            <Clock className="w-[18px] h-[18px] flex-shrink-0"
-              style={{ color: groupActive ? "var(--accent)" : "var(--text-2)" }} />
-            <span className="flex-1 text-left">Výkazy & Tým</span>
+            <Users className="w-[18px] h-[18px] flex-shrink-0"
+              style={{ color: teamActive ? "var(--accent)" : "var(--text-2)" }} />
+            <span className="flex-1 text-left">Tým</span>
             <ChevronDown
               className="w-[14px] h-[14px] transition-transform"
               style={{
-                color: groupActive ? "var(--accent)" : "var(--text-3)",
-                transform: groupOpen ? "rotate(180deg)" : "rotate(0deg)",
+                color: teamActive ? "var(--accent)" : "var(--text-3)",
+                transform: teamOpen ? "rotate(180deg)" : "rotate(0deg)",
               }}
             />
           </button>
 
-          {groupOpen && (
+          {teamOpen && (
             <div className="mt-1 space-y-1">
-              {groupItems.map(({ href, icon, label }) => renderLink(href, icon, label, true))}
+              {teamItems.map(({ href, icon, label }) => renderLink(href, icon, label, true))}
             </div>
           )}
         </div>
-
       </nav>
 
       {/* Time tracker widget */}

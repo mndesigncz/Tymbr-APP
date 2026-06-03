@@ -17,13 +17,13 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tasksCreated    Task[]       @relation("TaskCreator")
-  tasksAssigned   Task[]       @relation("TaskAssignee")
-  comments        Comment[]
-  timeEntries     TimeEntry[]
-  ownedTeam       Team?        @relation("TeamOwner")
-  teamMemberships TeamMember[]
-  chatMessages    ChatMessage[]
+  tasksCreated      Task[]            @relation("TaskCreator")
+  tasksAssigned     Task[]            @relation("TaskAssignee")
+  comments          Comment[]
+  timeEntries       TimeEntry[]
+  ownedTeam         Team?             @relation("TeamOwner")
+  teamMemberships   TeamMember[]
+  chatMessages      ChatMessage[]     @relation("ChatSender")
 }
 
 model Team {
@@ -34,12 +34,39 @@ model Team {
   ownerId String @unique
   owner   User   @relation("TeamOwner", fields: [ownerId], references: [id])
 
-  members     TeamMember[]
-  invitations TeamInvitation[]
-  tasks       Task[]
-  categories  Category[]
-  chatMessages ChatMessage[]
+  members       TeamMember[]
+  invitations   TeamInvitation[]
+  tasks         Task[]
+  categories    Category[]
+  chatMessages  ChatMessage[]
 }
+
+// @@ignore — activate after running prisma/migration_v2.sql
+// model TeamJoinRequest {
+//   id         String    @id @default(cuid())
+//   status     String    @default("pending")
+//   message    String?
+//   createdAt  DateTime  @default(now())
+//   resolvedAt DateTime?
+//   teamId String
+//   userId String
+//   @@unique([teamId, userId])
+//   @@index([teamId])
+// }
+
+// @@ignore — activate after running prisma/migration_v2.sql
+// model TaskStatusConfig {
+//   id          String  @id @default(cuid())
+//   key         String
+//   label       String
+//   color       String  @default("#9a9aa2")
+//   order       Int     @default(0)
+//   showInFocus Boolean @default(true)
+//   isBuiltin   Boolean @default(true)
+//   teamId String
+//   @@unique([teamId, key])
+//   @@index([teamId])
+// }
 
 model ChatMessage {
   id        String   @id @default(cuid())
@@ -50,7 +77,7 @@ model ChatMessage {
   team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation("ChatSender", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([teamId])
 }
