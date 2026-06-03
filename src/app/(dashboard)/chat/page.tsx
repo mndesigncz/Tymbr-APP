@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { Header } from "@/components/layout/Header";
 import { Avatar } from "@/components/ui/Avatar";
-import { Send, MessageSquare, Users } from "lucide-react";
+import { Send, MessageSquare, Users, CheckSquare, AtSign } from "lucide-react";
+import { MessageContent } from "@/components/chat/MessageContent";
+import type { Task } from "@/types";
 
 interface ChatMessage {
   id: string;
@@ -44,7 +46,11 @@ export default function ChatPage() {
   const [sending, setSending] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
   const [activeDM, setActiveDM] = useState<string | null>(null); // null = team chat
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [mention, setMention] = useState<{ query: string; start: number } | null>(null);
+  const [mentionIndex, setMentionIndex] = useState(0);
   const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const lastTimestamp = useRef<string | null>(null);
   const myId = session?.user?.id;
 
@@ -55,6 +61,29 @@ export default function ChatPage() {
       if (Array.isArray(d)) setMembers(d.filter((m: Member) => m.id !== myId));
     });
   }, [myId]);
+
+  // Load team tasks once — used both to render embedded cards and to power @-mentions.
+  useEffect(() => {
+    fetch("/api/tasks").then((r) => r.json()).then((d) => {
+      if (Array.isArray(d)) setTasks(d);
+    });
+  }, []);
+
+  const tasksById = useMemo(() => {
+    const map: Record<string, Task> = {};
+    for (const t of tasks) map[t.id] = t;
+    return map;
+  }, [tasks]);
+
+  // Tasks matching the current @-mention query (max 6, open tasks first).
+  const mentionResults = useMemo(() => {
+    if (!mention) return [];
+    const q = mention.query.toLowerCase();
+    return tasks
+      .filter((t) => t.title.toLowerCase().includes(q))
+      .sort((a, b) => Number(a.status === "done") - Number(b.status === "done"))
+      .slice(0, 6);
+  }, [mention, tasks]);
 
   const loadMessages = useCallback(async (recipientId: string | null) => {
     setLoading(true);
@@ -96,9 +125,46 @@ export default function ChatPage() {
     return () => clearInterval(interval);
   }, [poll]);
 
+  // Detect an active "@query" token ending at the caret to drive the task picker.
+  const detectMention = (value: string, caret: number) => {
+    const upToCaret = value.slice(0, caret);
+    const m = upToCaret.match(/@(\S*)$/);
+    if (m) {
+      setMention({ query: m[1], start: caret - m[0].length });
+      setMentionIndex(0);
+    } else {
+      setMention(null);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInput(e.target.value);
+    detectMention(e.target.value, e.target.selectionStart ?? e.target.value.length);
+  };
+
+  const selectMentionTask = (task: Task) => {
+    if (!mention) return;
+    const before = input.slice(0, mention.start);
+    const after = input.slice(mention.start + mention.query.length + 1); // +1 for '@'
+    const next = `${before}[[task:${task.id}]] ${after.replace(/^\s/, "")}`;
+    setInput(next);
+    setMention(null);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (mention && mentionResults.length > 0) {
+      if (e.key === "ArrowDown") { e.preventDefault(); setMentionIndex((i) => (i + 1) % mentionResults.length); return; }
+      if (e.key === "ArrowUp") { e.preventDefault(); setMentionIndex((i) => (i - 1 + mentionResults.length) % mentionResults.length); return; }
+      if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); selectMentionTask(mentionResults[mentionIndex]); return; }
+      if (e.key === "Escape") { e.preventDefault(); setMention(null); return; }
+    }
+  };
+
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || sending) return;
+    setMention(null);
     setSending(true);
     const content = input.trim();
     setInput("");
@@ -214,7 +280,11 @@ export default function ChatPage() {
                             style={isMe
                               ? { background: "var(--accent)", color: "#fff", borderBottomRightRadius: "4px" }
                               : { background: "var(--bg-subtle)", color: "var(--text-1)", borderBottomLeftRadius: "4px" }}>
-                            <p className="text-[13.5px] leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
+                            <MessageContent
+                              content={msg.content}
+                              tasksById={tasksById}
+                              textColor={isMe ? "#fff" : "var(--text-1)"}
+                            />
                           </div>
                           <span className="text-[10.5px] mt-1 px-1" style={{ color: "var(--text-3)" }}>
                             {formatTime(msg.createdAt)}
@@ -229,11 +299,47 @@ export default function ChatPage() {
             </div>
 
             {/* Input */}
-            <form onSubmit={send} className="flex items-center gap-3 p-4 border-t" style={{ borderColor: "var(--border)" }}>
+            <form onSubmit={send} className="relative flex items-center gap-3 p-4 border-t" style={{ borderColor: "var(--border)" }}>
+              {/* @-mention task picker */}
+              {mention && mentionResults.length > 0 && (
+                <div
+                  className="absolute bottom-full left-4 mb-2 w-[340px] max-w-[calc(100%-2rem)] rounded-2xl border overflow-hidden z-20"
+                  style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", boxShadow: "var(--shadow-md, 0 8px 24px rgba(0,0,0,0.12))" }}
+                >
+                  <div className="px-3 py-2 flex items-center gap-1.5 border-b" style={{ borderColor: "var(--border)" }}>
+                    <AtSign className="w-3 h-3" style={{ color: "var(--text-3)" }} />
+                    <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-3)" }}>Odkázat úkol</span>
+                  </div>
+                  <div className="max-h-[240px] overflow-y-auto py-1">
+                    {mentionResults.map((t, i) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onMouseEnter={() => setMentionIndex(i)}
+                        onClick={() => selectMentionTask(t)}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors"
+                        style={i === mentionIndex ? { background: "var(--accent-soft)" } : undefined}
+                      >
+                        <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
+                          style={{ background: t.category ? `${t.category.color}1a` : "var(--bg-subtle)" }}>
+                          <CheckSquare className="w-3 h-3" style={{ color: t.category?.color ?? "var(--text-3)" }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-medium line-clamp-1" style={{ color: "var(--text-1)" }}>{t.title}</p>
+                          {t.category && <p className="text-[11px]" style={{ color: "var(--text-3)" }}>{t.category.name}</p>}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <input
+                ref={inputRef}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={activeDM ? `Zpráva pro ${activeMember?.name?.split(" ")[0] ?? ""}...` : "Napiš zprávu týmu..."}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                placeholder={activeDM ? `Zpráva pro ${activeMember?.name?.split(" ")[0] ?? ""}... (napiš @ pro úkol)` : "Napiš zprávu týmu... (napiš @ pro úkol)"}
                 className="flex-1 text-[14px] px-4 py-3 rounded-2xl outline-none"
                 style={{ background: "var(--bg-subtle)", color: "var(--text-1)" }}
               />
