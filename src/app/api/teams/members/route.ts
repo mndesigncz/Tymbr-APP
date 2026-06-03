@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { isManager } from "@/lib/roles";
 
 export async function DELETE(req: NextRequest) {
   const session = await getSession();
@@ -12,12 +13,15 @@ export async function DELETE(req: NextRequest) {
   const { userId } = await req.json();
   if (!userId) return NextResponse.json({ error: "userId je povinný" }, { status: 400 });
 
-  // Only owner or admin can remove members
-  const actingMember = await prisma.teamMember.findFirst({
-    where: { teamId, userId: session.user.id },
-  });
-  if (!actingMember || (actingMember.role !== "owner" && actingMember.role !== "admin")) {
+  // Only managers (owner/admin) can remove members
+  if (!isManager((session.user as any).teamRole)) {
     return NextResponse.json({ error: "Nedostatečná oprávnění" }, { status: 403 });
+  }
+
+  // The team owner can never be removed.
+  const team = await prisma.team.findUnique({ where: { id: teamId }, select: { ownerId: true } });
+  if (team?.ownerId === userId) {
+    return NextResponse.json({ error: "Vlastníka týmu nelze odebrat" }, { status: 400 });
   }
 
   await prisma.teamMember.deleteMany({ where: { teamId, userId } });
@@ -33,16 +37,21 @@ export async function PATCH(req: NextRequest) {
 
   const { userId, role } = await req.json();
   if (!userId || !role) return NextResponse.json({ error: "userId a role jsou povinné" }, { status: 400 });
+  if (!["admin", "member"].includes(role)) {
+    return NextResponse.json({ error: "Neplatná role" }, { status: 400 });
+  }
 
-  // Only owner can change roles
-  const team = await prisma.team.findUnique({ where: { id: teamId } });
-  if (team?.ownerId !== session.user.id) {
+  // Managers (owner/admin) can promote members to admin (manager) or demote them.
+  if (!isManager((session.user as any).teamRole)) {
     return NextResponse.json({ error: "Nedostatečná oprávnění" }, { status: 403 });
   }
 
-  const member = await prisma.teamMember.updateMany({
-    where: { teamId, userId },
-    data: { role },
-  });
-  return NextResponse.json(member);
+  // The owner's role is fixed — it can't be changed through this endpoint.
+  const team = await prisma.team.findUnique({ where: { id: teamId }, select: { ownerId: true } });
+  if (team?.ownerId === userId) {
+    return NextResponse.json({ error: "Roli vlastníka nelze měnit" }, { status: 400 });
+  }
+
+  await prisma.teamMember.updateMany({ where: { teamId, userId }, data: { role } });
+  return NextResponse.json({ ok: true });
 }

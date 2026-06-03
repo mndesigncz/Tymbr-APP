@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { isManager } from "@/lib/roles";
 
 export async function GET() {
   const session = await getSession();
@@ -23,11 +24,17 @@ export async function POST(req: NextRequest) {
   const teamId = (session.user as any).teamId;
   if (!teamId) return NextResponse.json({ error: "Tým nenalezen" }, { status: 404 });
 
+  if (!isManager((session.user as any).teamRole)) {
+    return NextResponse.json({ error: "Nedostatečná oprávnění" }, { status: 403 });
+  }
+
   const { email, role } = await req.json();
   if (!email?.trim()) return NextResponse.json({ error: "Email je povinný" }, { status: 400 });
 
+  const normalizedEmail = email.trim().toLowerCase();
+
   // Check if already a member
-  const existingUser = await prisma.user.findUnique({ where: { email: email.trim() } });
+  const existingUser = await prisma.user.findUnique({ where: { email: normalizedEmail } });
   if (existingUser) {
     const isMember = await prisma.teamMember.findFirst({
       where: { teamId, userId: existingUser.id },
@@ -37,25 +44,42 @@ export async function POST(req: NextRequest) {
 
   // Check if already invited
   const existingInvite = await prisma.teamInvitation.findFirst({
-    where: { teamId, email: email.trim(), acceptedAt: null },
+    where: { teamId, email: normalizedEmail, acceptedAt: null },
   });
   if (existingInvite) return NextResponse.json({ error: "Pozvánka na tento email již existuje" }, { status: 400 });
 
-  const invitation = await prisma.teamInvitation.create({
-    data: {
-      teamId,
-      email: email.trim().toLowerCase(),
-      role: role || "member",
-    },
-  });
-  return NextResponse.json(invitation, { status: 201 });
+  try {
+    // Raw SQL to bypass Prisma 7 adapter cuid() generation issue
+    const rows = await prisma.$queryRaw<any[]>`
+      INSERT INTO "TeamInvitation" (id, email, token, role, "createdAt", "teamId")
+      VALUES (
+        gen_random_uuid()::text,
+        ${normalizedEmail},
+        gen_random_uuid()::text,
+        ${role || "member"},
+        NOW(),
+        ${teamId}
+      )
+      RETURNING id, email, token, role, "createdAt", "teamId"
+    `;
+    return NextResponse.json(rows[0], { status: 201 });
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message ?? "Chyba serveru" }, { status: 500 });
+  }
 }
 
 export async function DELETE(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Neautorizováno" }, { status: 401 });
 
+  const teamId = (session.user as any).teamId;
+  if (!teamId) return NextResponse.json({ error: "Tým nenalezen" }, { status: 404 });
+  if (!isManager((session.user as any).teamRole)) {
+    return NextResponse.json({ error: "Nedostatečná oprávnění" }, { status: 403 });
+  }
+
   const { id } = await req.json();
-  await prisma.teamInvitation.delete({ where: { id } });
+  // Only delete invitations that belong to the caller's team.
+  await prisma.teamInvitation.deleteMany({ where: { id, teamId } });
   return NextResponse.json({ ok: true });
 }
