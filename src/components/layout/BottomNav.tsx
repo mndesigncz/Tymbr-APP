@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, CheckSquare, Clock, MessageSquare, Users } from "lucide-react";
+import { LayoutDashboard, CheckSquare, Clock, MessageSquare, Settings } from "lucide-react";
 
 const navItems = [
-  { href: "/dashboard",     icon: LayoutDashboard, label: "Přehled"  },
-  { href: "/tasks",         icon: CheckSquare,     label: "Úkoly"    },
-  { href: "/chat",          icon: MessageSquare,   label: "Chat"     },
-  { href: "/time",          icon: Clock,           label: "Výkazy"   },
-  { href: "/settings/team", icon: Users,           label: "Tým"      },
+  { href: "/dashboard", icon: LayoutDashboard, label: "Přehled"    },
+  { href: "/tasks",     icon: CheckSquare,     label: "Úkoly"      },
+  { href: "/chat",      icon: MessageSquare,   label: "Chat"       },
+  { href: "/time",      icon: Clock,           label: "Výkazy"     },
+  { href: "/settings",  icon: Settings,        label: "Nastavení"  },
 ];
 
 export function BottomNav() {
