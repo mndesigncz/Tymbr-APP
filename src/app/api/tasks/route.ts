@@ -25,7 +25,8 @@ export async function GET(req: NextRequest) {
   const teamId = (session.user as any).teamId;
 
   const where: Record<string, any> = {};
-  if (teamId) where.teamId = teamId;
+  // Show tasks belonging to team OR legacy tasks with no teamId (migration compat)
+  if (teamId) where.OR = [{ teamId }, { teamId: null }];
   if (statuses) {
     where.status = { in: statuses.split(",").map((s) => s.trim()) };
   } else if (status) {
