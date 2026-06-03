@@ -10,18 +10,21 @@ interface HeaderProps {
 
 export function Header({ title, subtitle, actions }: HeaderProps) {
   return (
-    <header className="flex items-end justify-between px-6 lg:px-8 pt-8 pb-6">
-      <div>
-        <h1 className="text-[26px] font-bold tracking-tight leading-tight" style={{ color: "var(--text-1)" }}>
+    <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 px-4 lg:px-8 pt-6 pb-5">
+      <div className="min-w-0">
+        <h1 className="text-[24px] sm:text-[26px] font-bold tracking-tight leading-tight truncate" style={{ color: "var(--text-1)" }}>
           {title}
         </h1>
         {subtitle && (
-          <p className="text-[14px] mt-1" style={{ color: "var(--text-2)" }}>{subtitle}</p>
+          <p className="text-[13.5px] mt-0.5 truncate" style={{ color: "var(--text-2)" }}>{subtitle}</p>
         )}
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5 flex-shrink-0">
         {actions}
-        <ProfileMenu />
+        {/* Avatar profile button — desktop only; desktop uses sidebar user card */}
+        <div className="lg:hidden">
+          <ProfileMenu />
+        </div>
       </div>
     </header>
   );

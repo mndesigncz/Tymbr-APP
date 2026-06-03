@@ -2,20 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
 import { TimeTracker } from "./TimeTracker";
 import {
-  LayoutDashboard, CheckSquare, Tag, LogOut,
+  LayoutDashboard, CheckSquare, Tag, LogOut, Settings,
   Clock, Users, MessageSquare, ChevronDown, Settings2,
 } from "lucide-react";
 
 const topItems = [
   { href: "/dashboard",  icon: LayoutDashboard, label: "Přehled"   },
   { href: "/tasks",      icon: CheckSquare,     label: "Úkoly"     },
-  { href: "/categories", icon: Tag,             label: "Kategorie" },
+  { href: "/categories", icon: Tag,             label: "Funkce"    },
   { href: "/time",       icon: Clock,           label: "Výkazy"    },
 ];
 
@@ -32,10 +32,22 @@ export function Sidebar() {
     ({ href }) => pathname === href || pathname.startsWith(href)
   );
   const [teamOpen, setTeamOpen] = useState(teamActive);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (teamActive) setTeamOpen(true);
   }, [teamActive]);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false);
+      }
+    }
+    if (profileOpen) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [profileOpen]);
 
   const renderLink = (href: string, Icon: React.ElementType, label: string, indent = false) => {
     const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
@@ -117,10 +129,45 @@ export function Sidebar() {
       {/* Time tracker widget */}
       <TimeTracker />
 
-      {/* User card */}
-      <div className="mt-1">
-        {session?.user && (
-          <div className="flex items-center gap-3 px-3 py-3 rounded-2xl mb-1"
+      {/* User card — clicking opens profile dropdown */}
+      {session?.user && (
+        <div ref={profileRef} className="mt-1 relative">
+          {/* Dropdown opens upward */}
+          {profileOpen && (
+            <div className="absolute bottom-full mb-2 left-0 right-0 rounded-2xl border z-50 overflow-hidden"
+              style={{
+                background: "var(--bg-card)",
+                borderColor: "var(--border-md)",
+                boxShadow: "var(--shadow-md, 0 8px 24px rgba(0,0,0,0.12))",
+              }}>
+              <div className="py-1.5">
+                <Link href="/settings" onClick={() => setProfileOpen(false)}
+                  className="flex items-center gap-3 px-4 py-2.5 text-[13.5px] transition-colors hover:bg-black/[0.035]"
+                  style={{ color: "var(--text-1)" }}>
+                  <Settings className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-3)" }} />
+                  Nastavení účtu
+                </Link>
+                <Link href="/settings/team" onClick={() => setProfileOpen(false)}
+                  className="flex items-center gap-3 px-4 py-2.5 text-[13.5px] transition-colors hover:bg-black/[0.035]"
+                  style={{ color: "var(--text-1)" }}>
+                  <Users className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-3)" }} />
+                  Správa týmu
+                </Link>
+              </div>
+              <div className="border-t pb-1.5" style={{ borderColor: "var(--border)" }}>
+                <button onClick={() => signOut({ callbackUrl: "/login" })}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-[13.5px] transition-colors hover:bg-red-50 text-left"
+                  style={{ color: "#EF4444" }}>
+                  <LogOut className="w-4 h-4 flex-shrink-0" />
+                  Odhlásit se
+                </button>
+              </div>
+            </div>
+          )}
+
+          <button
+            onClick={() => setProfileOpen((o) => !o)}
+            className="w-full flex items-center gap-3 px-3 py-3 rounded-2xl mb-1 transition-all hover:opacity-80 text-left"
             style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-sm)" }}>
             <Avatar name={session.user.name || "?"} src={session.user.image} size="md" />
             <div className="flex-1 min-w-0">
@@ -131,17 +178,14 @@ export function Sidebar() {
                 {session.user.email}
               </p>
             </div>
-            <button
-              onClick={() => signOut({ callbackUrl: "/login" })}
-              className="p-2 rounded-lg transition-colors hover:bg-black/[0.04]"
-              style={{ color: "var(--text-3)" }}
-              title="Odhlásit se"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-      </div>
+            <ChevronDown className="w-3.5 h-3.5 flex-shrink-0 transition-transform"
+              style={{
+                color: "var(--text-3)",
+                transform: profileOpen ? "rotate(180deg)" : "rotate(0deg)",
+              }} />
+          </button>
+        </div>
+      )}
     </aside>
   );
 }

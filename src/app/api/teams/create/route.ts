@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       },
     });
     return NextResponse.json(team, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: "Chyba serveru" }, { status: 500 });
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message ?? "Chyba serveru" }, { status: 500 });
   }
 }

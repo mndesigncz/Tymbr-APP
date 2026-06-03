@@ -34,19 +34,21 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = (user as any).role;
-        // Fetch team membership
+      }
+      // Fallback for legacy tokens that don't have id set
+      if (!token.id && token.sub) token.id = token.sub;
+
+      // Re-fetch team membership when teamId is absent (e.g. after team creation/join)
+      if (token.id && (token.teamId === null || token.teamId === undefined)) {
         try {
           const member = await prisma.teamMember.findFirst({
-            where: { userId: user.id },
+            where: { userId: token.id as string },
             select: { teamId: true, role: true },
             orderBy: { joinedAt: "asc" },
           });
           token.teamId = member?.teamId ?? null;
           token.teamRole = member?.role ?? null;
-        } catch {
-          token.teamId = null;
-          token.teamRole = null;
-        }
+        } catch {}
       }
       return token;
     },
