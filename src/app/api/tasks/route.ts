@@ -24,10 +24,11 @@ export async function GET(req: NextRequest) {
   const completedTo = searchParams.get("completedTo");
   const teamId = (session.user as any).teamId;
 
-  const where: Record<string, any> = {};
+  // Tasks are strictly team-scoped. Without a team the user sees nothing.
+  if (!teamId) return NextResponse.json([]);
+
+  const where: Record<string, any> = { teamId };
   const and: Record<string, any>[] = [];
-  // Show tasks belonging to team OR legacy tasks with no teamId (migration compat)
-  if (teamId) and.push({ OR: [{ teamId }, { teamId: null }] });
   if (statuses) {
     where.status = { in: statuses.split(",").map((s) => s.trim()) };
   } else if (status) {
@@ -75,25 +76,44 @@ export async function POST(req: NextRequest) {
     if (!title) return NextResponse.json({ error: "Název je povinný" }, { status: 400 });
 
     const teamId = (session.user as any).teamId;
-    const task = await prisma.task.create({
-      data: {
-        title,
-        description,
-        status: status || "todo",
-        priority: priority || "medium",
-        dueDate: dueDate ? new Date(dueDate) : null,
-        startDate: startDate ? new Date(startDate) : null,
-        categoryId: categoryId || null,
-        assigneeId: assigneeId || null,
-        hourlyRate: hourlyRate ? Number(hourlyRate) : null,
-        completedAt: status === "done" ? new Date() : null,
-        createdById: session.user.id,
-        teamId: teamId || null,
-      },
+    if (!teamId) return NextResponse.json({ error: "Nejprve si vytvoř tým" }, { status: 400 });
+
+    const finalStatus = status || "todo";
+    const completedAt = finalStatus === "done" ? new Date() : null;
+
+    // Raw SQL to bypass Prisma 7 adapter cuid() generation issue
+    const rows = await prisma.$queryRaw<any[]>`
+      INSERT INTO "Task" (
+        id, title, description, status, priority, "dueDate", "startDate",
+        "categoryId", "assigneeId", "hourlyRate", "completedAt",
+        "createdById", "teamId", "createdAt", "updatedAt"
+      )
+      VALUES (
+        gen_random_uuid()::text,
+        ${title},
+        ${description ?? null},
+        ${finalStatus},
+        ${priority || "medium"},
+        ${dueDate ? new Date(dueDate) : null},
+        ${startDate ? new Date(startDate) : null},
+        ${categoryId || null},
+        ${assigneeId || null},
+        ${hourlyRate ? Number(hourlyRate) : null},
+        ${completedAt},
+        ${session.user.id},
+        ${teamId},
+        NOW(),
+        NOW()
+      )
+      RETURNING id
+    `;
+
+    const task = await prisma.task.findUnique({
+      where: { id: rows[0].id },
       include: taskInclude,
     });
     return NextResponse.json(task, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: "Chyba serveru" }, { status: 500 });
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message ?? "Chyba serveru" }, { status: 500 });
   }
 }

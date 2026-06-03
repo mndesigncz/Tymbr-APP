@@ -30,13 +30,21 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.role = (user as any).role;
       }
       // Fallback for legacy tokens that don't have id set
       if (!token.id && token.sub) token.id = token.sub;
+
+      // Profile / team updates pushed from the client via useSession().update(...)
+      if (trigger === "update" && session) {
+        if (typeof session.name === "string") token.name = session.name;
+        if (session.image !== undefined) token.picture = session.image;
+        if (session.teamId !== undefined) token.teamId = session.teamId;
+        if (session.teamRole !== undefined) token.teamRole = session.teamRole;
+      }
 
       // Re-fetch team membership when teamId is absent (e.g. after team creation/join)
       if (token.id && (token.teamId === null || token.teamId === undefined)) {
@@ -58,6 +66,8 @@ export const authOptions: NextAuthOptions = {
         session.user.role = token.role as string;
         session.user.teamId = token.teamId as string | null;
         session.user.teamRole = token.teamRole as string | null;
+        if (typeof token.name === "string") session.user.name = token.name;
+        if (token.picture !== undefined) session.user.image = token.picture as string | null;
       }
       return session;
     },
