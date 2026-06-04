@@ -7,6 +7,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Clock, TrendingUp, CheckSquare, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { isManager } from "@/lib/roles";
+import { ScrollFadeX } from "@/components/ui/ScrollFadeX";
 import type { TimeEntry } from "@/types";
 import { useStatusConfig, statusLabel, statusColor } from "@/hooks/useStatusConfig";
 
@@ -209,51 +210,19 @@ export default function TimePage() {
       <Header title="Výkazy práce" subtitle="Přehled odpracovaného času a výdělků" />
 
       <div className="px-4 sm:px-6 lg:px-8 pt-2 pb-12 space-y-6">
-        {/* Filters: date range + member selector inline */}
+        {/* Date range — single scrollable row */}
         <div className="space-y-3">
-          <div className="flex flex-wrap gap-2 items-center">
-            {/* Date range buttons */}
+          <ScrollFadeX className="flex items-center gap-2 pb-0.5" fadeColor="var(--bg-page)">
             {(Object.keys(DATE_LABELS) as DateRange[]).map((r) => (
               <button key={r} onClick={() => setRange(r)}
-                className="px-3.5 py-2 rounded-xl text-[13px] font-semibold border transition-all"
+                className="px-3.5 py-2 rounded-xl text-[13px] font-semibold border transition-all flex-shrink-0 whitespace-nowrap"
                 style={range === r
                   ? { background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" }
                   : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}>
                 {DATE_LABELS[r]}
               </button>
             ))}
-
-            {/* Separator + member chips — managers only */}
-            {manager && members.length > 0 && (
-              <>
-                <div className="w-px h-6 self-center" style={{ background: "var(--border-md)" }} />
-                {members.length > 1 && (
-                  <button
-                    onClick={isAllSelected ? () => setSelectedUserIds(new Set([myId ?? ""])) : selectAll}
-                    className="px-3 py-1.5 rounded-xl text-[12.5px] font-semibold border transition-all"
-                    style={isAllSelected
-                      ? { background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" }
-                      : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}>
-                    Celý tým
-                  </button>
-                )}
-                {members.map((m) => (
-                  <button key={m.id}
-                    onClick={() => toggleUser(m.id)}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[12.5px] font-semibold border transition-all"
-                    style={selectedUserIds.has(m.id)
-                      ? { background: "var(--accent-soft)", color: "var(--accent)", borderColor: "var(--accent)" }
-                      : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}>
-                    <Avatar name={m.name} src={m.avatar} size="xs" />
-                    {m.name.split(" ")[0]}
-                    {m.id === myId && (
-                      <span className="text-[10px]" style={{ opacity: 0.6 }}>já</span>
-                    )}
-                  </button>
-                ))}
-              </>
-            )}
-          </div>
+          </ScrollFadeX>
           {range === "custom" && (
             <div className="flex gap-3 max-w-xs">
               <Input type="date" label="Od" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} />
@@ -282,17 +251,55 @@ export default function TimePage() {
           ))}
         </div>
 
+        {/* Member selector — managers only, sits below the summary cards */}
+        {manager && members.length > 0 && (
+          <div className="rounded-3xl border p-5"
+            style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
+            <div className="flex items-center justify-between mb-3.5">
+              <p className="text-[13px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>
+                Koho zobrazit
+              </p>
+              {members.length > 1 && (
+                <button
+                  onClick={isAllSelected ? () => setSelectedUserIds(new Set([myId ?? ""])) : selectAll}
+                  className="text-[12.5px] font-semibold transition-opacity hover:opacity-70"
+                  style={{ color: "var(--accent)" }}>
+                  {isAllSelected ? "Jen já" : "Celý tým"}
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {members.map((m) => (
+                <button key={m.id}
+                  onClick={() => toggleUser(m.id)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[12.5px] font-semibold border transition-all"
+                  style={selectedUserIds.has(m.id)
+                    ? { background: "var(--accent-soft)", color: "var(--accent)", borderColor: "var(--accent)" }
+                    : { background: "var(--bg-subtle)", color: "var(--text-2)", borderColor: "var(--border-md)" }}>
+                  <Avatar name={m.name} src={m.avatar} size="xs" />
+                  {m.name.split(" ")[0]}
+                  {m.id === myId && (
+                    <span className="text-[10px]" style={{ opacity: 0.6 }}>já</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Report tabs */}
         <div className="rounded-3xl border overflow-hidden"
           style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
-          <div className="flex items-center gap-1 p-2 border-b" style={{ borderColor: "var(--border)" }}>
-            {(Object.keys(TAB_LABELS) as ReportTab[]).map((t) => (
-              <button key={t} onClick={() => setTab(t)}
-                className="px-4 py-2 rounded-xl text-[13px] font-semibold transition-all"
-                style={tab === t ? { background: "var(--accent)", color: "#fff" } : { color: "var(--text-2)" }}>
-                {TAB_LABELS[t]}
-              </button>
-            ))}
+          <div className="border-b" style={{ borderColor: "var(--border)" }}>
+            <ScrollFadeX className="flex items-center gap-1 p-2" fadeColor="var(--bg-card)">
+              {(Object.keys(TAB_LABELS) as ReportTab[]).map((t) => (
+                <button key={t} onClick={() => setTab(t)}
+                  className="px-4 py-2 rounded-xl text-[13px] font-semibold transition-all flex-shrink-0 whitespace-nowrap"
+                  style={tab === t ? { background: "var(--accent)", color: "#fff" } : { color: "var(--text-2)" }}>
+                  {TAB_LABELS[t]}
+                </button>
+              ))}
+            </ScrollFadeX>
           </div>
 
           {loading ? (

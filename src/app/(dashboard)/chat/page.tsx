@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { Header } from "@/components/layout/Header";
 import { Avatar } from "@/components/ui/Avatar";
 import { MessageContent } from "@/components/chat/MessageContent";
+import { ScrollFadeX } from "@/components/ui/ScrollFadeX";
 import { Send, MessageSquare, Users } from "lucide-react";
 import type { Task } from "@/types";
 import { STATUS_COLORS } from "@/types";
@@ -223,27 +224,29 @@ export default function ChatPage() {
       <div className="px-4 sm:px-6 lg:px-8 pb-6">
         {/* Mobile channel selector — horizontally scrollable */}
         {members.length > 0 && (
-          <div className="lg:hidden flex items-center gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-3">
-            <button
-              onClick={() => setActiveDM(null)}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl flex-shrink-0 transition-colors"
-              style={!activeDM
-                ? { background: "var(--accent)", color: "#fff" }
-                : { background: "var(--bg-card)", color: "var(--text-2)", border: "1px solid var(--border-md)" }}>
-              <Users className="w-4 h-4" />
-              <span className="text-[13px] font-semibold">Tým</span>
-            </button>
-            {members.map((m) => (
-              <button key={m.id}
-                onClick={() => setActiveDM(m.id)}
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl flex-shrink-0 transition-colors"
-                style={activeDM === m.id
-                  ? { background: "var(--accent-soft)", color: "var(--accent)", border: "1px solid var(--accent)" }
+          <div className="lg:hidden pb-3">
+            <ScrollFadeX className="flex items-center gap-2 pb-0.5" fadeColor="var(--bg-page)">
+              <button
+                onClick={() => setActiveDM(null)}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl flex-shrink-0 transition-colors"
+                style={!activeDM
+                  ? { background: "var(--accent)", color: "#fff" }
                   : { background: "var(--bg-card)", color: "var(--text-2)", border: "1px solid var(--border-md)" }}>
-                <Avatar name={m.name} src={m.avatar} size="xs" />
-                <span className="text-[13px] font-medium">{m.name.split(" ")[0]}</span>
+                <Users className="w-4 h-4" />
+                <span className="text-[13px] font-semibold">Tým</span>
               </button>
-            ))}
+              {members.map((m) => (
+                <button key={m.id}
+                  onClick={() => setActiveDM(m.id)}
+                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl flex-shrink-0 transition-colors"
+                  style={activeDM === m.id
+                    ? { background: "var(--accent-soft)", color: "var(--accent)", border: "1px solid var(--accent)" }
+                    : { background: "var(--bg-card)", color: "var(--text-2)", border: "1px solid var(--border-md)" }}>
+                  <Avatar name={m.name} src={m.avatar} size="xs" />
+                  <span className="text-[13px] font-medium">{m.name.split(" ")[0]}</span>
+                </button>
+              ))}
+            </ScrollFadeX>
           </div>
         )}
         <div className="flex gap-4 h-[calc(100dvh-220px)] lg:h-[calc(100vh-180px)]">

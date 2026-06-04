@@ -4,24 +4,20 @@ import Link from "next/link";
 import { formatDate, isOverdue } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
 import { PriorityBadge } from "./PriorityBadge";
-import { Calendar, MessageSquare, ChevronRight, Play, AlertTriangle } from "lucide-react";
+import { Calendar, MessageSquare, Play, AlertTriangle } from "lucide-react";
 import type { Task } from "@/types";
 import { useTimeTracker } from "@/context/TimeTrackerContext";
-import { useStatusConfig, nextStatus } from "@/hooks/useStatusConfig";
 
 interface TaskCardProps {
   task: Task;
   compact?: boolean;
   urgent?: boolean;
   showUrgentMark?: boolean;
-  onStatusAdvance?: (taskId: string, newStatus: string) => void;
 }
 
-export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusAdvance }: TaskCardProps) {
+export function TaskCard({ task, compact, urgent, showUrgentMark }: TaskCardProps) {
   const { start, active } = useTimeTracker();
-  const statuses = useStatusConfig();
   const overdue = task.status !== "done" && isOverdue(task.dueDate);
-  const next = nextStatus(statuses, task.status);
   const isCurrentlyActive = active?.taskId === task.id;
   const isUrgent = task.priority === "urgent";
   const isDone = task.status === "done";
@@ -33,25 +29,6 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusAdvanc
   };
 
   const compactBg = isDone ? "#22C55E0E" : (urgent || isUrgent) ? "#EF44440F" : "var(--bg-subtle)";
-
-  const AdvanceButton = next ? (
-    <button
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onStatusAdvance?.(task.id, next.key);
-      }}
-      title={`Posunout na: ${next.label}`}
-      className="flex items-center gap-0.5 text-[11px] font-semibold px-2 py-1 rounded-lg transition-all hover:opacity-80 flex-shrink-0 whitespace-nowrap max-w-[120px]"
-      style={{
-        background: `${next.color}15`,
-        color: next.color,
-      }}
-    >
-      <span className="truncate">{next.label}</span>
-      <ChevronRight className="w-3 h-3 flex-shrink-0" />
-    </button>
-  ) : null;
 
   if (compact) {
     return (
@@ -102,7 +79,6 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusAdvanc
                   : <Play className="w-3 h-3 fill-current" />}
               </button>
             )}
-            {onStatusAdvance && AdvanceButton}
             {task.assignee && (
               <Avatar name={task.assignee.name} src={task.assignee.avatar} size="sm" />
             )}
@@ -189,7 +165,6 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusAdvanc
                   : <Play className="w-3.5 h-3.5 fill-current" />}
               </button>
             )}
-            {onStatusAdvance && AdvanceButton}
             {task.assignee && (
               <Avatar name={task.assignee.name} src={task.assignee.avatar} size="sm" className="flex-shrink-0" />
             )}

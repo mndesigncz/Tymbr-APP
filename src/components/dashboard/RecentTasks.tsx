@@ -13,24 +13,8 @@ interface RecentTasksProps {
 
 export function RecentTasks({ allTasks, myTasks, isManager = true }: RecentTasksProps) {
   const [view, setView] = useState<"all" | "mine">(isManager ? "all" : "mine");
-  const [state, setState] = useState({ all: allTasks, mine: myTasks });
 
-  const visible = view === "all" ? state.all : state.mine;
-
-  const handleStatusAdvance = async (taskId: string, newStatus: string) => {
-    const res = await fetch(`/api/tasks/${taskId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus }),
-    });
-    if (res.ok) {
-      const updated = await res.json();
-      setState((prev) => ({
-        all: prev.all.map((t) => (t.id === taskId ? updated : t)),
-        mine: prev.mine.map((t) => (t.id === taskId ? updated : t)),
-      }));
-    }
-  };
+  const visible = view === "all" ? allTasks : myTasks;
 
   return (
     <div className="rounded-3xl border" style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
@@ -75,7 +59,7 @@ export function RecentTasks({ allTasks, myTasks, isManager = true }: RecentTasks
           <p className="text-[13.5px] text-center py-8" style={{ color: "var(--text-3)" }}>Žádné úkoly</p>
         )}
         {visible.map((task) => (
-          <TaskCard key={task.id} task={task} compact onStatusAdvance={handleStatusAdvance} />
+          <TaskCard key={task.id} task={task} compact />
         ))}
       </div>
     </div>

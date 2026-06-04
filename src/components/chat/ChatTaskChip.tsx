@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { CheckSquare, AlertTriangle } from "lucide-react";
+import { Calendar, AlertTriangle } from "lucide-react";
 import type { Task } from "@/types";
-import { useStatusConfig, statusLabel, statusColor } from "@/hooks/useStatusConfig";
+import { formatDate, isOverdue } from "@/lib/utils";
+import { PriorityBadge } from "@/components/tasks/PriorityBadge";
+import { StatusBadge } from "@/components/tasks/StatusBadge";
 
+// Renders an inlined task reference inside a chat message, mirroring the
+// look of a real TaskCard so a pinned task reads as the task itself.
 export function ChatTaskChip({ task }: { task?: Task | null }) {
-  const statuses = useStatusConfig();
   if (!task) {
     return (
       <span
@@ -19,39 +22,50 @@ export function ChatTaskChip({ task }: { task?: Task | null }) {
     );
   }
 
-  const color = statusColor(statuses, task.status);
   const isUrgent = task.priority === "urgent";
+  const isDone = task.status === "done";
+  const overdue = !isDone && isOverdue(task.dueDate);
 
   return (
     <Link
       href={`/tasks/${task.id}`}
-      className="block my-1.5 rounded-xl border px-3 py-2.5 transition-all hover:-translate-y-0.5 no-underline"
-      style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", boxShadow: "var(--shadow-sm)" }}
+      className="block my-1.5 rounded-2xl border p-3.5 transition-all hover:-translate-y-0.5 no-underline"
+      style={{
+        background: isDone ? "#22C55E08" : isUrgent ? "#EF444408" : "var(--bg-card)",
+        borderColor: isDone ? "#22C55E30" : isUrgent ? "rgba(239,68,68,0.22)" : "var(--border-md)",
+        boxShadow: "var(--shadow-sm)",
+      }}
     >
-      <div className="flex items-center gap-2.5">
-        <div
-          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ background: `${color}1a` }}
-        >
-          <CheckSquare className="w-3.5 h-3.5" style={{ color: color }} />
+      {isUrgent && !isDone && (
+        <div className="flex items-center gap-1.5 mb-2">
+          <AlertTriangle className="w-3.5 h-3.5" style={{ color: "#ef4444" }} />
+          <span className="text-[10.5px] font-bold uppercase tracking-wide" style={{ color: "#ef4444" }}>Urgentní</span>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-[13px] font-semibold line-clamp-1" style={{ color: "var(--text-1)" }}>
-            {isUrgent && <AlertTriangle className="inline w-3 h-3 mr-1 align-[-1px]" style={{ color: "#ef4444" }} />}
-            {task.title}
-          </p>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[11px] font-medium" style={{ color: color }}>
-              {statusLabel(statuses, task.status)}
-            </span>
-            {task.category && (
-              <span className="inline-flex items-center gap-1 text-[11px]" style={{ color: "var(--text-3)" }}>
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: task.category.color }} />
-                {task.category.name}
-              </span>
-            )}
-          </div>
-        </div>
+      )}
+
+      <p className="text-[13.5px] font-semibold leading-snug line-clamp-2 mb-2.5" style={{ color: "var(--text-1)" }}>
+        {task.title}
+      </p>
+
+      <div className="flex flex-wrap items-center gap-1.5">
+        <StatusBadge status={task.status} />
+        <PriorityBadge priority={task.priority} />
+        {task.category && (
+          <span
+            className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-md"
+            style={{ color: task.category.color, background: `${task.category.color}14` }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: task.category.color }} />
+            {task.category.name}
+          </span>
+        )}
+        {task.dueDate && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium whitespace-nowrap"
+            style={{ color: overdue ? "#ef4444" : "var(--text-3)" }}>
+            <Calendar className="w-3 h-3 flex-shrink-0" />
+            {formatDate(task.dueDate)}
+          </span>
+        )}
       </div>
     </Link>
   );
