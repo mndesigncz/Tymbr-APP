@@ -14,8 +14,8 @@ async function prefAllows(email: string, key: "taskAssigned" | "comments" | "due
     return true; // never block a notification on a lookup error
   }
 }
-const FROM = process.env.RESEND_FROM_EMAIL ?? "Noisium <noreply@noisium.app>";
-const APP_URL = (process.env.NEXTAUTH_URL ?? "https://noisium.app").replace(/\/$/, "");
+const FROM = process.env.RESEND_FROM_EMAIL ?? "Tymbr <noreply@tymbr.app>";
+const APP_URL = (process.env.NEXTAUTH_URL ?? "https://tymbr.app").replace(/\/$/, "");
 
 function base(content: string) {
   return `<!DOCTYPE html><html lang="cs"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>
@@ -46,19 +46,19 @@ export async function sendInvitationEmail({
     await resend.emails.send({
       from: FROM,
       to,
-      subject: `${inviterName} vás zve do týmu „${teamName}" na Noisium`,
+      subject: `${inviterName} vás zve do týmu „${teamName}" na Tymbr`,
       html: base(`
-        <div class="header"><h1>Noisium</h1></div>
+        <div class="header"><h1>Tymbr</h1></div>
         <div class="body">
           <p>Ahoj,</p>
-          <p><strong>${inviterName}</strong> vás pozval/a do týmu <strong>${teamName}</strong> na platformě Noisium.</p>
+          <p><strong>${inviterName}</strong> vás pozval/a do týmu <strong>${teamName}</strong> na platformě Tymbr.</p>
           <p>Klikněte na tlačítko níže a pozvánku přijměte:</p>
           <a href="${url}" class="btn">Přijmout pozvánku</a>
           <p>Nebo zkopírujte tento odkaz do prohlížeče:</p>
           <p><a href="${url}" class="link">${url}</a></p>
           <p>Pozvánka vyprší za 7 dní.</p>
         </div>
-        <div class="footer"><p>Noisium · Pokud tuto pozvánku neočekáváte, můžete tento e-mail ignorovat.</p></div>
+        <div class="footer"><p>Tymbr · Pokud tuto pozvánku neočekáváte, můžete tento e-mail ignorovat.</p></div>
       `),
     });
   } catch (err) {
@@ -84,7 +84,7 @@ export async function sendTaskAssignedEmail({
       to,
       subject: `Byl/a jste přiřazen/a k úkolu: ${taskTitle}`,
       html: base(`
-        <div class="header"><h1>Noisium</h1></div>
+        <div class="header"><h1>Tymbr</h1></div>
         <div class="body">
           <p>Ahoj ${assigneeName},</p>
           <p><strong>${assignerName}</strong> vám přiřadil/a nový úkol:</p>
@@ -93,7 +93,7 @@ export async function sendTaskAssignedEmail({
           <p>Nebo zkopírujte tento odkaz:</p>
           <p><a href="${url}" class="link">${url}</a></p>
         </div>
-        <div class="footer"><p>Noisium · Nastavení notifikací lze změnit v nastavení účtu.</p></div>
+        <div class="footer"><p>Tymbr · Nastavení notifikací lze změnit v nastavení účtu.</p></div>
       `),
     });
   } catch (err) {
@@ -114,16 +114,16 @@ export async function sendWelcomeEmail({
     await resend.emails.send({
       from: FROM,
       to,
-      subject: `Vítejte v Noisium, ${name}!`,
+      subject: `Vítejte v Tymbr, ${name}!`,
       html: base(`
-        <div class="header"><h1>Noisium</h1></div>
+        <div class="header"><h1>Tymbr</h1></div>
         <div class="body">
           <p>Ahoj ${name},</p>
           <p>Váš účet byl úspěšně vytvořen a tým <strong>${teamName}</strong> je připraven k použití.</p>
           <p>Začněte tím, že si vytvoříte první úkol nebo pozvete kolegy do týmu.</p>
           <a href="${url}" class="btn">Přejít na přehled</a>
         </div>
-        <div class="footer"><p>Noisium · Firemní správa úkolů a výkazů.</p></div>
+        <div class="footer"><p>Tymbr · Firemní správa úkolů a výkazů.</p></div>
       `),
     });
   } catch (err) {
