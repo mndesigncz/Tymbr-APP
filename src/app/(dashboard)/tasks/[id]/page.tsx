@@ -13,19 +13,18 @@ import { Modal } from "@/components/ui/Modal";
 import { Textarea } from "@/components/ui/Textarea";
 import { formatDate, formatRelative } from "@/lib/utils";
 import type { Task } from "@/types";
-import { STATUS_LABELS, STATUS_COLORS } from "@/types";
 import {
   Calendar, Tag, User, Edit2, Trash2, MessageSquare,
   ChevronDown, Check,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
-
-const STATUSES = ["todo", "in_progress", "review", "done"] as const;
+import { useStatusConfig } from "@/hooks/useStatusConfig";
 
 export default function TaskDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { data: session } = useSession();
+  const statuses = useStatusConfig();
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
@@ -213,16 +212,17 @@ export default function TaskDetailPage() {
                     {statusOpen && (
                       <div className="absolute top-full left-0 right-0 mt-1 rounded-xl overflow-hidden z-10"
                         style={{ background: "var(--bg-card)", border: "1px solid var(--border-md)", boxShadow: "0 12px 32px rgba(0,0,0,0.12)" }}>
-                        {STATUSES.map((s) => (
+                        {statuses.map((s) => (
                           <button
-                            key={s}
-                            onClick={() => handleStatusChange(s)}
+                            key={s.key}
+                            onClick={() => handleStatusChange(s.key)}
                             className="w-full flex items-center justify-between px-3 py-2.5 transition-colors text-left hover:bg-black/[0.04]"
                           >
-                            <span className="text-[13.5px] font-medium" style={{ color: STATUS_COLORS[s] }}>
-                              {STATUS_LABELS[s]}
+                            <span className="flex items-center gap-2 text-[13.5px] font-medium" style={{ color: s.color }}>
+                              <span className="w-2 h-2 rounded-full" style={{ background: s.color }} />
+                              {s.label}
                             </span>
-                            {task.status === s && <Check className="w-4 h-4" style={{ color: "var(--accent)" }} />}
+                            {task.status === s.key && <Check className="w-4 h-4" style={{ color: "var(--accent)" }} />}
                           </button>
                         ))}
                       </div>

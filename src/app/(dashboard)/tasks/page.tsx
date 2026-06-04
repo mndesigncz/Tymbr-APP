@@ -11,7 +11,7 @@ import { StartWorkButton } from "@/components/layout/StartWorkButton";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import type { Task, TaskStatus } from "@/types";
+import type { Task } from "@/types";
 import { Plus, LayoutGrid, List, Search, SlidersHorizontal, X, CheckCheck, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -164,7 +164,7 @@ function TasksContent() {
     fetch("/api/users").then((r) => r.json()).then((d) => setMembers(Array.isArray(d) ? d : []));
   }, []);
 
-  const handleStatusChange = async (taskId: string, newStatus: TaskStatus) => {
+  const handleStatusChange = async (taskId: string, newStatus: string) => {
     const res = await fetch(`/api/tasks/${taskId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },

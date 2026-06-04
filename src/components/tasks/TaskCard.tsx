@@ -5,34 +5,23 @@ import { formatDate, isOverdue } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
 import { PriorityBadge } from "./PriorityBadge";
 import { Calendar, MessageSquare, ChevronRight, Play, AlertTriangle } from "lucide-react";
-import type { Task, TaskStatus } from "@/types";
-import { STATUS_COLORS } from "@/types";
+import type { Task } from "@/types";
 import { useTimeTracker } from "@/context/TimeTrackerContext";
-
-const NEXT_STATUS: Partial<Record<TaskStatus, TaskStatus>> = {
-  todo: "in_progress",
-  in_progress: "review",
-  review: "done",
-};
-
-const NEXT_LABEL: Partial<Record<TaskStatus, string>> = {
-  todo: "Zahájit",
-  in_progress: "Ke schválení",
-  review: "Hotovo",
-};
+import { useStatusConfig, nextStatus } from "@/hooks/useStatusConfig";
 
 interface TaskCardProps {
   task: Task;
   compact?: boolean;
   urgent?: boolean;
   showUrgentMark?: boolean;
-  onStatusAdvance?: (taskId: string, newStatus: TaskStatus) => void;
+  onStatusAdvance?: (taskId: string, newStatus: string) => void;
 }
 
 export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusAdvance }: TaskCardProps) {
   const { start, active } = useTimeTracker();
+  const statuses = useStatusConfig();
   const overdue = task.status !== "done" && isOverdue(task.dueDate);
-  const nextStatus = NEXT_STATUS[task.status];
+  const next = nextStatus(statuses, task.status);
   const isCurrentlyActive = active?.taskId === task.id;
   const isUrgent = task.priority === "urgent";
   const isDone = task.status === "done";
@@ -45,21 +34,22 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusAdvanc
 
   const compactBg = isDone ? "#22C55E0E" : (urgent || isUrgent) ? "#EF44440F" : "var(--bg-subtle)";
 
-  const AdvanceButton = nextStatus ? (
+  const AdvanceButton = next ? (
     <button
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        onStatusAdvance?.(task.id, nextStatus);
+        onStatusAdvance?.(task.id, next.key);
       }}
-      className="flex items-center gap-0.5 text-[11px] font-semibold px-2 py-1 rounded-lg transition-all hover:opacity-80 flex-shrink-0 whitespace-nowrap"
+      title={`Posunout na: ${next.label}`}
+      className="flex items-center gap-0.5 text-[11px] font-semibold px-2 py-1 rounded-lg transition-all hover:opacity-80 flex-shrink-0 whitespace-nowrap max-w-[120px]"
       style={{
-        background: `${STATUS_COLORS[nextStatus]}15`,
-        color: STATUS_COLORS[nextStatus],
+        background: `${next.color}15`,
+        color: next.color,
       }}
     >
-      {NEXT_LABEL[task.status]}
-      <ChevronRight className="w-3 h-3" />
+      <span className="truncate">{next.label}</span>
+      <ChevronRight className="w-3 h-3 flex-shrink-0" />
     </button>
   ) : null;
 

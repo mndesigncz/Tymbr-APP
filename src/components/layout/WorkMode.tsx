@@ -5,9 +5,7 @@ import { useTimeTracker, formatElapsed } from "@/context/TimeTrackerContext";
 import { Subtasks } from "@/components/tasks/Subtasks";
 import { Minimize2, Square, Check, Play, Clock } from "lucide-react";
 import type { Task, TaskStatus, SubTask } from "@/types";
-import { STATUS_LABELS, STATUS_COLORS } from "@/types";
-
-const STATUSES: TaskStatus[] = ["todo", "in_progress", "review", "done"];
+import { useStatusConfig, statusLabel } from "@/hooks/useStatusConfig";
 
 function formatMinutes(minutes: number) {
   const h = Math.floor(minutes / 60);
@@ -19,6 +17,7 @@ function formatMinutes(minutes: number) {
 
 export function WorkMode() {
   const { active, elapsed, focusOpen, stop, closeFocus, start, setActiveSubtask } = useTimeTracker();
+  const statuses = useStatusConfig();
   const [task, setTask] = useState<Task | null>(null);
   const [others, setOthers] = useState<Task[]>([]);
   const [totalMinutes, setTotalMinutes] = useState(0);
@@ -157,19 +156,19 @@ export function WorkMode() {
             <div>
               <p className="text-[12px] font-semibold uppercase tracking-wider mb-3" style={{ color: "#8a8a92" }}>Stav</p>
               <div className="flex flex-wrap gap-2">
-                {STATUSES.map((s) => {
-                  const isActive = task?.status === s;
+                {statuses.map((s) => {
+                  const isActive = task?.status === s.key;
                   return (
                     <button
-                      key={s}
-                      onClick={() => changeStatus(s)}
+                      key={s.key}
+                      onClick={() => changeStatus(s.key as TaskStatus)}
                       className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13.5px] font-semibold transition-all"
                       style={isActive
-                        ? { background: STATUS_COLORS[s], color: "#fff" }
+                        ? { background: s.color, color: "#fff" }
                         : { background: "rgba(255,255,255,0.06)", color: "#d4d4d8" }}
                     >
                       {isActive && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
-                      {STATUS_LABELS[s]}
+                      {s.label}
                     </button>
                   );
                 })}
@@ -257,7 +256,7 @@ export function WorkMode() {
                         {t.title}
                       </span>
                       <span className="text-[11px]" style={{ color: "#6a6a72" }}>
-                        {STATUS_LABELS[t.status]}
+                        {statusLabel(statuses, t.status)}
                       </span>
                     </div>
                     {isCurrent ? (

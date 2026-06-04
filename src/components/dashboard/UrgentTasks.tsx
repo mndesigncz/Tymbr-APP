@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { TaskCard } from "@/components/tasks/TaskCard";
 import { AlertCircle } from "lucide-react";
-import type { Task, TaskStatus } from "@/types";
+import type { Task } from "@/types";
 
 interface UrgentTasksProps {
   allUrgent: Task[];
@@ -17,7 +17,7 @@ export function UrgentTasks({ allUrgent, myUrgent, isManager = true }: UrgentTas
 
   const visible = view === "all" ? state.all : state.mine;
 
-  const handleStatusAdvance = async (taskId: string, newStatus: TaskStatus) => {
+  const handleStatusAdvance = async (taskId: string, newStatus: string) => {
     const res = await fetch(`/api/tasks/${taskId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },

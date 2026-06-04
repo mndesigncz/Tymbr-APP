@@ -8,19 +8,13 @@ import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { Plus, X } from "lucide-react";
 import type { Task, Category, User } from "@/types";
+import { useStatusConfig } from "@/hooks/useStatusConfig";
 
 interface DraftSubtask {
   title: string;
   description: string;
   hourlyRate: string;
 }
-
-const STATUS_OPTIONS = [
-  { value: "todo", label: "K provedení" },
-  { value: "in_progress", label: "Probíhá" },
-  { value: "review", label: "Ke schválení" },
-  { value: "done", label: "Hotovo" },
-];
 
 const PRIORITY_OPTIONS = [
   { value: "low", label: "Nízká" },
@@ -37,6 +31,8 @@ interface TaskFormProps {
 
 export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
   const router = useRouter();
+  const statuses = useStatusConfig();
+  const STATUS_OPTIONS = statuses.map((s) => ({ value: s.key, label: s.label }));
   const [categories, setCategories] = useState<Category[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);

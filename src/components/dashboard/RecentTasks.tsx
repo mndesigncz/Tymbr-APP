@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { TaskCard } from "@/components/tasks/TaskCard";
-import type { Task, TaskStatus } from "@/types";
+import type { Task } from "@/types";
 
 interface RecentTasksProps {
   allTasks: Task[];
@@ -17,7 +17,7 @@ export function RecentTasks({ allTasks, myTasks, isManager = true }: RecentTasks
 
   const visible = view === "all" ? state.all : state.mine;
 
-  const handleStatusAdvance = async (taskId: string, newStatus: TaskStatus) => {
+  const handleStatusAdvance = async (taskId: string, newStatus: string) => {
     const res = await fetch(`/api/tasks/${taskId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },

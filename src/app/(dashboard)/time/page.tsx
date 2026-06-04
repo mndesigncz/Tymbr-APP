@@ -8,6 +8,7 @@ import { Clock, TrendingUp, CheckSquare, Trash2, ChevronDown, ChevronUp } from "
 import { Input } from "@/components/ui/Input";
 import { isManager } from "@/lib/roles";
 import type { TimeEntry } from "@/types";
+import { useStatusConfig, statusLabel, statusColor } from "@/hooks/useStatusConfig";
 
 type DateRange = "today" | "week" | "month" | "year" | "custom";
 type ReportTab = "task" | "subtask" | "category" | "person" | "status";
@@ -57,22 +58,9 @@ function formatMinutes(minutes: number) {
   return `${h} h ${m} min`;
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  todo: "K provedení",
-  in_progress: "Probíhá",
-  review: "Ke schválení",
-  done: "Hotovo",
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  todo: "#6B7280",
-  in_progress: "#3B82F6",
-  review: "#EAB308",
-  done: "#22C55E",
-};
-
 export default function TimePage() {
   const { data: session } = useSession();
+  const statuses = useStatusConfig();
   const [range, setRange] = useState<DateRange>("month");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
@@ -411,12 +399,12 @@ export default function TimePage() {
                 return (
                   <div key={i} className="rounded-2xl px-4 py-3.5" style={{ background: "var(--bg-subtle)" }}>
                     <div className="flex items-center gap-3">
-                      <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: STATUS_COLORS[row.status] ?? "#9a9aa2" }} />
-                      <span className="text-[13.5px] font-semibold flex-1" style={{ color: "var(--text-1)" }}>{STATUS_LABELS[row.status] ?? row.status}</span>
+                      <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: statusColor(statuses, row.status) }} />
+                      <span className="text-[13.5px] font-semibold flex-1" style={{ color: "var(--text-1)" }}>{statusLabel(statuses, row.status)}</span>
                       <span className="text-[12px]" style={{ color: "var(--text-3)" }}>{row.count} relací</span>
                       <span className="text-[13.5px] font-semibold" style={{ color: "var(--text-1)" }}>{formatMinutes(row.minutes)}</span>
                     </div>
-                    <BarRow pct={pct} color={STATUS_COLORS[row.status] ?? "#9a9aa2"} />
+                    <BarRow pct={pct} color={statusColor(statuses, row.status)} />
                   </div>
                 );
               })}
@@ -474,7 +462,7 @@ export default function TimePage() {
                             ["Začátek", `${dateStr} ${timeStart}`],
                             ["Konec", `${dateStr} ${timeEnd}`],
                             ["Délka", formatMinutes(entry.durationMinutes ?? 0)],
-                            ["Stav úkolu", STATUS_LABELS[(entry.task as any)?.status] ?? "–"],
+                            ["Stav úkolu", statusLabel(statuses, (entry.task as any)?.status ?? "")],
                             ...(entryRate(entry) ? [["Hodinová sazba", `${entryRate(entry)} Kč/h`]] : []),
                             ...(entryEarning(entry) > 0 ? [["Výdělek", `${entryEarning(entry).toLocaleString("cs-CZ")} Kč`]] : []),
                           ].map(([k, v]) => (

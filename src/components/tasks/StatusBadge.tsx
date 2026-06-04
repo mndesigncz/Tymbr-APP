@@ -1,11 +1,13 @@
+"use client";
+
 import { Badge } from "@/components/ui/Badge";
-import { STATUS_COLORS, STATUS_LABELS, type TaskStatus } from "@/types";
+import { useStatusConfig, statusLabel, statusColor } from "@/hooks/useStatusConfig";
 
 export function StatusBadge({ status }: { status: string }) {
-  const s = status as TaskStatus;
+  const statuses = useStatusConfig();
   return (
-    <Badge color={STATUS_COLORS[s] || "#6B7280"} dot>
-      {STATUS_LABELS[s] || status}
+    <Badge color={statusColor(statuses, status)} dot>
+      {statusLabel(statuses, status)}
     </Badge>
   );
 }
