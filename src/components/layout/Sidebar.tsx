@@ -12,7 +12,7 @@ import { useChatUnread } from "@/hooks/useChatUnread";
 import { useTeamBranding } from "@/hooks/useTeamBranding";
 import {
   LayoutDashboard, CheckSquare, Tag, LogOut, Settings,
-  Clock, Users, MessageSquare, ChevronDown, Settings2,
+  Clock, Users, MessageSquare, ChevronDown, Settings2, FolderOpen,
 } from "lucide-react";
 
 const topItems = [
@@ -20,6 +20,7 @@ const topItems = [
   { href: "/tasks",      icon: CheckSquare,     label: "Úkoly"     },
   { href: "/categories", icon: Tag,             label: "Funkce"    },
   { href: "/time",       icon: Clock,           label: "Výkazy"    },
+  { href: "/files",      icon: FolderOpen,      label: "Soubory"   },
 ];
 
 const teamItems = [

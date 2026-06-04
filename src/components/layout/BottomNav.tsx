@@ -4,14 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useChatUnread } from "@/hooks/useChatUnread";
-import { LayoutDashboard, CheckSquare, Clock, MessageSquare, Users } from "lucide-react";
+import { LayoutDashboard, CheckSquare, Clock, MessageSquare, FolderOpen } from "lucide-react";
 
 const navItems = [
-  { href: "/dashboard",     icon: LayoutDashboard, label: "Přehled", chat: false },
-  { href: "/tasks",         icon: CheckSquare,     label: "Úkoly",   chat: false },
-  { href: "/chat",          icon: MessageSquare,   label: "Chat",    chat: true  },
-  { href: "/time",          icon: Clock,           label: "Výkazy",  chat: false },
-  { href: "/settings/team", icon: Users,           label: "Tým",     chat: false },
+  { href: "/dashboard", icon: LayoutDashboard, label: "Přehled", chat: false },
+  { href: "/tasks",     icon: CheckSquare,     label: "Úkoly",   chat: false },
+  { href: "/chat",      icon: MessageSquare,   label: "Chat",    chat: true  },
+  { href: "/time",      icon: Clock,           label: "Výkazy",  chat: false },
+  { href: "/files",     icon: FolderOpen,      label: "Soubory", chat: false },
 ];
 
 export function BottomNav() {
