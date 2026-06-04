@@ -1,8 +1,10 @@
-import { Badge } from "@/components/ui/Badge";
-import { PRIORITY_COLORS, PRIORITY_LABELS, type TaskPriority } from "@/types";
-import { ArrowDown, ArrowRight, ArrowUp, AlertCircle } from "lucide-react";
+"use client";
 
-const icons = {
+import { Badge } from "@/components/ui/Badge";
+import { ArrowDown, ArrowRight, ArrowUp, AlertCircle } from "lucide-react";
+import { usePriorityConfig, priorityLabel, priorityColor } from "@/hooks/usePriorityConfig";
+
+const builtinIcons: Record<string, React.ElementType> = {
   low: ArrowDown,
   medium: ArrowRight,
   high: ArrowUp,
@@ -10,12 +12,16 @@ const icons = {
 };
 
 export function PriorityBadge({ priority }: { priority: string }) {
-  const p = priority as TaskPriority;
-  const Icon = icons[p] || ArrowRight;
+  const priorities = usePriorityConfig();
+  const cfg = priorities.find((p) => p.key === priority);
+  const color = priorityColor(priorities, priority);
+  const label = priorityLabel(priorities, priority);
+  const Icon = builtinIcons[priority] ?? (cfg?.isUrgent ? AlertCircle : null);
+
   return (
-    <Badge color={PRIORITY_COLORS[p] || "#6B7280"}>
-      <Icon className="w-3 h-3" />
-      {PRIORITY_LABELS[p] || priority}
+    <Badge color={color}>
+      {Icon ? <Icon className="w-3 h-3" /> : <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />}
+      {label}
     </Badge>
   );
 }
