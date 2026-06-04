@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import type { Category } from "@/types";
-import { Plus, Tag, Trash2, Edit2, CheckSquare, Settings2, Eye, EyeOff, GripVertical } from "lucide-react";
+import { Plus, Tag, Trash2, Edit2, CheckSquare, Settings2, Eye, EyeOff, GripVertical, Flag, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { refreshStatusConfig } from "@/hooks/useStatusConfig";
+import { refreshPriorityConfig } from "@/hooks/usePriorityConfig";
 
 const COLORS = [
   "#F97316", "#3B82F6", "#22C55E", "#EAB308", "#EF4444",
@@ -25,8 +26,18 @@ interface StatusConfig {
   isBuiltin: boolean;
 }
 
+interface PriorityConfig {
+  id: string;
+  key: string;
+  label: string;
+  color: string;
+  order: number;
+  isUrgent: boolean;
+  isBuiltin: boolean;
+}
+
 export default function CategoriesPage() {
-  const [pageTab, setPageTab] = useState<"categories" | "statuses">("categories");
+  const [pageTab, setPageTab] = useState<"categories" | "statuses" | "priorities">("categories");
 
   // Categories state
   const [categories, setCategories] = useState<Category[]>([]);
@@ -46,6 +57,14 @@ export default function CategoriesPage() {
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
+  // Priorities state
+  const [priorities, setPriorities] = useState<PriorityConfig[]>([]);
+  const [prioLoading, setPrioLoading] = useState(false);
+  const [prioModal, setPrioModal] = useState(false);
+  const [editingPrio, setEditingPrio] = useState<PriorityConfig | null>(null);
+  const [prioForm, setPrioForm] = useState({ label: "", color: "#8B5CF6" });
+  const [savingPrio, setSavingPrio] = useState(false);
+
   const fetchCategories = async () => {
     const res = await fetch("/api/categories");
     const data = await res.json();
@@ -61,10 +80,50 @@ export default function CategoriesPage() {
     setStatusLoading(false);
   };
 
+  const fetchPriorities = async () => {
+    setPrioLoading(true);
+    const res = await fetch("/api/teams/priority-config");
+    const data = await res.json();
+    setPriorities(Array.isArray(data) ? data : []);
+    setPrioLoading(false);
+  };
+
   useEffect(() => { fetchCategories(); }, []);
   useEffect(() => {
     if (pageTab === "statuses") fetchStatuses();
+    if (pageTab === "priorities") fetchPriorities();
   }, [pageTab]);
+
+  const openNewPrio = () => { setEditingPrio(null); setPrioForm({ label: "", color: "#8B5CF6" }); setPrioModal(true); };
+  const openEditPrio = (p: PriorityConfig) => { setEditingPrio(p); setPrioForm({ label: p.label, color: p.color }); setPrioModal(true); };
+
+  const handleSavePrio = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!prioForm.label.trim()) return;
+    setSavingPrio(true);
+    if (editingPrio) {
+      await fetch("/api/teams/priority-config", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editingPrio.id, label: prioForm.label, color: prioForm.color }),
+      });
+    } else {
+      await fetch("/api/teams/priority-config", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(prioForm),
+      });
+    }
+    setSavingPrio(false);
+    setPrioModal(false);
+    await fetchPriorities();
+    refreshPriorityConfig();
+  };
+
+  const handleDeletePrio = async (id: string) => {
+    if (!confirm("Smazat tuto prioritu?")) return;
+    await fetch("/api/teams/priority-config", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+    await fetchPriorities();
+    refreshPriorityConfig();
+  };
 
   const openNew = () => { setEditing(null); setForm({ name: "", color: "#F97316" }); setModalOpen(true); };
   const openEdit = (cat: Category) => { setEditing(cat); setForm({ name: cat.name, color: cat.color }); setModalOpen(true); };
@@ -173,12 +232,14 @@ export default function CategoriesPage() {
   return (
     <div>
       <Header
-        title="Kategorie & Stavy"
+        title="Funkce"
         subtitle="Organizace úkolů"
         actions={
           pageTab === "categories"
             ? <Button icon={<Plus className="w-4 h-4" />} onClick={openNew}><span className="hidden sm:inline">Nová kategorie</span></Button>
-            : <Button icon={<Plus className="w-4 h-4" />} onClick={openNewStatus}><span className="hidden sm:inline">Nový stav</span></Button>
+            : pageTab === "statuses"
+            ? <Button icon={<Plus className="w-4 h-4" />} onClick={openNewStatus}><span className="hidden sm:inline">Nový stav</span></Button>
+            : <Button icon={<Plus className="w-4 h-4" />} onClick={openNewPrio}><span className="hidden sm:inline">Nová priorita</span></Button>
         }
       />
 
@@ -197,6 +258,12 @@ export default function CategoriesPage() {
             style={pageTab === "statuses" ? { background: "var(--accent)", color: "#fff" } : { color: "var(--text-2)" }}>
             <Settings2 className="w-3.5 h-3.5" />
             Stavy úkolů
+          </button>
+          <button onClick={() => setPageTab("priorities")}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-semibold transition-all"
+            style={pageTab === "priorities" ? { background: "var(--accent)", color: "#fff" } : { color: "var(--text-2)" }}>
+            <Flag className="w-3.5 h-3.5" />
+            Priority
           </button>
         </div>
 
@@ -306,6 +373,54 @@ export default function CategoriesPage() {
             </div>
           )
         )}
+
+        {/* Priorities */}
+        {pageTab === "priorities" && (
+          prioLoading ? (
+            <div className="flex items-center justify-center py-24">
+              <div className="w-7 h-7 border-[2.5px] rounded-full animate-spin" style={{ borderColor: "var(--accent)", borderTopColor: "transparent" }} />
+            </div>
+          ) : (
+            <div className="space-y-3 max-w-xl">
+              <p className="text-[13px] mb-4" style={{ color: "var(--text-3)" }}>
+                Priority přiřadíš úkolům při jejich vytváření či úpravě. Můžeš si přidat libovolné množství vlastních priorit
+                s názvem a barvou. <strong style={{ color: "var(--text-2)" }}>Urgentní</strong> priorita je vždy červená,
+                nelze ji smazat — lze ji jen přejmenovat.
+              </p>
+              {priorities.map((p) => (
+                <div key={p.id}
+                  className="flex items-center gap-3 px-4 py-3.5 rounded-2xl border group transition-all"
+                  style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
+                  <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: p.color }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13.5px] font-semibold flex items-center gap-1.5" style={{ color: "var(--text-1)" }}>
+                      {p.label}
+                      {p.isUrgent && <AlertCircle className="w-3.5 h-3.5" style={{ color: "#EF4444" }} />}
+                    </p>
+                    <p className="text-[11.5px]" style={{ color: "var(--text-3)" }}>
+                      {p.isUrgent ? "Urgentní · vždy červená" : "Vlastní priorita"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => openEditPrio(p)} className="p-1.5 rounded-lg transition-colors hover:bg-black/[0.05]" style={{ color: "var(--text-3)" }}>
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    {!p.isUrgent && (
+                      <button onClick={() => handleDeletePrio(p.id)} className="p-1.5 rounded-lg transition-colors hover:bg-red-50 hover:text-red-500" style={{ color: "var(--text-3)" }}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {priorities.length === 0 && (
+                <div className="text-center py-12" style={{ color: "var(--text-3)" }}>
+                  <p className="text-[14px] font-medium">Načítání priorit...</p>
+                </div>
+              )}
+            </div>
+          )
+        )}
       </div>
 
       {/* Category modal */}
@@ -353,6 +468,34 @@ export default function CategoriesPage() {
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="secondary" onClick={() => setStatusModal(false)} className="flex-1">Zrušit</Button>
             <Button type="submit" loading={savingStatus} className="flex-1">{editingStatus ? "Uložit" : "Vytvořit"}</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Priority modal */}
+      <Modal open={prioModal} onClose={() => setPrioModal(false)} title={editingPrio ? "Upravit prioritu" : "Nová priorita"}>
+        <form onSubmit={handleSavePrio} className="space-y-5">
+          <Input label="Název priority" placeholder="Např. Kritická, Počká..." value={prioForm.label} onChange={(e) => setPrioForm((f) => ({ ...f, label: e.target.value }))} required />
+          {editingPrio?.isUrgent ? (
+            <div className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl" style={{ background: "#EF44440F", border: "1px solid rgba(239,68,68,0.22)" }}>
+              <AlertCircle className="w-4 h-4 flex-shrink-0" style={{ color: "#EF4444" }} />
+              <p className="text-[12.5px]" style={{ color: "var(--text-2)" }}>Urgentní priorita je vždy červená — lze změnit jen název.</p>
+            </div>
+          ) : (
+            <div>
+              <label className="text-[12px] font-medium block mb-2" style={{ color: "var(--text-2)" }}>Barva</label>
+              <div className="flex flex-wrap gap-2">
+                {COLORS.map((c) => (
+                  <button key={c} type="button" onClick={() => setPrioForm((f) => ({ ...f, color: c }))}
+                    className="w-8 h-8 rounded-full transition-transform hover:scale-110"
+                    style={{ backgroundColor: c, outline: prioForm.color === c ? `3px solid ${c}` : undefined, outlineOffset: "2px" }} />
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="secondary" onClick={() => setPrioModal(false)} className="flex-1">Zrušit</Button>
+            <Button type="submit" loading={savingPrio} className="flex-1">{editingPrio ? "Uložit" : "Vytvořit"}</Button>
           </div>
         </form>
       </Modal>
