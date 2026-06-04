@@ -438,6 +438,7 @@ export default function TimePage() {
                 const isMe = entry.userId === myId;
                 const expanded = expandedEntry === entry.id;
                 const user = entry.user as any;
+                const subtask = (entry as any).subtask;
                 return (
                   <div key={entry.id} className="rounded-2xl overflow-hidden"
                     style={{ background: "var(--bg-subtle)" }}>
@@ -449,9 +450,14 @@ export default function TimePage() {
                         <p className="text-[13px] font-semibold line-clamp-1" style={{ color: "var(--text-1)" }}>
                           {(entry.task as any)?.title ?? "Neznámý úkol"}
                         </p>
+                        {subtask && (
+                          <p className="inline-flex items-center gap-1 text-[11.5px] font-medium mt-1 px-2 py-0.5 rounded-md"
+                            style={{ background: "#a855f715", color: "#a855f7" }}>
+                            ↳ {subtask.title} · {formatMinutes(entry.durationMinutes ?? 0)}
+                          </p>
+                        )}
                         <p className="text-[11.5px] mt-0.5" style={{ color: "var(--text-3)" }}>
                           {user?.name} · {dateStr} · {timeStart}–{timeEnd}
-                          {(entry as any).subtask && ` · ${(entry as any).subtask.title}`}
                         </p>
                       </div>
                       <span className="text-[13px] font-semibold flex-shrink-0" style={{ color: "var(--text-2)" }}>
@@ -469,6 +475,7 @@ export default function TimePage() {
                             ["Začátek", `${dateStr} ${timeStart}`],
                             ["Konec", `${dateStr} ${timeEnd}`],
                             ["Délka", formatMinutes(entry.durationMinutes ?? 0)],
+                            ...(subtask ? [["Podúkol", subtask.title]] : []),
                             ["Stav úkolu", statusLabel(statuses, (entry.task as any)?.status ?? "")],
                             ...(entryRate(entry) ? [["Hodinová sazba", `${entryRate(entry)} Kč/h`]] : []),
                             ...(entryEarning(entry) > 0 ? [["Výdělek", `${entryEarning(entry).toLocaleString("cs-CZ")} Kč`]] : []),

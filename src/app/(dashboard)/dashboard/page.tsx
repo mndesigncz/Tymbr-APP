@@ -2,13 +2,10 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { isManager } from "@/lib/roles";
 import { Header } from "@/components/layout/Header";
-import { StatsCard } from "@/components/dashboard/StatsCard";
-import { RecentTasks } from "@/components/dashboard/RecentTasks";
-import { UrgentTasks } from "@/components/dashboard/UrgentTasks";
+import { DashboardBody } from "@/components/dashboard/DashboardBody";
 import { StartWorkButton } from "@/components/layout/StartWorkButton";
-import { CheckSquare, Clock, CheckCircle2, Plus, CheckCheck } from "lucide-react";
+import { Plus } from "lucide-react";
 import Link from "next/link";
-import { formatRelative } from "@/lib/utils";
 import type { Task } from "@/types";
 
 const taskInclude = {
@@ -63,6 +60,34 @@ export default async function DashboardPage() {
   const myInProgress = myTasks.filter((t) => t.status === "in_progress").length;
   const myDoneTotal = await prisma.task.count({ where: { ...teamScope, assigneeId: session!.user.id, status: "done" } });
 
+  // Monthly earnings — managers see the team's total, members see their own.
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  const monthEntries = teamId
+    ? await prisma.timeEntry.findMany({
+        where: {
+          startedAt: { gte: monthStart },
+          stoppedAt: { not: null },
+          ...(manager
+            ? { user: { teamMemberships: { some: { teamId } } } }
+            : { userId: session!.user.id }),
+          task: { teamId },
+        },
+        select: {
+          durationMinutes: true,
+          task: { select: { hourlyRate: true } },
+          subtask: { select: { hourlyRate: true } },
+        },
+      })
+    : [];
+  const monthEarning = Math.round(
+    monthEntries.reduce((sum, e) => {
+      const rate = e.subtask?.hourlyRate ?? e.task?.hourlyRate ?? 0;
+      return sum + ((e.durationMinutes ?? 0) / 60) * rate;
+    }, 0)
+  );
+
   // Priority ordering: urgent > high > medium > low
   const PRIO: Record<string, number> = { urgent: 3, high: 2, medium: 1, low: 0 };
   const byPriority = (a: { priority: string; dueDate: Date | null }, b: { priority: string; dueDate: Date | null }) => {
@@ -108,92 +133,21 @@ export default async function DashboardPage() {
         }
       />
 
-      <div className="px-4 sm:px-6 lg:px-8 pt-2 pb-12 space-y-8">
-        {/* Stats — managers see team-wide, members see their own */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-          <StatsCard title={manager ? "Aktivní úkoly" : "Moje úkoly"}  value={manager ? allTasks.length : myTasks.length} icon={CheckSquare}  highlight />
-          <StatsCard title="K provedení"    value={manager ? todo : myTodo}            icon={Clock}        color="#6366f1" />
-          <StatsCard title="Probíhá"        value={manager ? inProgress : myInProgress} icon={CheckCircle2} color="#eab308" />
-          <StatsCard title="Hotovo celkem"  value={manager ? doneTotal : myDoneTotal}  icon={CheckCheck}   color="#22c55e" />
-        </div>
-
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          <div className="xl:col-span-2 space-y-7">
-            <UrgentTasks allUrgent={urgentAll} myUrgent={urgentMine} isManager={manager} />
-
-            <RecentTasks allTasks={recent} myTasks={myTasksList} isManager={manager} />
-          </div>
-
-          <div className="space-y-6">
-            {/* Done tasks (moved above categories) */}
-            {doneList.length > 0 && (
-              <div className="rounded-3xl border" style={{ background: "var(--bg-card)", borderColor: "#22C55E20", boxShadow: "var(--shadow-sm)" }}>
-                <div className="flex items-center justify-between px-6 pt-6 pb-5">
-                  <div className="flex items-center gap-2">
-                    <CheckCheck className="w-[18px] h-[18px]" style={{ color: "#22C55E" }} />
-                    <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>Hotové</h2>
-                    <span className="text-[11.5px] font-semibold px-2 py-0.5 rounded-md"
-                      style={{ background: "#22C55E15", color: "#22C55E" }}>{doneTotal}</span>
-                  </div>
-                  <Link href="/tasks?tab=done" className="text-[13px] font-semibold hover:opacity-80 transition-opacity"
-                    style={{ color: "var(--accent)" }}>
-                    Vše
-                  </Link>
-                </div>
-                <div className="px-4 pb-5 space-y-1">
-                  {doneList.map((task) => (
-                    <Link key={task.id} href={`/tasks/${task.id}`}
-                      className="flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors hover:bg-black/[0.03]">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <CheckCheck className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#22C55E" }} />
-                        <span className="text-[13px] font-medium line-clamp-1" style={{ color: "var(--text-1)" }}>
-                          {task.title}
-                        </span>
-                      </div>
-                      {task.completedAt && (
-                        <span className="text-[11px] flex-shrink-0 ml-2" style={{ color: "var(--text-3)" }}>
-                          {formatRelative(task.completedAt)}
-                        </span>
-                      )}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Categories (moved below done) */}
-            <div className="rounded-3xl border" style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
-              <div className="flex items-center justify-between px-6 pt-6 pb-5">
-                <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>Kategorie</h2>
-                <Link href="/categories" className="text-[13px] font-semibold hover:opacity-80 transition-opacity"
-                  style={{ color: "var(--accent)" }}>
-                  Spravovat
-                </Link>
-              </div>
-              <div className="px-4 pb-5 space-y-1">
-                {categories.length === 0 && (
-                  <p className="text-[13px] px-2 py-3" style={{ color: "var(--text-3)" }}>Žádné kategorie</p>
-                )}
-                {categories.map((cat) => (
-                  <Link
-                    key={cat.id}
-                    href={`/tasks?categoryId=${cat.id}`}
-                    className="flex items-center justify-between px-3 py-3 rounded-xl transition-colors hover:bg-black/[0.03]"
-                    style={{ color: "var(--text-2)" }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cat.color }} />
-                      <span className="text-[13.5px] font-medium" style={{ color: "var(--text-1)" }}>{cat.name}</span>
-                    </div>
-                    <span className="text-[12px] font-medium px-2 py-0.5 rounded-md"
-                      style={{ background: "var(--bg-subtle)", color: "var(--text-3)" }}>{cat._count.tasks}</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <DashboardBody
+        manager={manager}
+        statActive={manager ? allTasks.length : myTasks.length}
+        statTodo={manager ? todo : myTodo}
+        statProgress={manager ? inProgress : myInProgress}
+        statDone={manager ? doneTotal : myDoneTotal}
+        monthEarning={monthEarning}
+        urgentAll={urgentAll}
+        urgentMine={urgentMine}
+        recent={recent}
+        myTasksList={myTasksList}
+        doneList={doneList}
+        doneTotal={doneTotal}
+        categories={categories.map((c) => ({ id: c.id, name: c.name, color: c.color, count: c._count.tasks }))}
+      />
     </div>
   );
 }
