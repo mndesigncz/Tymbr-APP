@@ -4,7 +4,7 @@ import Link from "next/link";
 import { formatDate, isOverdue } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
 import { PriorityBadge } from "./PriorityBadge";
-import { Calendar, MessageSquare, Play, AlertTriangle } from "lucide-react";
+import { Calendar, MessageSquare, Play, AlertTriangle, ListChecks } from "lucide-react";
 import type { Task } from "@/types";
 import { useTimeTracker } from "@/context/TimeTrackerContext";
 
@@ -29,6 +29,10 @@ export function TaskCard({ task, compact, urgent, showUrgentMark }: TaskCardProp
   };
 
   const compactBg = isDone ? "#22C55E0E" : (urgent || isUrgent) ? "#EF44440F" : "var(--bg-subtle)";
+
+  const subtasks = task.subtasks ?? [];
+  const subTotal = subtasks.length;
+  const subDone = subtasks.filter((s) => s.done).length;
 
   if (compact) {
     return (
@@ -60,6 +64,13 @@ export function TaskCard({ task, compact, urgent, showUrgentMark }: TaskCardProp
                   style={{ color: overdue ? "#ef4444" : "var(--text-3)" }}>
                   <Calendar className="w-3 h-3 flex-shrink-0" />
                   {formatDate(task.dueDate)}
+                </span>
+              )}
+              {subTotal > 0 && (
+                <span className="flex items-center gap-1 text-[11px] font-medium whitespace-nowrap px-1.5 py-0.5 rounded-md"
+                  style={{ color: subDone === subTotal ? "#22C55E" : "var(--text-2)", background: "var(--bg-card)" }}>
+                  <ListChecks className="w-3 h-3 flex-shrink-0" />
+                  {subDone}/{subTotal}
                 </span>
               )}
             </div>
@@ -128,6 +139,16 @@ export function TaskCard({ task, compact, urgent, showUrgentMark }: TaskCardProp
             </span>
           )}
         </div>
+
+        {subTotal > 0 && (
+          <div className="flex items-center gap-2 mb-4">
+            <ListChecks className="w-3.5 h-3.5 flex-shrink-0" style={{ color: subDone === subTotal ? "#22C55E" : "var(--text-3)" }} />
+            <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-subtle)" }}>
+              <div className="h-full rounded-full transition-all" style={{ width: `${(subDone / subTotal) * 100}%`, background: "#22C55E" }} />
+            </div>
+            <span className="text-[11.5px] font-semibold flex-shrink-0" style={{ color: "var(--text-3)" }}>{subDone}/{subTotal}</span>
+          </div>
+        )}
 
         <div className="flex items-center justify-between gap-2 pt-4 border-t" style={{ borderColor: isUrgent ? "rgba(239,68,68,0.15)" : "var(--border)" }}>
           {/* Left: date + meta */}
