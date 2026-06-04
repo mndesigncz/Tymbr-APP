@@ -4,14 +4,14 @@ import { Providers } from "./providers";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 
 export const metadata: Metadata = {
-  title: "Tymbr – Firemní úkolník",
+  title: "Noize – Firemní úkolník",
   description: "Správa firemních úkolů, projektů a výkazů pro týmy.",
-  applicationName: "Tymbr",
+  applicationName: "Noize",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Tymbr",
+    title: "Noize",
   },
   icons: {
     icon: "/icon-192.png",

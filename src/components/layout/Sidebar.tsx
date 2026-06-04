@@ -91,7 +91,7 @@ export function Sidebar() {
             <CheckSquare className="w-4 h-4 text-white" />
           </div>
           <span className="text-[17px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>
-            Tymbr
+            Noize
           </span>
         </div>
       </div>
