@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { isManager } from "@/lib/roles";
+import { sendInvitationEmail } from "@/lib/email";
 
 export async function GET() {
   const session = await getSession();
@@ -62,7 +63,18 @@ export async function POST(req: NextRequest) {
       )
       RETURNING id, email, token, role, "createdAt", "teamId"
     `;
-    return NextResponse.json(rows[0], { status: 201 });
+    const invitation = rows[0];
+
+    // Send invitation email (fire-and-forget — failure must not break the response)
+    const team = await prisma.team.findUnique({ where: { id: teamId }, select: { name: true } });
+    sendInvitationEmail({
+      to: normalizedEmail,
+      token: invitation.token,
+      teamName: team?.name ?? "tým",
+      inviterName: session.user.name ?? "Správce",
+    });
+
+    return NextResponse.json(invitation, { status: 201 });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? "Chyba serveru" }, { status: 500 });
   }

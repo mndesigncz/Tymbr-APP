@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { sendWelcomeEmail } from "@/lib/email";
 
 export async function POST(req: NextRequest) {
   try {
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
         where: { id: invitation.id },
         data: { acceptedAt: new Date() },
       });
+      sendWelcomeEmail({ to: email, name, teamName: "tým" });
       return NextResponse.json(user, { status: 201 });
     }
 
@@ -68,6 +70,8 @@ export async function POST(req: NextRequest) {
       VALUES (gen_random_uuid()::text, 'owner', NOW(), ${teamRows[0].id}, ${user.id})
       ON CONFLICT ("teamId", "userId") DO NOTHING
     `;
+    const finalTeamName = teamName?.trim() || `${name.split(" ")[0]}'s tým`;
+    sendWelcomeEmail({ to: email, name, teamName: finalTeamName });
     return NextResponse.json(user, { status: 201 });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? "Chyba serveru" }, { status: 500 });

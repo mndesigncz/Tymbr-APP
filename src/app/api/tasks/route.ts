@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { sendTaskAssignedEmail } from "@/lib/email";
 
 const taskInclude = {
   category: true,
@@ -112,6 +113,18 @@ export async function POST(req: NextRequest) {
       where: { id: rows[0].id },
       include: taskInclude,
     });
+
+    // Notify assignee if they are not the creator
+    if (task?.assignee && task.assignee.id !== session.user.id && task.assignee.email) {
+      sendTaskAssignedEmail({
+        to: task.assignee.email,
+        assigneeName: task.assignee.name ?? "",
+        taskTitle: task.title,
+        taskId: task.id,
+        assignerName: session.user.name ?? "Správce",
+      });
+    }
+
     return NextResponse.json(task, { status: 201 });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? "Chyba serveru" }, { status: 500 });
