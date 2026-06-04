@@ -20,11 +20,16 @@ model User {
 
   tasksCreated      Task[]            @relation("TaskCreator")
   tasksAssigned     Task[]            @relation("TaskAssignee")
+  taskAssignees     TaskAssignee[]
   comments          Comment[]
   timeEntries       TimeEntry[]
   ownedTeams        Team[]            @relation("TeamOwner")
   teamMemberships   TeamMember[]
   chatMessages      ChatMessage[]     @relation("ChatSender")
+  chatReceived      ChatMessage[]     @relation("ChatRecipient")
+  joinRequests      TeamJoinRequest[]
+  foldersCreated    TeamFolder[]      @relation("TeamFolderCreator")
+  filesCreated      TeamFile[]        @relation("TeamFileCreator")
 }
 
 model Team {
@@ -32,46 +37,132 @@ model Team {
   name      String
   color     String?
   logo      String?
+  joinCode  String?  @unique
   createdAt DateTime @default(now())
 
   ownerId String
   owner   User   @relation("TeamOwner", fields: [ownerId], references: [id])
 
-  members       TeamMember[]
-  invitations   TeamInvitation[]
-  tasks         Task[]
-  categories    Category[]
-  chatMessages  ChatMessage[]
+  members        TeamMember[]
+  invitations    TeamInvitation[]
+  tasks          Task[]
+  categories     Category[]
+  chatMessages   ChatMessage[]
+  joinRequests   TeamJoinRequest[]
+  statusConfigs  TaskStatusConfig[]
+  priorityConfigs TaskPriorityConfig[]
+  folders        TeamFolder[]
+  files          TeamFile[]
 
   @@index([ownerId])
 }
 
-// @@ignore — activate after running prisma/migration_v2.sql
-// model TeamJoinRequest {
-//   id         String    @id @default(cuid())
-//   status     String    @default("pending")
-//   message    String?
-//   createdAt  DateTime  @default(now())
-//   resolvedAt DateTime?
-//   teamId String
-//   userId String
-//   @@unique([teamId, userId])
-//   @@index([teamId])
-// }
+model TeamJoinRequest {
+  id         String    @id
+  status     String    @default("pending")
+  message    String?
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
 
-// @@ignore — activate after running prisma/migration_v2.sql
-// model TaskStatusConfig {
-//   id          String  @id @default(cuid())
-//   key         String
-//   label       String
-//   color       String  @default("#9a9aa2")
-//   order       Int     @default(0)
-//   showInFocus Boolean @default(true)
-//   isBuiltin   Boolean @default(true)
-//   teamId String
-//   @@unique([teamId, key])
-//   @@index([teamId])
-// }
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([teamId])
+}
+
+model TaskStatusConfig {
+  id          String  @id
+  key         String
+  label       String
+  color       String  @default("#9a9aa2")
+  order       Int     @default(0)
+  showInFocus Boolean @default(true)
+  isBuiltin   Boolean @default(true)
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, key])
+  @@index([teamId])
+}
+
+model TaskPriorityConfig {
+  id        String  @id
+  key       String
+  label     String
+  color     String  @default("#3B82F6")
+  order     Int     @default(0)
+  isUrgent  Boolean @default(false)
+  isBuiltin Boolean @default(false)
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, key])
+  @@index([teamId])
+}
+
+model TaskAssignee {
+  id        String   @id
+  createdAt DateTime @default(now())
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId])
+  @@index([taskId])
+  @@index([userId])
+}
+
+model TeamFolder {
+  id        String   @id
+  name      String
+  createdAt DateTime @default(now())
+
+  parentId String?
+  parent   TeamFolder?  @relation("FolderChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children TeamFolder[] @relation("FolderChildren")
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  createdById String
+  createdBy   User   @relation("TeamFolderCreator", fields: [createdById], references: [id])
+
+  files TeamFile[]
+
+  @@index([teamId])
+  @@index([parentId])
+}
+
+model TeamFile {
+  id        String   @id
+  name      String
+  type      String   @default("upload")
+  url       String
+  mimeType  String?
+  size      BigInt?
+  createdAt DateTime @default(now())
+
+  folderId String?
+  folder   TeamFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  createdById String
+  createdBy   User   @relation("TeamFileCreator", fields: [createdById], references: [id])
+
+  @@index([teamId])
+  @@index([folderId])
+}
 
 model ChatMessage {
   id        String   @id @default(cuid())
@@ -84,7 +175,11 @@ model ChatMessage {
   userId String
   user   User   @relation("ChatSender", fields: [userId], references: [id], onDelete: Cascade)
 
+  recipientId String?
+  recipient   User?   @relation("ChatRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
+
   @@index([teamId])
+  @@index([recipientId])
 }
 
 model TeamMember {
@@ -158,6 +253,7 @@ model Task {
   timeEntries    TimeEntry[]
   subtasks       SubTask[]
   statusHistory  TaskStatusHistory[]
+  assignees      TaskAssignee[]
 
   @@index([teamId])
   @@index([status])

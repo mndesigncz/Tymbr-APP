@@ -46,7 +46,7 @@ export default function RegisterPage() {
             style={{ background: "var(--accent)" }}>
             <CheckSquare className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-xl font-semibold" style={{ color: "var(--text-1)" }}>Registrace do Noisium</h1>
+          <h1 className="text-xl font-semibold" style={{ color: "var(--text-1)" }}>Registrace do Tymbr</h1>
           <p className="text-[13px] mt-1" style={{ color: "var(--text-3)" }}>Vytvořte si nový účet</p>
         </div>
 

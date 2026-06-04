@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Noisium – Firemní úkolník",
-    short_name: "Noisium",
+    name: "Tymbr – Firemní úkolník",
+    short_name: "Tymbr",
     description: "Správa firemních úkolů, projektů a výkazů pro týmy.",
     start_url: "/dashboard",
     scope: "/",
