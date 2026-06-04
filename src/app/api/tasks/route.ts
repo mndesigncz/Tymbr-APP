@@ -11,13 +11,32 @@ const taskInclude = {
   _count: { select: { comments: true } },
 };
 
+async function attachAssignees(tasks: any[]): Promise<any[]> {
+  if (tasks.length === 0) return tasks;
+  const ids = tasks.map((t) => t.id);
+  const placeholders = ids.map((_, i) => `$${i + 1}`).join(", ");
+  const rows = await prisma.$queryRawUnsafe<{ taskId: string; userId: string; name: string; email: string; avatar: string | null }[]>(
+    `SELECT ta."taskId", u.id as "userId", u.name, u.email, u.avatar FROM "TaskAssignee" ta JOIN "User" u ON u.id = ta."userId" WHERE ta."taskId" IN (${placeholders}) ORDER BY ta."createdAt"`,
+    ...ids
+  );
+  const byTask = new Map<string, any[]>();
+  for (const r of rows) {
+    if (!byTask.has(r.taskId)) byTask.set(r.taskId, []);
+    byTask.get(r.taskId)!.push({ id: r.userId, name: r.name, email: r.email, avatar: r.avatar });
+  }
+  return tasks.map((t) => ({
+    ...t,
+    assignees: byTask.get(t.id) ?? (t.assignee ? [t.assignee] : []),
+  }));
+}
+
 export async function GET(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Neautorizováno" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status");
-  const statuses = searchParams.get("statuses"); // comma-separated e.g. "todo,in_progress,review"
+  const statuses = searchParams.get("statuses");
   const categoryId = searchParams.get("categoryId");
   const assigneeId = searchParams.get("assigneeId");
   const priority = searchParams.get("priority");
@@ -26,7 +45,6 @@ export async function GET(req: NextRequest) {
   const completedTo = searchParams.get("completedTo");
   const teamId = (session.user as any).teamId;
 
-  // Tasks are strictly team-scoped. Without a team the user sees nothing.
   if (!teamId) return NextResponse.json([]);
 
   const where: Record<string, any> = { teamId };
@@ -64,7 +82,7 @@ export async function GET(req: NextRequest) {
     include: taskInclude,
     orderBy: [{ createdAt: "desc" }],
   });
-  return NextResponse.json(tasks);
+  return NextResponse.json(await attachAssignees(tasks));
 }
 
 export async function POST(req: NextRequest) {
@@ -73,7 +91,11 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { title, description, status, priority, dueDate, startDate, categoryId, assigneeId, hourlyRate } = body;
+    const { title, description, status, priority, dueDate, startDate, categoryId, hourlyRate } = body;
+    // assigneeIds: new multi-assignee array; assigneeId: legacy single
+    const assigneeIds: string[] = Array.isArray(body.assigneeIds) ? body.assigneeIds.filter(Boolean) : [];
+    if (!assigneeIds.length && body.assigneeId) assigneeIds.push(body.assigneeId);
+    const primaryAssigneeId = assigneeIds[0] ?? null;
 
     if (!title) return NextResponse.json({ error: "Název je povinný" }, { status: 400 });
 
@@ -83,7 +105,6 @@ export async function POST(req: NextRequest) {
     const finalStatus = status || "todo";
     const completedAt = finalStatus === "done" ? new Date() : null;
 
-    // Raw SQL to bypass Prisma 7 adapter cuid() generation issue
     const rows = await prisma.$queryRaw<any[]>`
       INSERT INTO "Task" (
         id, title, description, status, priority, "dueDate", "startDate",
@@ -99,7 +120,7 @@ export async function POST(req: NextRequest) {
         ${dueDate ? new Date(dueDate) : null},
         ${startDate ? new Date(startDate) : null},
         ${categoryId || null},
-        ${assigneeId || null},
+        ${primaryAssigneeId},
         ${hourlyRate ? Number(hourlyRate) : null},
         ${completedAt},
         ${session.user.id},
@@ -110,23 +131,35 @@ export async function POST(req: NextRequest) {
       RETURNING id
     `;
 
-    const task = await prisma.task.findUnique({
-      where: { id: rows[0].id },
-      include: taskInclude,
-    });
+    const taskId = rows[0].id;
 
-    // Notify assignee if they are not the creator
-    if (task?.assignee && task.assignee.id !== session.user.id && task.assignee.email) {
-      sendTaskAssignedEmail({
-        to: task.assignee.email,
-        assigneeName: task.assignee.name ?? "",
-        taskTitle: task.title,
-        taskId: task.id,
-        assignerName: session.user.name ?? "Správce",
-      });
+    // Insert multi-assignees
+    for (const uid of assigneeIds) {
+      await prisma.$executeRaw`
+        INSERT INTO "TaskAssignee" (id, "taskId", "userId")
+        VALUES (gen_random_uuid()::text, ${taskId}, ${uid})
+        ON CONFLICT DO NOTHING
+      `;
     }
 
-    return NextResponse.json(task, { status: 201 });
+    const task = await prisma.task.findUnique({ where: { id: taskId }, include: taskInclude });
+    const taskWithAssignees = task ? (await attachAssignees([task]))[0] : task;
+
+    // Notify newly assigned users (excluding the creator)
+    const allAssignees = taskWithAssignees?.assignees ?? [];
+    for (const a of allAssignees) {
+      if (a.id !== session.user.id && a.email) {
+        sendTaskAssignedEmail({
+          to: a.email,
+          assigneeName: a.name ?? "",
+          taskTitle: title,
+          taskId,
+          assignerName: session.user.name ?? "Správce",
+        });
+      }
+    }
+
+    return NextResponse.json(taskWithAssignees, { status: 201 });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? "Chyba serveru" }, { status: 500 });
   }

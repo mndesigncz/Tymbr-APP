@@ -30,6 +30,8 @@ export function TaskCard({ task, compact, urgent, showUrgentMark }: TaskCardProp
 
   const compactBg = isDone ? "#22C55E0E" : (urgent || isUrgent) ? "#EF44440F" : "var(--bg-subtle)";
 
+  const assignees = task.assignees ?? (task.assignee ? [task.assignee] : []);
+
   const subtasks = task.subtasks ?? [];
   const subTotal = subtasks.length;
   const subDone = subtasks.filter((s) => s.done).length;
@@ -90,8 +92,18 @@ export function TaskCard({ task, compact, urgent, showUrgentMark }: TaskCardProp
                   : <Play className="w-3 h-3 fill-current" />}
               </button>
             )}
-            {task.assignee && (
-              <Avatar name={task.assignee.name} src={task.assignee.avatar} size="sm" />
+            {assignees.length > 0 && (
+              <div className="flex -space-x-1.5">
+                {assignees.slice(0, 2).map((a) => (
+                  <Avatar key={a.id} name={a.name} src={a.avatar} size="sm" className="ring-2 ring-[var(--bg-card)]" />
+                ))}
+                {assignees.length > 2 && (
+                  <span className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ring-2 ring-[var(--bg-card)]"
+                    style={{ background: "var(--bg-subtle)", color: "var(--text-2)" }}>
+                    +{assignees.length - 2}
+                  </span>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -186,8 +198,18 @@ export function TaskCard({ task, compact, urgent, showUrgentMark }: TaskCardProp
                   : <Play className="w-3.5 h-3.5 fill-current" />}
               </button>
             )}
-            {task.assignee && (
-              <Avatar name={task.assignee.name} src={task.assignee.avatar} size="sm" className="flex-shrink-0" />
+            {assignees.length > 0 && (
+              <div className="flex -space-x-1.5 flex-shrink-0">
+                {assignees.slice(0, 3).map((a) => (
+                  <Avatar key={a.id} name={a.name} src={a.avatar} size="sm" className="ring-2 ring-[var(--bg-card)] flex-shrink-0" />
+                ))}
+                {assignees.length > 3 && (
+                  <span className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ring-2 ring-[var(--bg-card)]"
+                    style={{ background: "var(--bg-subtle)", color: "var(--text-2)" }}>
+                    +{assignees.length - 3}
+                  </span>
+                )}
+              </div>
             )}
           </div>
         </div>

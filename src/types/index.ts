@@ -71,6 +71,7 @@ export interface Task {
   createdBy?: User;
   assigneeId?: string | null;
   assignee?: User | null;
+  assignees?: User[];
   comments?: Comment[];
   timeEntries?: TimeEntry[];
   subtasks?: SubTask[];
