@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { CheckSquare, AlertTriangle } from "lucide-react";
-import { STATUS_LABELS, STATUS_COLORS } from "@/types";
-import type { Task, TaskStatus } from "@/types";
+import type { Task } from "@/types";
+import { useStatusConfig, statusLabel, statusColor } from "@/hooks/useStatusConfig";
 
 export function ChatTaskChip({ task }: { task?: Task | null }) {
+  const statuses = useStatusConfig();
   if (!task) {
     return (
       <span
@@ -18,7 +19,7 @@ export function ChatTaskChip({ task }: { task?: Task | null }) {
     );
   }
 
-  const statusColor = STATUS_COLORS[task.status as TaskStatus] ?? "#9a9aa2";
+  const color = statusColor(statuses, task.status);
   const isUrgent = task.priority === "urgent";
 
   return (
@@ -30,9 +31,9 @@ export function ChatTaskChip({ task }: { task?: Task | null }) {
       <div className="flex items-center gap-2.5">
         <div
           className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ background: `${statusColor}1a` }}
+          style={{ background: `${color}1a` }}
         >
-          <CheckSquare className="w-3.5 h-3.5" style={{ color: statusColor }} />
+          <CheckSquare className="w-3.5 h-3.5" style={{ color: color }} />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[13px] font-semibold line-clamp-1" style={{ color: "var(--text-1)" }}>
@@ -40,8 +41,8 @@ export function ChatTaskChip({ task }: { task?: Task | null }) {
             {task.title}
           </p>
           <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[11px] font-medium" style={{ color: statusColor }}>
-              {STATUS_LABELS[task.status as TaskStatus] ?? task.status}
+            <span className="text-[11px] font-medium" style={{ color: color }}>
+              {statusLabel(statuses, task.status)}
             </span>
             {task.category && (
               <span className="inline-flex items-center gap-1 text-[11px]" style={{ color: "var(--text-3)" }}>

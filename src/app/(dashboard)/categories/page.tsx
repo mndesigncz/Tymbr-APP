@@ -8,6 +8,7 @@ import { Modal } from "@/components/ui/Modal";
 import type { Category } from "@/types";
 import { Plus, Tag, Trash2, Edit2, CheckSquare, Settings2, Eye, EyeOff, GripVertical } from "lucide-react";
 import Link from "next/link";
+import { refreshStatusConfig } from "@/hooks/useStatusConfig";
 
 const COLORS = [
   "#F97316", "#3B82F6", "#22C55E", "#EAB308", "#EF4444",
@@ -42,6 +43,8 @@ export default function CategoriesPage() {
   const [editingStatus, setEditingStatus] = useState<StatusConfig | null>(null);
   const [statusForm, setStatusForm] = useState({ label: "", color: "#8B5CF6", showInFocus: true });
   const [savingStatus, setSavingStatus] = useState(false);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   const fetchCategories = async () => {
     const res = await fetch("/api/categories");
@@ -114,13 +117,15 @@ export default function CategoriesPage() {
     }
     setSavingStatus(false);
     setStatusModal(false);
-    fetchStatuses();
+    await fetchStatuses();
+    refreshStatusConfig();
   };
 
   const handleDeleteStatus = async (id: string) => {
     if (!confirm("Smazat tento stav?")) return;
     await fetch("/api/teams/status-config", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
-    fetchStatuses();
+    await fetchStatuses();
+    refreshStatusConfig();
   };
 
   const handleToggleFocus = async (s: StatusConfig) => {
@@ -128,7 +133,41 @@ export default function CategoriesPage() {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: s.id, showInFocus: !s.showInFocus }),
     });
-    fetchStatuses();
+    await fetchStatuses();
+    refreshStatusConfig();
+  };
+
+  // Drag-and-drop reordering — reflowed locally, then persisted per changed row.
+  const handleReorder = async (toId: string) => {
+    const fromId = dragId;
+    setDragId(null);
+    setDragOverId(null);
+    if (!fromId || fromId === toId) return;
+
+    const fromIdx = statuses.findIndex((s) => s.id === fromId);
+    const toIdx = statuses.findIndex((s) => s.id === toId);
+    if (fromIdx === -1 || toIdx === -1) return;
+
+    const reordered = [...statuses];
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+
+    const withOrder = reordered.map((s, i) => ({ ...s, order: i }));
+    const prevOrder = new Map(statuses.map((s) => [s.id, s.order]));
+    setStatuses(withOrder); // optimistic
+
+    await Promise.all(
+      withOrder
+        .filter((s) => prevOrder.get(s.id) !== s.order)
+        .map((s) =>
+          fetch("/api/teams/status-config", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: s.id, order: s.order }),
+          })
+        )
+    );
+    refreshStatusConfig();
   };
 
   return (
@@ -212,12 +251,24 @@ export default function CategoriesPage() {
           ) : (
             <div className="space-y-3 max-w-xl">
               <p className="text-[13px] mb-4" style={{ color: "var(--text-3)" }}>
-                Vestavěné stavy lze přejmenovat a nastavit viditelnost ve focus módu. Přidat lze vlastní stavy.
+                Přetažením za úchyt změníš pořadí stavů — projeví se i na nástěnce úkolů. Vestavěné stavy lze přejmenovat,
+                vlastní stavy lze přidávat i mazat.
               </p>
               {statuses.map((s) => (
-                <div key={s.id} className="flex items-center gap-3 px-4 py-3.5 rounded-2xl border group"
-                  style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
-                  <GripVertical className="w-4 h-4 flex-shrink-0 opacity-20" style={{ color: "var(--text-3)" }} />
+                <div key={s.id}
+                  draggable
+                  onDragStart={() => setDragId(s.id)}
+                  onDragOver={(e) => { e.preventDefault(); setDragOverId(s.id); }}
+                  onDragLeave={() => setDragOverId((cur) => (cur === s.id ? null : cur))}
+                  onDrop={(e) => { e.preventDefault(); handleReorder(s.id); }}
+                  onDragEnd={() => { setDragId(null); setDragOverId(null); }}
+                  className="flex items-center gap-3 px-4 py-3.5 rounded-2xl border group transition-all"
+                  style={{
+                    background: "var(--bg-card)",
+                    borderColor: dragOverId === s.id && dragId !== s.id ? "var(--accent)" : "var(--border)",
+                    opacity: dragId === s.id ? 0.4 : 1,
+                  }}>
+                  <GripVertical className="w-4 h-4 flex-shrink-0 opacity-40 group-hover:opacity-70 cursor-grab active:cursor-grabbing" style={{ color: "var(--text-3)" }} />
                   <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: s.color }} />
                   <div className="flex-1 min-w-0">
                     <p className="text-[13.5px] font-semibold" style={{ color: "var(--text-1)" }}>{s.label}</p>
