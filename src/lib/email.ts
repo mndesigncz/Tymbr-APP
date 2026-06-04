@@ -1,6 +1,19 @@
 import { Resend } from "resend";
+import { prisma } from "@/lib/prisma";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Returns false if the recipient has turned off the given notification type.
+async function prefAllows(email: string, key: "taskAssigned" | "comments" | "dueDates" | "statusChanges"): Promise<boolean> {
+  try {
+    const user = await prisma.user.findUnique({ where: { email }, select: { notificationPrefs: true } });
+    if (!user?.notificationPrefs) return true; // no prefs saved → default on
+    const prefs = JSON.parse(user.notificationPrefs);
+    return prefs[key] !== false;
+  } catch {
+    return true; // never block a notification on a lookup error
+  }
+}
 const FROM = process.env.RESEND_FROM_EMAIL ?? "Noisium <noreply@noisium.app>";
 const APP_URL = (process.env.NEXTAUTH_URL ?? "https://noisium.app").replace(/\/$/, "");
 
@@ -63,6 +76,7 @@ export async function sendTaskAssignedEmail({
   assignerName: string;
 }) {
   if (!process.env.RESEND_API_KEY) return;
+  if (!(await prefAllows(to, "taskAssigned"))) return;
   const url = `${APP_URL}/tasks/${taskId}`;
   try {
     await resend.emails.send({

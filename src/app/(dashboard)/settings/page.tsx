@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { Header } from "@/components/layout/Header";
 import { Input } from "@/components/ui/Input";
@@ -42,6 +42,34 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  type NotifKey = "taskAssigned" | "comments" | "dueDates" | "statusChanges";
+  const [prefs, setPrefs] = useState<Record<NotifKey, boolean>>({
+    taskAssigned: true, comments: true, dueDates: true, statusChanges: false,
+  });
+  const [savingPrefs, setSavingPrefs] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/users/me")
+      .then((r) => r.json())
+      .then((d) => { if (d?.notificationPrefs) setPrefs((p) => ({ ...p, ...d.notificationPrefs })); })
+      .catch(() => {});
+  }, []);
+
+  const togglePref = async (key: NotifKey) => {
+    const next = { ...prefs, [key]: !prefs[key] };
+    setPrefs(next);
+    setSavingPrefs(true);
+    try {
+      await fetch("/api/users/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notificationPrefs: next }),
+      });
+    } finally {
+      setSavingPrefs(false);
+    }
+  };
 
   const dirty =
     name.trim() !== (session?.user?.name || "") ||
@@ -149,19 +177,27 @@ export default function SettingsPage() {
           <div className="flex items-center gap-2 mb-5">
             <Bell className="w-[18px] h-[18px]" style={{ color: "var(--accent)" }} />
             <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>Oznámení</h2>
+            {savingPrefs && (
+              <span className="text-[11px] ml-auto" style={{ color: "var(--text-3)" }}>Ukládám…</span>
+            )}
           </div>
 
           <div className="space-y-1">
-            {[
-              { label: "Nové úkoly přiřazené mně", defaultChecked: true },
-              { label: "Komentáře u mých úkolů", defaultChecked: true },
-              { label: "Blížící se termíny", defaultChecked: true },
-              { label: "Změny statusu úkolů", defaultChecked: false },
-            ].map(({ label, defaultChecked }) => (
-              <label key={label} className="flex items-center justify-between py-2.5 cursor-pointer">
+            {([
+              { key: "taskAssigned", label: "Nové úkoly přiřazené mně" },
+              { key: "comments", label: "Komentáře u mých úkolů" },
+              { key: "dueDates", label: "Blížící se termíny" },
+              { key: "statusChanges", label: "Změny statusu úkolů" },
+            ] as { key: NotifKey; label: string }[]).map(({ key, label }) => (
+              <label key={key} className="flex items-center justify-between py-2.5 cursor-pointer">
                 <span className="text-[14px]" style={{ color: "var(--text-1)" }}>{label}</span>
                 <div className="relative">
-                  <input type="checkbox" defaultChecked={defaultChecked} className="sr-only peer" />
+                  <input
+                    type="checkbox"
+                    checked={prefs[key]}
+                    onChange={() => togglePref(key)}
+                    className="sr-only peer"
+                  />
                   <div className="w-10 h-6 rounded-full transition-colors peer-checked:bg-[var(--accent)]"
                     style={{ background: "var(--bg-subtle)" }} />
                   <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform peer-checked:translate-x-4 shadow" />
@@ -169,6 +205,9 @@ export default function SettingsPage() {
               </label>
             ))}
           </div>
+          <p className="text-[12px] mt-3" style={{ color: "var(--text-3)" }}>
+            Zatím se odesílají e-maily pouze pro „Nové úkoly přiřazené mně". Ostatní typy budou aktivní postupně.
+          </p>
         </div>
 
         <div className="rounded-3xl border p-6" style={{ background: "var(--bg-card)", borderColor: "rgba(239,68,68,0.18)", boxShadow: "var(--shadow-sm)" }}>
