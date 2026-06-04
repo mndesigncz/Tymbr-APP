@@ -4,14 +4,14 @@ import { Providers } from "./providers";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 
 export const metadata: Metadata = {
-  title: "Noize – Firemní úkolník",
+  title: "Noisium – Firemní úkolník",
   description: "Správa firemních úkolů, projektů a výkazů pro týmy.",
-  applicationName: "Noize",
+  applicationName: "Noisium",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Noize",
+    title: "Noisium",
   },
   icons: {
     icon: "/icon-192.png",

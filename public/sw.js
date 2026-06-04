@@ -1,5 +1,5 @@
-// Noize service worker — enables installability and basic offline resilience.
-const CACHE = "noize-v1";
+// Noisium service worker — enables installability and basic offline resilience.
+const CACHE = "noisium-v1";
 const ASSETS = [
   "/icon-192.png",
   "/icon-512.png",
