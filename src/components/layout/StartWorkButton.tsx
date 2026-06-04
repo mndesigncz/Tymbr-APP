@@ -39,7 +39,7 @@ export function StartWorkButton() {
       >
         <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
         <span className="tabular-nums">{formatElapsed(elapsed)}</span>
-        <span className="hidden sm:inline opacity-90">Pracovní mód</span>
+        <span className="opacity-90">Pracovní mód</span>
       </button>
     );
   }
@@ -52,7 +52,7 @@ export function StartWorkButton() {
         style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}
       >
         <Play className="w-3.5 h-3.5 fill-current" style={{ color: "#16a34a" }} />
-        <span className="hidden sm:inline">Zahájit práci</span>
+        <span>Zahájit práci</span>
         <ChevronDown className="w-3.5 h-3.5" style={{ color: "var(--text-3)" }} />
       </button>
 

@@ -6,6 +6,7 @@ import type { Task } from "@/types";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useStatusConfig } from "@/hooks/useStatusConfig";
+import { ScrollFadeX } from "@/components/ui/ScrollFadeX";
 
 interface KanbanBoardProps {
   tasks: Task[];
@@ -39,7 +40,7 @@ export function KanbanBoard({ tasks, onStatusChange }: KanbanBoardProps) {
   };
 
   return (
-    <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+    <ScrollFadeX className="flex gap-4 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0" fadeColor="var(--bg-page)">
       {statuses.map((status) => {
         const colTasks = tasks.filter((t) => t.status === status.key);
         const isOver = overColumn === status.key;
@@ -86,7 +87,7 @@ export function KanbanBoard({ tasks, onStatusChange }: KanbanBoardProps) {
                   onDragEnd={() => { setDraggingId(null); setOverColumn(null); }}
                   className={draggingId === task.id ? "opacity-40" : ""}
                 >
-                  <TaskCard task={task} onStatusAdvance={onStatusChange} />
+                  <TaskCard task={task} />
                 </div>
               ))}
               {colTasks.length === 0 && (
@@ -98,6 +99,6 @@ export function KanbanBoard({ tasks, onStatusChange }: KanbanBoardProps) {
           </div>
         );
       })}
-    </div>
+    </ScrollFadeX>
   );
 }

@@ -425,7 +425,7 @@ function TasksContent() {
               </div>
             )}
             {tasks.map((task) => (
-              <TaskCard key={task.id} task={task} onStatusAdvance={handleStatusChange} />
+              <TaskCard key={task.id} task={task} />
             ))}
           </div>
         )}
