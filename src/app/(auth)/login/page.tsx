@@ -46,7 +46,7 @@ function LoginForm() {
             style={{ background: "var(--accent)" }}>
             <CheckSquare className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-xl font-semibold" style={{ color: "var(--text-1)" }}>Přihlásit se do Tymbr</h1>
+          <h1 className="text-xl font-semibold" style={{ color: "var(--text-1)" }}>Přihlásit se do Noize</h1>
           <p className="text-[13px] mt-1" style={{ color: "var(--text-3)" }}>Zadejte své přihlašovací údaje</p>
         </div>
 
