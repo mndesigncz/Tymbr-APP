@@ -66,9 +66,31 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Nedostatečná oprávnění" }, { status: 403 });
   }
 
-  const { name } = await req.json();
-  if (!name?.trim()) return NextResponse.json({ error: "Název je povinný" }, { status: 400 });
+  const { name, color, logo } = await req.json();
 
-  const team = await prisma.team.update({ where: { id: teamId }, data: { name: name.trim() } });
+  const data: Record<string, any> = {};
+  if (name !== undefined) {
+    if (!name?.trim()) return NextResponse.json({ error: "Název je povinný" }, { status: 400 });
+    data.name = name.trim();
+  }
+  if (color !== undefined) {
+    // null/empty clears back to default; otherwise expect a hex color
+    if (color && !/^#[0-9a-fA-F]{6}$/.test(color)) {
+      return NextResponse.json({ error: "Neplatná barva" }, { status: 400 });
+    }
+    data.color = color || null;
+  }
+  if (logo !== undefined) {
+    if (logo && typeof logo === "string" && logo.length > 1_500_000) {
+      return NextResponse.json({ error: "Logo je příliš velké" }, { status: 400 });
+    }
+    data.logo = logo || null;
+  }
+
+  if (Object.keys(data).length === 0) {
+    return NextResponse.json({ error: "Nic ke změně" }, { status: 400 });
+  }
+
+  const team = await prisma.team.update({ where: { id: teamId }, data });
   return NextResponse.json(team);
 }

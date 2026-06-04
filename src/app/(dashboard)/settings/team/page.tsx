@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
@@ -8,10 +8,43 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
-import { Users, Mail, Trash2, Crown, Copy, Check, Plus, Hash, UserPlus, X } from "lucide-react";
+import { Users, Mail, Trash2, Crown, Copy, Check, Plus, Hash, UserPlus, X, Palette, Image as ImageIcon } from "lucide-react";
 import type { Team, TeamMember, TeamInvitation, TeamRole } from "@/types";
 import { ROLE_LABELS } from "@/types";
 import { switchTeam, refreshTeams } from "@/hooks/useTeams";
+import { setTeamBranding, refreshTeamBranding, applyAccent } from "@/hooks/useTeamBranding";
+
+const COLOR_PRESETS = [
+  "#f7592f", "#EF4444", "#F97316", "#EAB308",
+  "#22C55E", "#14B8A6", "#3B82F6", "#6366F1",
+  "#8B5CF6", "#EC4899", "#64748B", "#0EA5E9",
+];
+
+// Resize an uploaded logo to a small square data URL so it stays tiny.
+function fileToLogoDataUrl(file: File, size = 128): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("no canvas"));
+        const scale = Math.max(size / img.width, size / img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.onerror = reject;
+      img.src = reader.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 const ROLE_OPTIONS = [
   { value: "owner", label: "Vlastník" },
@@ -219,12 +252,17 @@ function TeamSettingsContent() {
   const [copiedCode, setCopiedCode] = useState(false);
   const [teamName, setTeamName] = useState("");
   const [savingName, setSavingName] = useState(false);
+  const [color, setColor] = useState<string>("#f7592f");
+  const [savingBranding, setSavingBranding] = useState(false);
+  const [brandingMsg, setBrandingMsg] = useState("");
+  const logoRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/teams");
     const data = await res.json();
     setTeam(data);
     setTeamName(data?.name ?? "");
+    if (data?.color) setColor(data.color);
     setLoading(false);
   }, []);
 
@@ -239,6 +277,63 @@ function TeamSettingsContent() {
     await fetch("/api/teams", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: teamName }) });
     setSavingName(false);
     load();
+  };
+
+  const saveBranding = async (patch: { color?: string | null; logo?: string | null }) => {
+    setSavingBranding(true);
+    setBrandingMsg("");
+    try {
+      const res = await fetch("/api/teams", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setBrandingMsg(d.error || "Uložení selhalo");
+        return false;
+      }
+      await refreshTeamBranding();
+      await load();
+      setBrandingMsg("Uloženo");
+      return true;
+    } finally {
+      setSavingBranding(false);
+    }
+  };
+
+  const handleColorSelect = (hex: string) => {
+    setColor(hex);
+    applyAccent(hex); // instant preview
+    setTeamBranding({ color: hex });
+    saveBranding({ color: hex });
+  };
+
+  const handleResetColor = () => {
+    setColor("#f7592f");
+    applyAccent(null);
+    setTeamBranding({ color: null });
+    saveBranding({ color: null });
+  };
+
+  const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { setBrandingMsg("Vyber prosím obrázek"); return; }
+    try {
+      const dataUrl = await fileToLogoDataUrl(file);
+      setTeamBranding({ logo: dataUrl });
+      await saveBranding({ logo: dataUrl });
+    } catch {
+      setBrandingMsg("Logo se nepodařilo načíst");
+    } finally {
+      if (logoRef.current) logoRef.current.value = "";
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setTeamBranding({ logo: null });
+    saveBranding({ logo: null });
   };
 
   const handleInvite = async (e: React.FormEvent) => {
@@ -411,6 +506,97 @@ function TeamSettingsContent() {
             {isOwnerOrAdmin && <Button onClick={handleSaveName} loading={savingName} variant="secondary">Uložit</Button>}
           </div>
         </div>
+
+        {/* Team appearance — managers only */}
+        {isOwnerOrAdmin && (
+          <div className="rounded-3xl border p-6"
+            style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
+            <div className="flex items-center gap-2 mb-1">
+              <Palette className="w-[18px] h-[18px]" style={{ color: "var(--accent)" }} />
+              <h2 className="text-[15px] font-bold" style={{ color: "var(--text-1)" }}>Vzhled týmu</h2>
+              {savingBranding && <span className="text-[11px] ml-auto" style={{ color: "var(--text-3)" }}>Ukládám…</span>}
+              {!savingBranding && brandingMsg && (
+                <span className="text-[11px] ml-auto" style={{ color: brandingMsg === "Uloženo" ? "#16A34A" : "#EF4444" }}>{brandingMsg}</span>
+              )}
+            </div>
+            <p className="text-[12.5px] mb-5" style={{ color: "var(--text-3)" }}>
+              Barva a logo se projeví v celé aplikaci pro všechny členy týmu.
+            </p>
+
+            {/* Logo */}
+            <div className="flex items-center gap-4 mb-6">
+              <div className="relative group">
+                {(team as any).logo ? (
+                  <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-sm" style={{ background: "var(--bg-subtle)" }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={(team as any).logo} alt="" className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm" style={{ background: color }}>
+                    <ImageIcon className="w-6 h-6 text-white" />
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => logoRef.current?.click()}
+                  className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full flex items-center justify-center shadow-md transition-transform hover:scale-105"
+                  style={{ background: "var(--accent)", color: "#fff" }}
+                  title="Nahrát logo"
+                >
+                  <ImageIcon className="w-3.5 h-3.5" />
+                </button>
+                <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={handleLogoFile} />
+              </div>
+              <div>
+                <p className="text-[13.5px] font-semibold" style={{ color: "var(--text-1)" }}>Logo týmu</p>
+                <p className="text-[12px]" style={{ color: "var(--text-3)" }}>Čtvercový obrázek, ideálně 256×256 px</p>
+                {(team as any).logo && (
+                  <button type="button" onClick={handleRemoveLogo}
+                    className="text-[12px] font-medium mt-1.5 inline-flex items-center gap-1 transition-colors hover:opacity-80"
+                    style={{ color: "#EF4444" }}>
+                    <Trash2 className="w-3 h-3" /> Odebrat logo
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Accent color */}
+            <p className="text-[13px] font-medium mb-2.5" style={{ color: "var(--text-2)" }}>Barva týmu</p>
+            <div className="flex flex-wrap items-center gap-2.5">
+              {COLOR_PRESETS.map((preset) => {
+                const selected = color.toLowerCase() === preset.toLowerCase();
+                return (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => handleColorSelect(preset)}
+                    className="w-9 h-9 rounded-full flex items-center justify-center transition-transform hover:scale-110"
+                    style={{ background: preset, outline: selected ? "2px solid var(--text-1)" : "none", outlineOffset: "2px" }}
+                    title={preset}
+                  >
+                    {selected && <Check className="w-4 h-4 text-white" />}
+                  </button>
+                );
+              })}
+              {/* Custom color */}
+              <label className="w-9 h-9 rounded-full border-2 border-dashed flex items-center justify-center cursor-pointer transition-colors hover:border-[var(--accent)] relative overflow-hidden"
+                style={{ borderColor: "var(--border-md)" }} title="Vlastní barva">
+                <Palette className="w-4 h-4" style={{ color: "var(--text-3)" }} />
+                <input
+                  type="color"
+                  value={color}
+                  onChange={(e) => handleColorSelect(e.target.value)}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                />
+              </label>
+            </div>
+            <button type="button" onClick={handleResetColor}
+              className="text-[12px] font-medium mt-4 transition-colors hover:opacity-80"
+              style={{ color: "var(--text-3)" }}>
+              Obnovit výchozí barvu
+            </button>
+          </div>
+        )}
 
         {/* Members */}
         <div className="rounded-3xl border overflow-hidden"

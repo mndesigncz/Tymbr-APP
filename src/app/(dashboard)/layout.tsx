@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { WorkMode } from "@/components/layout/WorkMode";
+import { TeamBrandingLoader } from "@/components/layout/TeamBrandingLoader";
 import { TimeTrackerProvider } from "@/context/TimeTrackerContext";
 
 export default async function DashboardLayout({
@@ -15,6 +16,7 @@ export default async function DashboardLayout({
 
   return (
     <TimeTrackerProvider>
+      <TeamBrandingLoader />
       <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg-page)" }}>
         <Sidebar />
         <main className="flex-1 overflow-y-auto overflow-x-hidden pb-24 lg:pb-0 min-w-0">
