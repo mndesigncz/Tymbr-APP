@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: "Noisium – Firemní úkolník",
@@ -42,6 +43,7 @@ export default function RootLayout({
       <body className="min-h-full antialiased" style={{ background: "var(--bg-page)", color: "var(--text-1)" }}>
         <Providers>{children}</Providers>
         <ServiceWorkerRegister />
+        <Analytics />
       </body>
     </html>
   );
