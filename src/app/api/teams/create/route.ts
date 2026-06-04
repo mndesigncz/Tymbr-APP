@@ -6,9 +6,6 @@ export async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Neautorizováno" }, { status: 401 });
 
-  const existingTeamId = (session.user as any).teamId;
-  if (existingTeamId) return NextResponse.json({ error: "Již jsi součástí týmu" }, { status: 400 });
-
   const { name } = await req.json();
   if (!name?.trim()) return NextResponse.json({ error: "Název je povinný" }, { status: 400 });
 
@@ -42,6 +39,15 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(team, { status: 201 });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "Chyba serveru" }, { status: 500 });
+    const msg = e?.message ?? "";
+    // The one-owner-per-team unique constraint still exists until
+    // migration_v3_multiteam.sql is applied.
+    if (msg.includes("Team_ownerId_key") || (msg.includes("ownerId") && msg.includes("unique"))) {
+      return NextResponse.json(
+        { error: "Vytvoření dalšího vlastního týmu vyžaduje databázovou migraci (migration_v3_multiteam.sql)." },
+        { status: 503 },
+      );
+    }
+    return NextResponse.json({ error: msg || "Chyba serveru" }, { status: 500 });
   }
 }

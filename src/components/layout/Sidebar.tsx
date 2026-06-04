@@ -7,6 +7,7 @@ import { signOut, useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
 import { TimeTracker } from "./TimeTracker";
+import { TeamSwitcher } from "./TeamSwitcher";
 import { useChatUnread } from "@/hooks/useChatUnread";
 import {
   LayoutDashboard, CheckSquare, Tag, LogOut, Settings,
@@ -96,8 +97,11 @@ export function Sidebar() {
         </div>
       </div>
 
+      {/* Team switcher */}
+      <TeamSwitcher />
+
       {/* Navigation */}
-      <nav className="flex-1 mt-2 space-y-1">
+      <nav className="flex-1 mt-3 space-y-1">
         {topItems.map(({ href, icon, label }) => renderLink(href, icon, label))}
 
         {/* Collapsible Tým group */}

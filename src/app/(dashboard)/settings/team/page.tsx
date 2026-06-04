@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSession } from "next-auth/react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { Avatar } from "@/components/ui/Avatar";
 import { Input } from "@/components/ui/Input";
@@ -10,6 +11,7 @@ import { Select } from "@/components/ui/Select";
 import { Users, Mail, Trash2, Crown, Copy, Check, Plus, Hash, UserPlus, X } from "lucide-react";
 import type { Team, TeamMember, TeamInvitation, TeamRole } from "@/types";
 import { ROLE_LABELS } from "@/types";
+import { switchTeam, refreshTeams } from "@/hooks/useTeams";
 
 const ROLE_OPTIONS = [
   { value: "owner", label: "Vlastník" },
@@ -25,7 +27,14 @@ interface JoinRequest {
   user: { id: string; name: string; email: string; avatar?: string | null };
 }
 
-function NoTeamView() {
+interface CreateJoinProps {
+  title: string;
+  subtitle: string;
+  onCreated: (team: Team) => void | Promise<void>;
+  onCancel?: () => void;
+}
+
+function CreateJoinForms({ title, subtitle, onCreated, onCancel }: CreateJoinProps) {
   const [mode, setMode] = useState<"choose" | "create" | "join">("choose");
   const [teamName, setTeamName] = useState("");
   const [joinCode, setJoinCode] = useState("");
@@ -44,13 +53,14 @@ function NoTeamView() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: teamName.trim() }),
     });
-    setLoading(false);
     if (!res.ok) {
       const d = await res.json();
       setError(d.error || "Chyba");
+      setLoading(false);
       return;
     }
-    window.location.reload();
+    const team = await res.json();
+    await onCreated(team);
   };
 
   const handleJoin = async (e: React.FormEvent) => {
@@ -71,28 +81,34 @@ function NoTeamView() {
 
   if (success) {
     return (
-      <div className="rounded-3xl border p-8 text-center max-w-md mx-auto mt-8"
+      <div className="rounded-3xl border p-8 text-center max-w-md mx-auto"
         style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
         <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4"
           style={{ background: "#22C55E15" }}>
           <Check className="w-6 h-6" style={{ color: "#22C55E" }} />
         </div>
         <p className="text-[15px] font-semibold mb-2" style={{ color: "var(--text-1)" }}>Žádost odeslána</p>
-        <p className="text-[13px]" style={{ color: "var(--text-3)" }}>{success}</p>
+        <p className="text-[13px] mb-5" style={{ color: "var(--text-3)" }}>{success}</p>
+        {onCancel && <Button variant="secondary" onClick={onCancel} className="w-full">Zavřít</Button>}
       </div>
     );
   }
 
   if (mode === "choose") {
     return (
-      <div className="max-w-md mx-auto mt-8 space-y-4">
-        <div className="rounded-3xl border p-8 text-center" style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
+      <div className="max-w-md mx-auto space-y-4">
+        <div className="rounded-3xl border p-8 text-center relative" style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
+          {onCancel && (
+            <button onClick={onCancel} className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-black/[0.05]" style={{ color: "var(--text-3)" }}>
+              <X className="w-4 h-4" />
+            </button>
+          )}
           <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4"
             style={{ background: "var(--accent-soft)" }}>
             <Users className="w-6 h-6" style={{ color: "var(--accent)" }} />
           </div>
-          <p className="text-[16px] font-bold mb-1" style={{ color: "var(--text-1)" }}>Nejsi součástí žádného týmu</p>
-          <p className="text-[13px] mb-6" style={{ color: "var(--text-3)" }}>Vytvoř nový tým nebo se připoj k existujícímu</p>
+          <p className="text-[16px] font-bold mb-1" style={{ color: "var(--text-1)" }}>{title}</p>
+          <p className="text-[13px] mb-6" style={{ color: "var(--text-3)" }}>{subtitle}</p>
           <div className="space-y-3">
             <button
               onClick={() => setMode("create")}
@@ -128,7 +144,7 @@ function NoTeamView() {
 
   if (mode === "create") {
     return (
-      <div className="max-w-md mx-auto mt-8">
+      <div className="max-w-md mx-auto">
         <button onClick={() => setMode("choose")} className="flex items-center gap-1.5 mb-4 text-[13px] font-medium hover:opacity-80" style={{ color: "var(--text-3)" }}>
           <X className="w-4 h-4" /> Zpět
         </button>
@@ -145,7 +161,7 @@ function NoTeamView() {
   }
 
   return (
-    <div className="max-w-md mx-auto mt-8">
+    <div className="max-w-md mx-auto">
       <button onClick={() => setMode("choose")} className="flex items-center gap-1.5 mb-4 text-[13px] font-medium hover:opacity-80" style={{ color: "var(--text-3)" }}>
         <X className="w-4 h-4" /> Zpět
       </button>
@@ -162,10 +178,39 @@ function NoTeamView() {
   );
 }
 
-export default function TeamSettingsPage() {
-  const { data: session } = useSession();
+function NoTeamView() {
+  return (
+    <div className="mt-8">
+      <CreateJoinForms
+        title="Nejsi součástí žádného týmu"
+        subtitle="Vytvoř nový tým nebo se připoj k existujícímu"
+        onCreated={() => window.location.reload()}
+      />
+    </div>
+  );
+}
+
+function TeamSettingsContent() {
+  const { data: session, update } = useSession();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [team, setTeam] = useState<(Team & { joinRequests?: JoinRequest[] }) | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("new") === "1") setShowAdd(true);
+  }, [searchParams]);
+
+  const closeAdd = useCallback(() => {
+    setShowAdd(false);
+    if (searchParams.get("new")) router.replace("/settings/team");
+  }, [searchParams, router]);
+
+  const handleTeamCreated = useCallback(async (created: Team) => {
+    await refreshTeams();
+    await switchTeam(created.id, session?.user?.teamId ?? null, update);
+  }, [session, update]);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<TeamRole>("member");
   const [inviting, setInviting] = useState(false);
@@ -273,7 +318,29 @@ export default function TeamSettingsPage() {
 
   return (
     <div>
-      <Header title="Tým" subtitle={team.name} />
+      <Header
+        title="Tým"
+        subtitle={team.name}
+        actions={
+          <Button variant="secondary" icon={<Plus className="w-3.5 h-3.5" />} onClick={() => setShowAdd(true)}>
+            Přidat tým
+          </Button>
+        }
+      />
+
+      {showAdd && (
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto"
+          style={{ background: "rgba(0,0,0,0.4)" }} onClick={closeAdd}>
+          <div className="w-full max-w-md my-8" onClick={(e) => e.stopPropagation()}>
+            <CreateJoinForms
+              title="Přidat tým"
+              subtitle="Vytvoř další tým nebo se připoj k existujícímu"
+              onCreated={handleTeamCreated}
+              onCancel={closeAdd}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="px-4 sm:px-6 lg:px-8 pt-2 pb-12 space-y-6 max-w-3xl">
         {/* Join code */}
@@ -426,5 +493,13 @@ export default function TeamSettingsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function TeamSettingsPage() {
+  return (
+    <Suspense>
+      <TeamSettingsContent />
+    </Suspense>
   );
 }

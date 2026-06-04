@@ -42,8 +42,19 @@ export const authOptions: NextAuthOptions = {
       if (trigger === "update" && session) {
         if (typeof session.name === "string") token.name = session.name;
         if (session.image !== undefined) token.picture = session.image;
-        if (session.teamId !== undefined) token.teamId = session.teamId;
-        if (session.teamRole !== undefined) token.teamRole = session.teamRole;
+        // Team switch — only honour it if the user really is a member of the
+        // target team. Role is read from the membership record, never trusted
+        // from the client.
+        if (session.teamId !== undefined && token.id) {
+          const member = await prisma.teamMember.findFirst({
+            where: { userId: token.id as string, teamId: String(session.teamId) },
+            select: { teamId: true, role: true },
+          });
+          if (member) {
+            token.teamId = member.teamId;
+            token.teamRole = member.role;
+          }
+        }
       }
 
       // Re-fetch team membership when teamId is absent (e.g. after team creation/join)

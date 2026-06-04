@@ -21,7 +21,7 @@ model User {
   tasksAssigned     Task[]            @relation("TaskAssignee")
   comments          Comment[]
   timeEntries       TimeEntry[]
-  ownedTeam         Team?             @relation("TeamOwner")
+  ownedTeams        Team[]            @relation("TeamOwner")
   teamMemberships   TeamMember[]
   chatMessages      ChatMessage[]     @relation("ChatSender")
 }
@@ -31,7 +31,7 @@ model Team {
   name      String
   createdAt DateTime @default(now())
 
-  ownerId String @unique
+  ownerId String
   owner   User   @relation("TeamOwner", fields: [ownerId], references: [id])
 
   members       TeamMember[]
@@ -39,6 +39,8 @@ model Team {
   tasks         Task[]
   categories    Category[]
   chatMessages  ChatMessage[]
+
+  @@index([ownerId])
 }
 
 // @@ignore — activate after running prisma/migration_v2.sql
