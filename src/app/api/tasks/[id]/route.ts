@@ -20,6 +20,22 @@ const taskInclude = {
   _count: { select: { comments: true } },
 };
 
+async function attachAssignees(task: any): Promise<any> {
+  const rows = await prisma.$queryRaw<{ userId: string; name: string; email: string; avatar: string | null }[]>`
+    SELECT u.id as "userId", u.name, u.email, u.avatar
+    FROM "TaskAssignee" ta
+    JOIN "User" u ON u.id = ta."userId"
+    WHERE ta."taskId" = ${task.id}
+    ORDER BY ta."createdAt"
+  `;
+  return {
+    ...task,
+    assignees: rows.length > 0
+      ? rows.map((r) => ({ id: r.userId, name: r.name, email: r.email, avatar: r.avatar }))
+      : task.assignee ? [task.assignee] : [],
+  };
+}
+
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Neautorizováno" }, { status: 401 });
@@ -27,7 +43,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const task = await prisma.task.findUnique({ where: { id }, include: taskInclude });
   if (!task) return NextResponse.json({ error: "Úkol nenalezen" }, { status: 404 });
-  return NextResponse.json(task);
+  return NextResponse.json(await attachAssignees(task));
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -37,14 +53,30 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params;
   try {
     const body = await req.json();
-    const { title, description, status, priority, dueDate, startDate, categoryId, assigneeId, hourlyRate } = body;
+    const { title, description, status, priority, dueDate, startDate, categoryId, hourlyRate } = body;
 
-    // Capture previous assignee to detect a real change
-    const prevTask = assigneeId !== undefined
-      ? await prisma.task.findUnique({ where: { id }, select: { assigneeId: true } })
-      : null;
+    // Resolve assigneeIds array
+    const hasAssigneeIds = "assigneeIds" in body;
+    const assigneeIds: string[] | null = hasAssigneeIds
+      ? (Array.isArray(body.assigneeIds) ? body.assigneeIds.filter(Boolean) : [])
+      : null; // null = not updating assignees
+    const legacyAssigneeId = "assigneeId" in body ? body.assigneeId : undefined;
 
-    // Status change: track completedAt and log status history
+    // Determine primary assigneeId for the Task row
+    let primaryAssigneeId: string | null | undefined;
+    if (assigneeIds !== null) {
+      primaryAssigneeId = assigneeIds[0] ?? null;
+    } else if (legacyAssigneeId !== undefined) {
+      primaryAssigneeId = legacyAssigneeId || null;
+    }
+
+    // Capture previous assignees to detect changes
+    const prevAssignees = assigneeIds !== null
+      ? await prisma.$queryRaw<{ userId: string }[]>`SELECT "userId" FROM "TaskAssignee" WHERE "taskId" = ${id}`
+      : [];
+    const prevAssigneeIds = new Set(prevAssignees.map((r) => r.userId));
+
+    // Status tracking
     let completedAtUpdate: { completedAt: Date | null } | undefined;
     if (status !== undefined) {
       const existing = await prisma.task.findUnique({
@@ -56,20 +88,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       } else {
         completedAtUpdate = { completedAt: null };
       }
-      // Close current open status history entry and open new one
       if (existing && existing.status !== status) {
         const now = new Date();
         const openEntry = existing.statusHistory[0];
         if (openEntry) {
           const minutes = Math.max(1, Math.round((now.getTime() - new Date(openEntry.startedAt).getTime()) / 60000));
-          await prisma.taskStatusHistory.update({
-            where: { id: openEntry.id },
-            data: { endedAt: now, minutes },
-          });
+          await prisma.taskStatusHistory.update({ where: { id: openEntry.id }, data: { endedAt: now, minutes } });
         }
-        await prisma.taskStatusHistory.create({
-          data: { taskId: id, status, startedAt: now },
-        });
+        await prisma.taskStatusHistory.create({ data: { taskId: id, status, startedAt: now } });
       }
     }
 
@@ -83,30 +109,63 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),
         ...(startDate !== undefined && { startDate: startDate ? new Date(startDate) : null }),
         ...(categoryId !== undefined && { categoryId: categoryId || null }),
-        ...(assigneeId !== undefined && { assigneeId: assigneeId || null }),
+        ...(primaryAssigneeId !== undefined && { assigneeId: primaryAssigneeId }),
         ...(hourlyRate !== undefined && { hourlyRate: hourlyRate ? Number(hourlyRate) : null }),
         ...completedAtUpdate,
       },
       include: taskInclude,
     });
-    // Notify new assignee if they changed and are not the editor
-    if (
-      assigneeId &&
-      task.assignee &&
-      prevTask?.assigneeId !== assigneeId &&
-      task.assignee.id !== session.user.id &&
-      task.assignee.email
-    ) {
-      sendTaskAssignedEmail({
-        to: task.assignee.email,
-        assigneeName: task.assignee.name ?? "",
-        taskTitle: task.title,
-        taskId: task.id,
-        assignerName: session.user.name ?? "Správce",
-      });
+
+    // Sync TaskAssignee junction table
+    if (assigneeIds !== null) {
+      await prisma.$executeRaw`DELETE FROM "TaskAssignee" WHERE "taskId" = ${id}`;
+      for (const uid of assigneeIds) {
+        await prisma.$executeRaw`
+          INSERT INTO "TaskAssignee" (id, "taskId", "userId")
+          VALUES (gen_random_uuid()::text, ${id}, ${uid})
+          ON CONFLICT DO NOTHING
+        `;
+      }
+      // Notify newly added assignees
+      for (const uid of assigneeIds) {
+        if (!prevAssigneeIds.has(uid) && uid !== session.user.id) {
+          const userRow = await prisma.user.findUnique({ where: { id: uid }, select: { name: true, email: true } });
+          if (userRow?.email) {
+            sendTaskAssignedEmail({
+              to: userRow.email,
+              assigneeName: userRow.name ?? "",
+              taskTitle: task.title,
+              taskId: id,
+              assignerName: session.user.name ?? "Správce",
+            });
+          }
+        }
+      }
+    } else if (legacyAssigneeId !== undefined) {
+      // Legacy single-assignee update — sync junction table too
+      await prisma.$executeRaw`DELETE FROM "TaskAssignee" WHERE "taskId" = ${id}`;
+      if (legacyAssigneeId) {
+        await prisma.$executeRaw`
+          INSERT INTO "TaskAssignee" (id, "taskId", "userId")
+          VALUES (gen_random_uuid()::text, ${id}, ${legacyAssigneeId})
+          ON CONFLICT DO NOTHING
+        `;
+        if (!prevAssigneeIds.has(legacyAssigneeId) && legacyAssigneeId !== session.user.id) {
+          const userRow = await prisma.user.findUnique({ where: { id: legacyAssigneeId }, select: { name: true, email: true } });
+          if (userRow?.email) {
+            sendTaskAssignedEmail({
+              to: userRow.email,
+              assigneeName: userRow.name ?? "",
+              taskTitle: task.title,
+              taskId: id,
+              assignerName: session.user.name ?? "Správce",
+            });
+          }
+        }
+      }
     }
 
-    return NextResponse.json(task);
+    return NextResponse.json(await attachAssignees(task));
   } catch {
     return NextResponse.json({ error: "Chyba serveru" }, { status: 500 });
   }

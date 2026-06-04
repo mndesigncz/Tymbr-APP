@@ -240,12 +240,16 @@ export default function TaskDetailPage() {
                   </div>
                 )}
 
-                {task.assignee && (
+                {(task.assignees?.length ?? 0) > 0 && (
                   <div>
                     <p className="text-[12px] mb-1.5" style={{ color: "var(--text-3)" }}>Přiřazeno</p>
-                    <div className="flex items-center gap-2">
-                      <Avatar name={task.assignee.name} size="sm" />
-                      <span className="text-[14px]" style={{ color: "var(--text-1)" }}>{task.assignee.name}</span>
+                    <div className="space-y-1.5">
+                      {(task.assignees ?? []).map((a) => (
+                        <div key={a.id} className="flex items-center gap-2">
+                          <Avatar name={a.name} size="sm" />
+                          <span className="text-[14px]" style={{ color: "var(--text-1)" }}>{a.name}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}

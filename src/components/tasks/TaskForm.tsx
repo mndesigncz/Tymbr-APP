@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
-import { Plus, X } from "lucide-react";
+import { Avatar } from "@/components/ui/Avatar";
+import { Plus, X, Check } from "lucide-react";
 import type { Task, Category, User } from "@/types";
 import { useStatusConfig } from "@/hooks/useStatusConfig";
 import { usePriorityConfig } from "@/hooks/usePriorityConfig";
@@ -37,6 +38,11 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [expandedSubtask, setExpandedSubtask] = useState<number | null>(null);
 
+  // Multi-assignee: array of selected user IDs
+  const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<string[]>(
+    () => task?.assignees?.map((a) => a.id) ?? (task?.assigneeId ? [task.assigneeId] : [])
+  );
+
   const [form, setForm] = useState({
     title: task?.title || "",
     description: task?.description || "",
@@ -45,7 +51,6 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
     dueDate: task?.dueDate ? new Date(task.dueDate).toISOString().slice(0, 10) : "",
     startDate: task?.startDate ? new Date(task.startDate).toISOString().slice(0, 10) : "",
     categoryId: task?.categoryId || "",
-    assigneeId: task?.assigneeId || "",
     hourlyRate: task?.hourlyRate ? String(task.hourlyRate) : "",
   });
 
@@ -61,6 +66,12 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
 
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  const toggleAssignee = (userId: string) => {
+    setSelectedAssigneeIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,8 +91,8 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
           dueDate: form.dueDate || null,
           startDate: form.startDate || null,
           categoryId: form.categoryId || null,
-          assigneeId: form.assigneeId || null,
           hourlyRate: form.hourlyRate ? Number(form.hourlyRate) : null,
+          assigneeIds: selectedAssigneeIds,
         }),
       });
       if (!res.ok) {
@@ -137,7 +148,6 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
   };
 
   const catOptions = categories.map((c) => ({ value: c.id, label: c.name }));
-  const userOptions = users.map((u) => ({ value: u.id, label: u.name }));
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -187,22 +197,50 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Select
-          label="Kategorie"
-          options={catOptions}
-          value={form.categoryId}
-          onChange={set("categoryId")}
-          placeholder="Vybrat kategorii"
-        />
-        <Select
-          label="Přiřazeno"
-          options={userOptions}
-          value={form.assigneeId}
-          onChange={set("assigneeId")}
-          placeholder="Nikomu"
-        />
-      </div>
+      <Select
+        label="Kategorie"
+        options={catOptions}
+        value={form.categoryId}
+        onChange={set("categoryId")}
+        placeholder="Vybrat kategorii"
+      />
+
+      {/* Multi-assignee picker */}
+      {users.length > 0 && (
+        <div className="space-y-2">
+          <label className="text-[13px] font-medium" style={{ color: "var(--text-2)" }}>
+            Přiřazeno
+            {selectedAssigneeIds.length > 0 && (
+              <span className="ml-1.5 text-[11px] px-1.5 py-0.5 rounded-md font-semibold"
+                style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>
+                {selectedAssigneeIds.length}
+              </span>
+            )}
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {users.map((u) => {
+              const selected = selectedAssigneeIds.includes(u.id);
+              return (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => toggleAssignee(u.id)}
+                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all text-[12.5px] font-medium"
+                  style={{
+                    background: selected ? "var(--accent-soft)" : "var(--bg-subtle)",
+                    borderColor: selected ? "var(--accent)" : "var(--border-md)",
+                    color: selected ? "var(--accent)" : "var(--text-2)",
+                  }}
+                >
+                  <Avatar name={u.name} src={u.avatar} size="xs" />
+                  {u.name}
+                  {selected && <Check className="w-3 h-3 flex-shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <Input
         label="Hodinová sazba (Kč/h)"
