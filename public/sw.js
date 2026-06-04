@@ -1,5 +1,5 @@
 // Tymbr service worker — enables installability and basic offline resilience.
-const CACHE = "tymbr-v1";
+const CACHE = "tymbr-v2";
 const ASSETS = [
   "/icon-192.png",
   "/icon-512.png",
@@ -27,29 +27,36 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
 
   const url = new URL(request.url);
-  // Never cache API or auth traffic — always go to the network.
-  if (url.pathname.startsWith("/api/")) return;
+  // Never intercept API, auth, or Next.js internal traffic.
+  if (
+    url.pathname.startsWith("/api/") ||
+    url.pathname.startsWith("/auth/") ||
+    url.pathname.startsWith("/_next/")
+  ) return;
   // Only handle same-origin requests.
   if (url.origin !== self.location.origin) return;
 
   // Navigations: network-first, fall back to cache if offline.
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request).catch(() => caches.match(request).then((r) => r || caches.match("/dashboard")))
+      fetch(request).catch(() =>
+        caches.match(request).then((r) => r || caches.match("/dashboard") || new Response("Offline", { status: 503 }))
+      )
     );
     return;
   }
 
-  // Static assets: cache-first, then network (and cache the result).
+  // Static assets (icons etc.): cache-first, then network.
   event.respondWith(
-    caches.match(request).then(
-      (cached) =>
-        cached ||
-        fetch(request).then((res) => {
+    caches.match(request).then((cached) => {
+      if (cached) return cached;
+      return fetch(request).then((res) => {
+        if (res.ok) {
           const copy = res.clone();
           caches.open(CACHE).then((cache) => cache.put(request, copy)).catch(() => {});
-          return res;
-        }).catch(() => cached)
-    )
+        }
+        return res;
+      });
+    })
   );
 });
