@@ -14,6 +14,8 @@ export interface User {
 export interface Team {
   id: string;
   name: string;
+  color?: string | null;
+  logo?: string | null;
   createdAt: Date;
   ownerId: string;
   owner?: User;

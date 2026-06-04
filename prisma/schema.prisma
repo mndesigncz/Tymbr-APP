@@ -30,6 +30,8 @@ model User {
 model Team {
   id        String   @id @default(cuid())
   name      String
+  color     String?
+  logo      String?
   createdAt DateTime @default(now())
 
   ownerId String

@@ -9,6 +9,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { TimeTracker } from "./TimeTracker";
 import { TeamSwitcher } from "./TeamSwitcher";
 import { useChatUnread } from "@/hooks/useChatUnread";
+import { useTeamBranding } from "@/hooks/useTeamBranding";
 import {
   LayoutDashboard, CheckSquare, Tag, LogOut, Settings,
   Clock, Users, MessageSquare, ChevronDown, Settings2,
@@ -30,6 +31,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const chatUnread = useChatUnread();
+  const branding = useTeamBranding();
 
   const teamActive = teamItems.some(
     ({ href }) => pathname === href || pathname.startsWith(href)
@@ -86,13 +88,21 @@ export function Sidebar() {
 
       {/* Logo */}
       <div className="px-3 h-16 flex items-center">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center shadow-sm"
-            style={{ background: "var(--accent)" }}>
-            <CheckSquare className="w-4 h-4 text-white" />
-          </div>
-          <span className="text-[17px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>
-            Noisium
+        <div className="flex items-center gap-2.5 min-w-0">
+          {branding.logo ? (
+            <div className="w-8 h-8 rounded-xl overflow-hidden shadow-sm flex-shrink-0"
+              style={{ background: "var(--bg-card)" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={branding.logo} alt="" className="w-full h-full object-cover" />
+            </div>
+          ) : (
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0"
+              style={{ background: "var(--accent)" }}>
+              <CheckSquare className="w-4 h-4 text-white" />
+            </div>
+          )}
+          <span className="text-[17px] font-bold tracking-tight truncate" style={{ color: "var(--text-1)" }}>
+            {branding.name || "Noisium"}
           </span>
         </div>
       </div>
