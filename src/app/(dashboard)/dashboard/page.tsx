@@ -15,6 +15,7 @@ const taskInclude = {
   category: true,
   assignee: { select: { id: true, name: true, email: true, avatar: true } },
   createdBy: { select: { id: true, name: true, email: true, avatar: true } },
+  subtasks: { select: { id: true, done: true } },
   _count: { select: { comments: true } },
 };
 
