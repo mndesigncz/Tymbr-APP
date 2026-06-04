@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { sendTaskAssignedEmail } from "@/lib/email";
 
 const taskInclude = {
   category: true,
@@ -37,6 +38,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     const body = await req.json();
     const { title, description, status, priority, dueDate, startDate, categoryId, assigneeId, hourlyRate } = body;
+
+    // Capture previous assignee to detect a real change
+    const prevTask = assigneeId !== undefined
+      ? await prisma.task.findUnique({ where: { id }, select: { assigneeId: true } })
+      : null;
 
     // Status change: track completedAt and log status history
     let completedAtUpdate: { completedAt: Date | null } | undefined;
@@ -83,6 +89,23 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       },
       include: taskInclude,
     });
+    // Notify new assignee if they changed and are not the editor
+    if (
+      assigneeId &&
+      task.assignee &&
+      prevTask?.assigneeId !== assigneeId &&
+      task.assignee.id !== session.user.id &&
+      task.assignee.email
+    ) {
+      sendTaskAssignedEmail({
+        to: task.assignee.email,
+        assigneeName: task.assignee.name ?? "",
+        taskTitle: task.title,
+        taskId: task.id,
+        assignerName: session.user.name ?? "Správce",
+      });
+    }
+
     return NextResponse.json(task);
   } catch {
     return NextResponse.json({ error: "Chyba serveru" }, { status: 500 });
