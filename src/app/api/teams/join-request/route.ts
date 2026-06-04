@@ -33,8 +33,6 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Neautorizováno" }, { status: 401 });
 
   const userId = session.user.id;
-  const existingTeamId = (session.user as any).teamId;
-  if (existingTeamId) return NextResponse.json({ error: "Již jsi součástí týmu" }, { status: 400 });
 
   const { joinCode, message } = await req.json();
   if (!joinCode?.trim()) return NextResponse.json({ error: "Kód týmu je povinný" }, { status: 400 });
