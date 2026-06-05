@@ -39,8 +39,8 @@ export async function sendInvitationEmail({
   token: string;
   teamName: string;
   inviterName: string;
-}) {
-  if (!process.env.RESEND_API_KEY) return;
+}): Promise<boolean> {
+  if (!process.env.RESEND_API_KEY) return false;
   const url = `${APP_URL}/invite/${token}`;
   try {
     await resend.emails.send({
@@ -61,8 +61,10 @@ export async function sendInvitationEmail({
         <div class="footer"><p>Tymbr · Pokud tuto pozvánku neočekáváte, můžete tento e-mail ignorovat.</p></div>
       `),
     });
+    return true;
   } catch (err) {
     console.error("[email] sendInvitationEmail failed:", err);
+    return false;
   }
 }
 
