@@ -78,6 +78,7 @@ export interface Task {
   timeEntries?: TimeEntry[];
   subtasks?: SubTask[];
   statusHistory?: TaskStatusHistory[];
+  visibility?: string;
   _count?: { comments: number };
 }
 
@@ -90,6 +91,8 @@ export interface SubTask {
   order: number;
   createdAt: Date | string;
   taskId: string;
+  assigneeId?: string | null;
+  assignee?: User | null;
   timeEntries?: TimeEntry[];
 }
 

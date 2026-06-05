@@ -639,7 +639,7 @@ function TeamSettingsContent() {
                   <div className="flex-1 min-w-0">
                     <p className="text-[13.5px] font-semibold flex items-center gap-1.5" style={{ color: "var(--text-1)" }}>
                       {member.user?.name}
-                      {isMemberOwner && <Crown className="w-3.5 h-3.5" style={{ color: "#f7592f" }} />}
+                      {isMemberOwner && <Crown className="w-3.5 h-3.5" style={{ color: "var(--accent)" }} />}
                       {isMe && <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-md" style={{ background: "var(--bg-subtle)", color: "var(--text-3)" }}>Já</span>}
                     </p>
                     <p className="text-[12px]" style={{ color: "var(--text-3)" }}>{member.user?.email}</p>

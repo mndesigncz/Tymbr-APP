@@ -75,6 +75,15 @@ export async function GET(req: NextRequest) {
     if (completedFrom) where.completedAt.gte = new Date(completedFrom);
     if (completedTo) where.completedAt.lte = new Date(completedTo);
   }
+  // Visibility filter: private tasks are only visible to their creator
+  const userId = (session.user as any).id;
+  and.push({
+    OR: [
+      { visibility: "team" },
+      { visibility: null },
+      { visibility: "private", createdById: userId },
+    ],
+  });
   if (and.length > 0) where.AND = and;
 
   const tasks = await prisma.task.findMany({

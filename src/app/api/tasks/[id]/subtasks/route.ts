@@ -10,6 +10,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const subtasks = await prisma.subTask.findMany({
     where: { taskId: id },
     orderBy: { order: "asc" },
+    include: { assignee: { select: { id: true, name: true, avatar: true } } },
   });
   return NextResponse.json(subtasks);
 }

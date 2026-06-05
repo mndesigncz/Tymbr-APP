@@ -19,6 +19,7 @@ export function Button({
   children,
   className,
   disabled,
+  style: propsStyle,
   ...props
 }: ButtonProps) {
   const base =
@@ -49,7 +50,7 @@ export function Button({
   return (
     <button
       className={cn(base, variants[variant], sizes[size], className)}
-      style={variant !== "danger" ? variantStyles[variant] : undefined}
+      style={{ ...(variant !== "danger" ? variantStyles[variant] : {}), ...propsStyle }}
       disabled={disabled || loading}
       {...props}
     >

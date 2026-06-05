@@ -15,7 +15,7 @@ import { formatDate, formatRelative } from "@/lib/utils";
 import type { Task } from "@/types";
 import {
   Calendar, Tag, User, Edit2, Trash2, MessageSquare,
-  ChevronDown, Check,
+  ChevronDown, Check, Globe, EyeOff,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useStatusConfig } from "@/hooks/useStatusConfig";
@@ -33,6 +33,10 @@ export default function TaskDetailPage() {
   const [commenting, setCommenting] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [members, setMembers] = useState<{ id: string; name: string; avatar?: string | null }[]>([]);
+
+  const teamRole = (session?.user as any)?.teamRole as string | undefined;
+  const isAdminOrOwner = teamRole === "admin" || teamRole === "owner";
 
   const fetchTask = async () => {
     const res = await fetch(`/api/tasks/${id}`);
@@ -41,6 +45,14 @@ export default function TaskDetailPage() {
   };
 
   useEffect(() => { fetchTask(); }, [id]);
+
+  useEffect(() => {
+    fetch("/api/teams").then((r) => r.json()).then((data) => {
+      if (data?.members) {
+        setMembers(data.members.map((m: any) => ({ id: m.userId, name: m.user?.name ?? m.name ?? "", avatar: m.user?.avatar ?? null })));
+      }
+    });
+  }, []);
 
   const handleStatusChange = async (status: string) => {
     const res = await fetch(`/api/tasks/${id}`, {
@@ -58,6 +70,15 @@ export default function TaskDetailPage() {
     setDeleting(true);
     await fetch(`/api/tasks/${id}`, { method: "DELETE" });
     router.push("/tasks");
+  };
+
+  const handleVisibilityChange = async (visibility: "team" | "private") => {
+    const res = await fetch(`/api/tasks/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visibility }),
+    });
+    if (res.ok) setTask(await res.json());
   };
 
   const handleComment = async (e: React.FormEvent) => {
@@ -142,7 +163,7 @@ export default function TaskDetailPage() {
               <h3 className="text-[16px] font-bold tracking-tight mb-4" style={{ color: "var(--text-1)" }}>
                 Podúkoly
               </h3>
-              <Subtasks taskId={task.id} />
+              <Subtasks taskId={task.id} members={members} />
             </div>
 
             <div className="rounded-3xl border p-6" style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
@@ -295,6 +316,34 @@ export default function TaskDetailPage() {
                     </span>
                   </div>
                 ) : null}
+
+                {isAdminOrOwner && (
+                  <div>
+                    <p className="text-[12px] mb-1.5" style={{ color: "var(--text-3)" }}>Viditelnost</p>
+                    <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: "var(--border-md)" }}>
+                      <button
+                        onClick={() => handleVisibilityChange("team")}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[12px] font-medium transition-all"
+                        style={task.visibility !== "private"
+                          ? { background: "var(--accent)", color: "#fff" }
+                          : { background: "var(--bg-subtle)", color: "var(--text-3)" }}
+                      >
+                        <Globe className="w-3.5 h-3.5" />
+                        Tým
+                      </button>
+                      <button
+                        onClick={() => handleVisibilityChange("private")}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 text-[12px] font-medium transition-all"
+                        style={task.visibility === "private"
+                          ? { background: "var(--accent)", color: "#fff" }
+                          : { background: "var(--bg-subtle)", color: "var(--text-3)" }}
+                      >
+                        <EyeOff className="w-3.5 h-3.5" />
+                        Soukromý
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <p className="text-[12px] mb-1" style={{ color: "var(--text-3)" }}>Vytvořeno</p>
