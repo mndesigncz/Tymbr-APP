@@ -96,8 +96,8 @@ export async function GET(req: NextRequest) {
     // Build where WITH the visibility filter first. If the `visibility` column
     // is missing in the DB (migration not applied), retry without it so the
     // page still loads instead of returning a 500.
-    const withVisibility = { ...where, AND: [...and, visibilityClause] };
-    const withoutVisibility = and.length > 0 ? { ...where, AND: and } : where;
+    const withVisibility: any = { ...where, AND: [...and, visibilityClause] };
+    const withoutVisibility: any = and.length > 0 ? { ...where, AND: and } : where;
 
     let tasks;
     try {
