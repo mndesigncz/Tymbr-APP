@@ -25,65 +25,90 @@ export default async function DashboardPage() {
   const teamRole = (session!.user as any).teamRole;
   const manager = isManager(teamRole);
 
-  // Strictly team-scoped. Without a team there is no data to show.
   const teamScope = { teamId: teamId ?? "__none__" };
   const catScope = { teamId: teamId ?? "__none__" };
-
-  const weekFromNow = new Date();
+  const now = new Date();
+  const weekFromNow = new Date(now);
   weekFromNow.setDate(weekFromNow.getDate() + 7);
-
-  const [allTasks, myTasks, categories, doneTasks] = await Promise.all([
-    prisma.task.findMany({
-      where: { ...teamScope, status: { not: "done" } },
-      include: taskInclude,
-      orderBy: { createdAt: "desc" },
-      take: 50,
-    }),
-    prisma.task.findMany({
-      where: { ...teamScope, assigneeId: session!.user.id, status: { not: "done" } },
-      include: taskInclude,
-      orderBy: { dueDate: "asc" },
-      take: 20,
-    }),
-    prisma.category.findMany({ where: catScope, include: { _count: { select: { tasks: true } } } }),
-    prisma.task.findMany({
-      where: { ...teamScope, status: "done" },
-      include: taskInclude,
-      orderBy: { completedAt: "desc" },
-      take: 6,
-    }),
-  ]);
-
-  const todo = allTasks.filter((t) => t.status === "todo").length;
-  const inProgress = allTasks.filter((t) => t.status === "in_progress").length;
-  const doneTotal = await prisma.task.count({ where: { ...teamScope, status: "done" } });
-
-  // Member-specific counts (used when not a manager)
-  const myTodo = myTasks.filter((t) => t.status === "todo").length;
-  const myInProgress = myTasks.filter((t) => t.status === "in_progress").length;
-  const myDoneTotal = await prisma.task.count({ where: { ...teamScope, assigneeId: session!.user.id, status: "done" } });
-
-  // Monthly earnings — managers see the team's total, members see their own.
-  const monthStart = new Date();
+  const monthStart = new Date(now);
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
-  const monthEntries = teamId
-    ? await prisma.timeEntry.findMany({
-        where: {
-          startedAt: { gte: monthStart },
-          stoppedAt: { not: null },
-          ...(manager
-            ? { user: { teamMemberships: { some: { teamId } } } }
-            : { userId: session!.user.id }),
-          task: { teamId },
-        },
-        select: {
-          durationMinutes: true,
-          task: { select: { hourlyRate: true } },
-          subtask: { select: { hourlyRate: true } },
-        },
-      })
-    : [];
+  const thirtyDaysAgo = new Date(now);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+  thirtyDaysAgo.setHours(0, 0, 0, 0);
+
+  // Batch 1: all independent queries in parallel
+  const [allTasks, myTasks, categories, doneTasks, doneTotal, myDoneTotal, completedInPeriod, teamMembersRaw] =
+    await Promise.all([
+      prisma.task.findMany({
+        where: { ...teamScope, status: { not: "done" } },
+        include: taskInclude,
+        orderBy: { createdAt: "desc" },
+        take: 50,
+      }),
+      prisma.task.findMany({
+        where: { ...teamScope, assigneeId: session!.user.id, status: { not: "done" } },
+        include: taskInclude,
+        orderBy: { dueDate: "asc" },
+        take: 20,
+      }),
+      prisma.category.findMany({ where: catScope, include: { _count: { select: { tasks: true } } } }),
+      prisma.task.findMany({
+        where: { ...teamScope, status: "done" },
+        include: taskInclude,
+        orderBy: { completedAt: "desc" },
+        take: 6,
+      }),
+      prisma.task.count({ where: { ...teamScope, status: "done" } }),
+      prisma.task.count({ where: { ...teamScope, assigneeId: session!.user.id, status: "done" } }),
+      teamId
+        ? prisma.task.findMany({
+            where: { teamId, status: "done", completedAt: { gte: thirtyDaysAgo, not: null } },
+            select: { completedAt: true },
+          })
+        : Promise.resolve([] as { completedAt: Date | null }[]),
+      manager && teamId
+        ? prisma.teamMember.findMany({
+            where: { teamId },
+            include: { user: { select: { id: true, name: true, email: true, avatar: true } } },
+            orderBy: { user: { name: "asc" } },
+          })
+        : Promise.resolve([] as { userId: string; user: { id: string; name: string; email: string; avatar: string | null } }[]),
+    ]);
+
+  const memberIds = teamMembersRaw.map((m) => m.userId);
+
+  // Batch 2: earnings + manager analytics groupBys — all in parallel, using memberIds (no expensive relation traversal)
+  const [monthEntries, openByMember, overdueByMember, completedByMember, timeByMember] = await Promise.all([
+    teamId
+      ? prisma.timeEntry.findMany({
+          where: {
+            startedAt: { gte: monthStart },
+            stoppedAt: { not: null },
+            ...(manager && memberIds.length > 0 ? { userId: { in: memberIds } } : { userId: session!.user.id }),
+            task: { teamId },
+          },
+          select: {
+            durationMinutes: true,
+            task: { select: { hourlyRate: true } },
+            subtask: { select: { hourlyRate: true } },
+          },
+        })
+      : Promise.resolve([] as { durationMinutes: number | null; task: { hourlyRate: number | null } | null; subtask: { hourlyRate: number | null } | null }[]),
+    manager && teamId
+      ? prisma.task.groupBy({ by: ["assigneeId"], where: { teamId, status: { not: "done" }, assigneeId: { not: null } }, _count: true })
+      : Promise.resolve([] as { assigneeId: string | null; _count: number }[]),
+    manager && teamId
+      ? prisma.task.groupBy({ by: ["assigneeId"], where: { teamId, status: { not: "done" }, dueDate: { lt: now }, assigneeId: { not: null } }, _count: true })
+      : Promise.resolve([] as { assigneeId: string | null; _count: number }[]),
+    manager && teamId
+      ? prisma.task.groupBy({ by: ["assigneeId"], where: { teamId, status: "done", completedAt: { gte: monthStart }, assigneeId: { not: null } }, _count: true })
+      : Promise.resolve([] as { assigneeId: string | null; _count: number }[]),
+    manager && teamId && memberIds.length > 0
+      ? prisma.timeEntry.groupBy({ by: ["userId"], where: { userId: { in: memberIds }, stoppedAt: { not: null }, startedAt: { gte: monthStart } }, _sum: { durationMinutes: true } })
+      : Promise.resolve([] as { userId: string; _sum: { durationMinutes: number | null } }[]),
+  ]);
+
   const monthEarning = Math.round(
     monthEntries.reduce((sum, e) => {
       const rate = e.subtask?.hourlyRate ?? e.task?.hourlyRate ?? 0;
@@ -91,66 +116,28 @@ export default async function DashboardPage() {
     }, 0)
   );
 
-  // Manager analytics — per-member breakdown
-  let memberStats: MemberStat[] = [];
-  if (manager && teamId) {
-    const now = new Date();
-    const [members, openByMember, overdueByMember, completedByMember, timeByMember] = await Promise.all([
-      prisma.teamMember.findMany({
-        where: { teamId },
-        include: { user: { select: { id: true, name: true, email: true, avatar: true } } },
-        orderBy: { user: { name: "asc" } },
-      }),
-      prisma.task.groupBy({
-        by: ["assigneeId"],
-        where: { teamId, status: { not: "done" }, assigneeId: { not: null } },
-        _count: true,
-      }),
-      prisma.task.groupBy({
-        by: ["assigneeId"],
-        where: { teamId, status: { not: "done" }, dueDate: { lt: now }, assigneeId: { not: null } },
-        _count: true,
-      }),
-      prisma.task.groupBy({
-        by: ["assigneeId"],
-        where: { teamId, status: "done", completedAt: { gte: monthStart }, assigneeId: { not: null } },
-        _count: true,
-      }),
-      prisma.timeEntry.groupBy({
-        by: ["userId"],
-        where: { task: { teamId }, stoppedAt: { not: null }, startedAt: { gte: monthStart } },
-        _sum: { durationMinutes: true },
-      }),
-    ]);
+  const memberStats: MemberStat[] = teamMembersRaw.map((m) => {
+    const open = openByMember.find((g) => g.assigneeId === m.userId)?._count ?? 0;
+    const overdue = overdueByMember.find((g) => g.assigneeId === m.userId)?._count ?? 0;
+    const completed = completedByMember.find((g) => g.assigneeId === m.userId)?._count ?? 0;
+    const minutes = timeByMember.find((g) => g.userId === m.userId)?._sum?.durationMinutes ?? 0;
+    return {
+      userId: m.userId,
+      name: m.user.name,
+      email: m.user.email,
+      avatar: m.user.avatar ?? null,
+      openTasks: open,
+      overdueTasks: overdue,
+      completedThisMonth: completed,
+      hoursThisMonth: Math.round(((minutes ?? 0) / 60) * 10) / 10,
+    };
+  });
 
-    memberStats = members.map((m) => {
-      const open = openByMember.find((g) => g.assigneeId === m.userId)?._count ?? 0;
-      const overdue = overdueByMember.find((g) => g.assigneeId === m.userId)?._count ?? 0;
-      const completed = completedByMember.find((g) => g.assigneeId === m.userId)?._count ?? 0;
-      const minutes = timeByMember.find((g) => g.userId === m.userId)?._sum.durationMinutes ?? 0;
-      return {
-        userId: m.userId,
-        name: m.user.name,
-        email: m.user.email,
-        avatar: m.user.avatar ?? null,
-        openTasks: open,
-        overdueTasks: overdue,
-        completedThisMonth: completed,
-        hoursThisMonth: Math.round((minutes / 60) * 10) / 10,
-      };
-    });
-  }
+  const todo = allTasks.filter((t) => t.status === "todo").length;
+  const inProgress = allTasks.filter((t) => t.status === "in_progress").length;
+  const myTodo = myTasks.filter((t) => t.status === "todo").length;
+  const myInProgress = myTasks.filter((t) => t.status === "in_progress").length;
 
-  // Completion trend for the last 30 days
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
-  thirtyDaysAgo.setHours(0, 0, 0, 0);
-  const completedInPeriod = teamId
-    ? await prisma.task.findMany({
-        where: { teamId, status: "done", completedAt: { gte: thirtyDaysAgo, not: null } },
-        select: { completedAt: true },
-      })
-    : [];
   const completionMap = new Map<string, number>();
   for (let i = 0; i < 30; i++) {
     const d = new Date(thirtyDaysAgo);
