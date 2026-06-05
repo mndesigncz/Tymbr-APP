@@ -59,7 +59,7 @@ export function StartWorkButton() {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute top-full right-0 mt-2 w-72 rounded-2xl border overflow-hidden z-50"
+          <div className="absolute top-full left-0 sm:left-auto sm:right-0 mt-2 w-72 rounded-2xl border overflow-hidden z-50"
             style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", boxShadow: "0 12px 40px rgba(0,0,0,0.15)" }}>
             <div className="p-2 border-b" style={{ borderColor: "var(--border)" }}>
               <input
