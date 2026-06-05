@@ -85,7 +85,7 @@ export function TaskCard({ task, compact, urgent, showUrgentMark }: TaskCardProp
                 className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 transition-all hover:opacity-80"
                 style={isCurrentlyActive
                   ? { background: "#22C55E20", color: "#22C55E" }
-                  : { background: "#f7592f14", color: "#f7592f" }}
+                  : { background: "var(--accent-soft)", color: "var(--accent)" }}
               >
                 {isCurrentlyActive
                   ? <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#22C55E" }} />
@@ -191,7 +191,7 @@ export function TaskCard({ task, compact, urgent, showUrgentMark }: TaskCardProp
                 className="w-7 h-7 rounded-xl flex items-center justify-center transition-all hover:opacity-80"
                 style={isCurrentlyActive
                   ? { background: "#22C55E20", color: "#22C55E" }
-                  : { background: "#f7592f14", color: "#f7592f" }}
+                  : { background: "var(--accent-soft)", color: "var(--accent)" }}
               >
                 {isCurrentlyActive
                   ? <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#22C55E" }} />

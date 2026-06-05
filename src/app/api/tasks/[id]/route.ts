@@ -11,7 +11,7 @@ const taskInclude = {
     include: { user: { select: { id: true, name: true, avatar: true } } },
     orderBy: { createdAt: "asc" as const },
   },
-  subtasks: { orderBy: { order: "asc" as const } },
+  subtasks: { orderBy: { order: "asc" as const }, include: { assignee: { select: { id: true, name: true, avatar: true } } } },
   statusHistory: { orderBy: { startedAt: "asc" as const } },
   timeEntries: {
     where: { stoppedAt: { not: null } },
@@ -53,7 +53,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params;
   try {
     const body = await req.json();
-    const { title, description, status, priority, dueDate, startDate, categoryId, hourlyRate } = body;
+    const { title, description, status, priority, dueDate, startDate, categoryId, hourlyRate, visibility } = body;
 
     // Resolve assigneeIds array
     const hasAssigneeIds = "assigneeIds" in body;
@@ -113,6 +113,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         ...(categoryId !== undefined && { categoryId: categoryId || null }),
         ...(primaryAssigneeId !== undefined && { assigneeId: primaryAssigneeId }),
         ...(hourlyRate !== undefined && { hourlyRate: hourlyRate ? Number(hourlyRate) : null }),
+        ...(visibility !== undefined && { visibility }),
         ...completedAtUpdate,
       },
       include: taskInclude,

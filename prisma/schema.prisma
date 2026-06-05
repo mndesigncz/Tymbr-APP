@@ -30,6 +30,7 @@ model User {
   joinRequests      TeamJoinRequest[]
   foldersCreated    TeamFolder[]      @relation("TeamFolderCreator")
   filesCreated      TeamFile[]        @relation("TeamFileCreator")
+  subtasksAssigned  SubTask[]         @relation("SubTaskAssignee")
 }
 
 model Team {
@@ -234,6 +235,7 @@ model Task {
   startDate   DateTime?
   completedAt DateTime?
   hourlyRate  Float?
+  visibility  String    @default("team")
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -272,7 +274,12 @@ model SubTask {
   taskId String
   task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
+  assigneeId String?
+  assignee   User?   @relation("SubTaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
   timeEntries TimeEntry[]
+
+  @@index([assigneeId])
 }
 
 model TaskStatusHistory {

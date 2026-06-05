@@ -1,8 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Check, Plus, Trash2, Play, ChevronDown, ChevronUp } from "lucide-react";
+import { Check, Plus, Trash2, Play, ChevronDown, ChevronUp, User } from "lucide-react";
+import { Avatar } from "@/components/ui/Avatar";
 import type { SubTask } from "@/types";
+
+interface Member {
+  id: string;
+  name: string;
+  avatar?: string | null;
+}
 
 interface SubtasksProps {
   taskId: string;
@@ -10,13 +17,15 @@ interface SubtasksProps {
   onChange?: (subtasks: SubTask[]) => void;
   activeSubtaskId?: string | null;
   onActivateSubtask?: (id: string | null) => void;
+  members?: Member[];
 }
 
-export function Subtasks({ taskId, dark, onChange, activeSubtaskId, onActivateSubtask }: SubtasksProps) {
+export function Subtasks({ taskId, dark, onChange, activeSubtaskId, onActivateSubtask, members = [] }: SubtasksProps) {
   const [subtasks, setSubtasks] = useState<SubTask[]>([]);
   const [newTitle, setNewTitle] = useState("");
   const [adding, setAdding] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [assigneeOpen, setAssigneeOpen] = useState<string | null>(null);
 
   const c = {
     text1: dark ? "#f5f5f7" : "var(--text-1)",
@@ -56,6 +65,16 @@ export function Subtasks({ taskId, dark, onChange, activeSubtaskId, onActivateSu
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ [field]: field === "hourlyRate" ? (value ? Number(value) : null) : value }),
+    });
+    load();
+  };
+
+  const updateAssignee = async (st: SubTask, assigneeId: string | null) => {
+    setAssigneeOpen(null);
+    await fetch(`/api/subtasks/${st.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assigneeId }),
     });
     load();
   };
@@ -104,6 +123,8 @@ export function Subtasks({ taskId, dark, onChange, activeSubtaskId, onActivateSu
         {subtasks.map((st) => {
           const isExpanded = expanded === st.id;
           const isActive = activeSubtaskId === st.id;
+          const assignee = st.assignee ?? members.find((m) => m.id === st.assigneeId);
+
           return (
             <div
               key={st.id}
@@ -135,6 +156,10 @@ export function Subtasks({ taskId, dark, onChange, activeSubtaskId, onActivateSu
                 >
                   {st.title}
                 </span>
+                {/* Assigned user avatar */}
+                {assignee && (
+                  <Avatar name={assignee.name} src={assignee.avatar} size="sm" className="flex-shrink-0" />
+                )}
                 <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
                   {onActivateSubtask && (
                     <button
@@ -162,6 +187,7 @@ export function Subtasks({ taskId, dark, onChange, activeSubtaskId, onActivateSu
                   </button>
                 </div>
               </div>
+
               {isExpanded && (
                 <div className="px-8 pb-3 pt-0.5 space-y-2">
                   <textarea
@@ -172,24 +198,68 @@ export function Subtasks({ taskId, dark, onChange, activeSubtaskId, onActivateSu
                     className="w-full text-[12.5px] rounded-lg px-2.5 py-2 resize-none outline-none"
                     style={{ background: c.inputBg, color: c.text1, border: `1px solid ${c.border}` }}
                   />
-                  <div className="flex items-center gap-2">
-                    <label className="text-[11.5px]" style={{ color: c.text3 }}>
-                      Sazba (Kč/h):
-                    </label>
-                    <input
-                      type="number"
-                      defaultValue={st.hourlyRate ?? ""}
-                      onBlur={(e) => updateField(st, "hourlyRate", e.target.value)}
-                      placeholder="Výchozí"
-                      min="0"
-                      step="10"
-                      className="w-24 text-[12.5px] rounded-lg px-2 py-1 outline-none"
-                      style={{ background: c.inputBg, color: c.text1, border: `1px solid ${c.border}` }}
-                    />
-                    {st.hourlyRate && (
-                      <span className="text-[11px]" style={{ color: c.text3 }}>
-                        ({st.hourlyRate} Kč/h)
-                      </span>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <label className="text-[11.5px]" style={{ color: c.text3 }}>
+                        Sazba (Kč/h):
+                      </label>
+                      <input
+                        type="number"
+                        defaultValue={st.hourlyRate ?? ""}
+                        onBlur={(e) => updateField(st, "hourlyRate", e.target.value)}
+                        placeholder="Výchozí"
+                        min="0"
+                        step="10"
+                        className="w-24 text-[12.5px] rounded-lg px-2 py-1 outline-none"
+                        style={{ background: c.inputBg, color: c.text1, border: `1px solid ${c.border}` }}
+                      />
+                    </div>
+
+                    {/* Assignee picker */}
+                    {members.length > 0 && (
+                      <div className="relative">
+                        <button
+                          onClick={() => setAssigneeOpen(assigneeOpen === st.id ? null : st.id)}
+                          className="flex items-center gap-1.5 text-[11.5px] px-2 py-1 rounded-lg transition-all"
+                          style={{ background: c.inputBg, color: c.text3, border: `1px solid ${c.border}` }}
+                        >
+                          <User className="w-3 h-3" />
+                          <span>{assignee ? assignee.name : "Přiřadit"}</span>
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                        {assigneeOpen === st.id && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setAssigneeOpen(null)} />
+                            <div className="absolute top-full left-0 mt-1 w-44 rounded-xl overflow-hidden z-50"
+                              style={{ background: "var(--bg-card)", border: "1px solid var(--border-md)", boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}>
+                              {assignee && (
+                                <button
+                                  onClick={() => updateAssignee(st, null)}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-[12.5px] transition-colors hover:bg-black/[0.04]"
+                                  style={{ color: "var(--text-3)" }}
+                                >
+                                  <span className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "var(--bg-subtle)" }}>
+                                    <User className="w-3 h-3" />
+                                  </span>
+                                  Odebrat přiřazení
+                                </button>
+                              )}
+                              {members.map((m) => (
+                                <button
+                                  key={m.id}
+                                  onClick={() => updateAssignee(st, m.id)}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-[12.5px] transition-colors hover:bg-black/[0.04]"
+                                  style={{ color: "var(--text-1)" }}
+                                >
+                                  <Avatar name={m.name} src={m.avatar} size="sm" />
+                                  <span className="truncate">{m.name}</span>
+                                  {st.assigneeId === m.id && <Check className="w-3 h-3 ml-auto flex-shrink-0" style={{ color: "var(--accent)" }} />}
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>

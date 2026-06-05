@@ -8,11 +8,14 @@ interface StatsCardProps {
   highlight?: boolean;
 }
 
-export function StatsCard({ title, value, icon: Icon, color = "#f7592f", highlight }: StatsCardProps) {
+export function StatsCard({ title, value, icon: Icon, color, highlight }: StatsCardProps) {
+  const iconColor = color ?? "var(--accent)";
+  const iconBg = color ? `${color}15` : "var(--accent-soft)";
+
   if (highlight) {
     return (
       <div className="rounded-2xl sm:rounded-3xl p-4 sm:p-5 lg:p-6 flex flex-col gap-3 sm:gap-5 text-white"
-        style={{ background: "linear-gradient(135deg, #fb6b3d, #f7592f)", boxShadow: "0 8px 24px rgba(247,89,47,0.28)" }}>
+        style={{ background: "linear-gradient(135deg, var(--accent-hover), var(--accent))", boxShadow: "0 8px 24px color-mix(in srgb, var(--accent) 28%, transparent)" }}>
         <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl flex items-center justify-center bg-white/20">
           <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
         </div>
@@ -28,8 +31,8 @@ export function StatsCard({ title, value, icon: Icon, color = "#f7592f", highlig
     <div className="rounded-2xl sm:rounded-3xl p-4 sm:p-5 lg:p-6 flex flex-col gap-3 sm:gap-5 border"
       style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
       <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl flex items-center justify-center"
-        style={{ background: `${color}15` }}>
-        <Icon className="w-4 h-4 sm:w-5 sm:h-5" style={{ color }} />
+        style={{ background: iconBg }}>
+        <Icon className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: iconColor }} />
       </div>
       <div>
         <p className="text-[22px] sm:text-[26px] lg:text-[30px] font-bold tracking-tight leading-none" style={{ color: "var(--text-1)" }}>{value}</p>
