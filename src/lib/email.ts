@@ -101,6 +101,90 @@ export async function sendTaskAssignedEmail({
   }
 }
 
+export async function sendCommentEmail({
+  to, recipientName, taskTitle, taskId, commenterName, commentPreview,
+}: {
+  to: string;
+  recipientName: string;
+  taskTitle: string;
+  taskId: string;
+  commenterName: string;
+  commentPreview: string;
+}) {
+  if (!process.env.RESEND_API_KEY) return;
+  if (!(await prefAllows(to, "comments"))) return;
+  const url = `${APP_URL}/tasks/${taskId}`;
+  try {
+    await resend.emails.send({
+      from: FROM,
+      to,
+      subject: `Nový komentář k úkolu: ${taskTitle}`,
+      html: base(`
+        <div class="header"><h1>Tymbr</h1></div>
+        <div class="body">
+          <p>Ahoj ${recipientName},</p>
+          <p><strong>${commenterName}</strong> přidal/a komentář k úkolu <strong>${taskTitle}</strong>:</p>
+          <p style="border-left:3px solid #f7592f;padding:8px 16px;margin:16px 0;color:#374151;font-style:italic">${commentPreview}</p>
+          <a href="${url}" class="btn">Zobrazit úkol</a>
+          <p>Nebo zkopírujte tento odkaz:</p>
+          <p><a href="${url}" class="link">${url}</a></p>
+        </div>
+        <div class="footer"><p>Tymbr · Nastavení notifikací lze změnit v nastavení účtu.</p></div>
+      `),
+    });
+  } catch (err) {
+    console.error("[email] sendCommentEmail failed:", err);
+  }
+}
+
+export async function sendStatusChangeEmail({
+  to, recipientName, taskTitle, taskId, oldStatus, newStatus, changerName,
+}: {
+  to: string;
+  recipientName: string;
+  taskTitle: string;
+  taskId: string;
+  oldStatus: string;
+  newStatus: string;
+  changerName: string;
+}) {
+  if (!process.env.RESEND_API_KEY) return;
+  if (!(await prefAllows(to, "statusChanges"))) return;
+  const url = `${APP_URL}/tasks/${taskId}`;
+  const statusLabels: Record<string, string> = {
+    todo: "K provedení",
+    in_progress: "Probíhá",
+    done: "Hotovo",
+    review: "Ke kontrole",
+    cancelled: "Zrušeno",
+  };
+  const oldLabel = statusLabels[oldStatus] ?? oldStatus;
+  const newLabel = statusLabels[newStatus] ?? newStatus;
+  try {
+    await resend.emails.send({
+      from: FROM,
+      to,
+      subject: `Stav úkolu změněn: ${taskTitle}`,
+      html: base(`
+        <div class="header"><h1>Tymbr</h1></div>
+        <div class="body">
+          <p>Ahoj ${recipientName},</p>
+          <p><strong>${changerName}</strong> změnil/a stav úkolu <strong>${taskTitle}</strong>:</p>
+          <p style="margin:20px 0">
+            <span style="background:#f3f4f6;padding:4px 10px;border-radius:6px;font-size:14px">${oldLabel}</span>
+            <span style="margin:0 8px;color:#9ca3af">→</span>
+            <span style="background:#fff3e0;color:#f7592f;padding:4px 10px;border-radius:6px;font-size:14px;font-weight:600">${newLabel}</span>
+          </p>
+          <a href="${url}" class="btn">Zobrazit úkol</a>
+        </div>
+        <div class="footer"><p>Tymbr · Nastavení notifikací lze změnit v nastavení účtu.</p></div>
+      `),
+    });
+  } catch (err) {
+    console.error("[email] sendStatusChangeEmail failed:", err);
+  }
+}
+
 export async function sendWelcomeEmail({
   to, name, teamName,
 }: {

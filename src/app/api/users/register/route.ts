@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
       if (invitation.email.toLowerCase() !== email.toLowerCase()) {
         return NextResponse.json({ error: "Email se neshoduje s pozvánkou" }, { status: 400 });
       }
+      const inviteTeam = await prisma.team.findUnique({ where: { id: invitation.teamId }, select: { name: true } });
       const userRows = await prisma.$queryRaw<any[]>`
         INSERT INTO "User" (id, name, email, password, role, "createdAt", "updatedAt")
         VALUES (gen_random_uuid()::text, ${name}, ${email}, ${hashed}, 'member', NOW(), NOW())
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
         where: { id: invitation.id },
         data: { acceptedAt: new Date() },
       });
-      sendWelcomeEmail({ to: email, name, teamName: "tým" });
+      sendWelcomeEmail({ to: email, name, teamName: inviteTeam?.name ?? "tým" });
       return NextResponse.json(user, { status: 201 });
     }
 
