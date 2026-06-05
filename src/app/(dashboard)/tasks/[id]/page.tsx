@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { StatusBadge } from "@/components/tasks/StatusBadge";
@@ -10,15 +10,31 @@ import { Subtasks } from "@/components/tasks/Subtasks";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
-import { Textarea } from "@/components/ui/Textarea";
 import { formatDate, formatRelative } from "@/lib/utils";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { Task } from "@/types";
 import {
-  Calendar, Tag, User, Edit2, Trash2, MessageSquare,
-  ChevronDown, Check, Globe, EyeOff,
+  Calendar, Edit2, Trash2, MessageSquare,
+  ChevronDown, Check, Globe, EyeOff, Send,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useStatusConfig } from "@/hooks/useStatusConfig";
+
+function detectMention(text: string, cursor: number): { query: string; start: number } | null {
+  const before = text.slice(0, cursor);
+  const match = /@([^\s@]*)$/.exec(before);
+  if (!match) return null;
+  return { query: match[1], start: match.index };
+}
+
+function renderComment(text: string) {
+  const parts = text.split(/(@\w[\w\s]*)/g);
+  return parts.map((p, i) =>
+    p.startsWith("@")
+      ? <span key={i} className="font-semibold" style={{ color: "var(--accent)" }}>{p}</span>
+      : p
+  );
+}
 
 export default function TaskDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -31,6 +47,9 @@ export default function TaskDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [comment, setComment] = useState("");
   const [commenting, setCommenting] = useState(false);
+  const [mention, setMention] = useState<{ query: string; start: number } | null>(null);
+  const [mentionIdx, setMentionIdx] = useState(0);
+  const commentRef = useRef<HTMLTextAreaElement>(null);
   const [statusOpen, setStatusOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [members, setMembers] = useState<{ id: string; name: string; avatar?: string | null }[]>([]);
@@ -70,6 +89,37 @@ export default function TaskDetailPage() {
     setDeleting(true);
     await fetch(`/api/tasks/${id}`, { method: "DELETE" });
     router.push("/tasks");
+  };
+
+  const mentionResults = mention
+    ? members.filter((m) => m.name.toLowerCase().includes(mention.query.toLowerCase())).slice(0, 6)
+    : [];
+
+  const selectMention = useCallback((name: string) => {
+    if (!mention) return;
+    const before = comment.slice(0, mention.start);
+    const after = comment.slice(mention.start + 1 + mention.query.length);
+    setComment(before + `@${name} ` + after);
+    setMention(null);
+    setMentionIdx(0);
+    setTimeout(() => commentRef.current?.focus(), 0);
+  }, [mention, comment]);
+
+  const handleCommentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setComment(val);
+    const cursor = e.target.selectionStart ?? val.length;
+    const m = detectMention(val, cursor);
+    setMention(m);
+    setMentionIdx(0);
+  };
+
+  const handleCommentKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!mention || mentionResults.length === 0) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); setMentionIdx((i) => Math.min(i + 1, mentionResults.length - 1)); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setMentionIdx((i) => Math.max(i - 1, 0)); }
+    else if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); selectMention(mentionResults[mentionIdx].name); }
+    else if (e.key === "Escape") setMention(null);
   };
 
   const handleVisibilityChange = async (visibility: "team" | "private") => {
@@ -184,7 +234,7 @@ export default function TaskDetailPage() {
                         <span className="text-[12px]" style={{ color: "var(--text-3)" }}>{formatRelative(c.createdAt)}</span>
                       </div>
                       <p className="text-[13.5px] rounded-2xl p-3.5" style={{ color: "var(--text-2)", background: "var(--bg-subtle)" }}>
-                        {c.content}
+                        {renderComment(c.content)}
                       </p>
                     </div>
                   </div>
@@ -194,17 +244,43 @@ export default function TaskDetailPage() {
               {session && (
                 <form onSubmit={handleComment} className="flex gap-3">
                   <Avatar name={session.user?.name || "?"} size="sm" className="mt-1 flex-shrink-0" />
-                  <div className="flex-1 space-y-2">
-                    <Textarea
-                      placeholder="Přidat komentář..."
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      rows={2}
-                    />
+                  <div className="flex-1 relative">
+                    <div className="relative">
+                      <textarea
+                        ref={commentRef}
+                        placeholder="Přidat komentář… (@ pro zmínění člena)"
+                        value={comment}
+                        onChange={handleCommentChange}
+                        onKeyDown={handleCommentKeyDown}
+                        rows={2}
+                        className="w-full text-[13.5px] rounded-2xl px-4 py-3 resize-none outline-none border transition-all"
+                        style={{ background: "var(--bg-subtle)", color: "var(--text-1)", borderColor: "var(--border-md)" }}
+                      />
+                      {/* @mention dropdown */}
+                      {mention && mentionResults.length > 0 && (
+                        <div className="absolute bottom-full left-0 mb-1 w-52 rounded-xl overflow-hidden z-50"
+                          style={{ background: "var(--bg-card)", border: "1px solid var(--border-md)", boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}>
+                          {mentionResults.map((m, i) => (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onMouseDown={() => selectMention(m.name)}
+                              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[13px] transition-colors"
+                              style={{ background: i === mentionIdx ? "var(--accent-soft)" : "transparent", color: "var(--text-1)" }}
+                            >
+                              <Avatar name={m.name} src={m.avatar} size="sm" />
+                              <span className="font-medium truncate">{m.name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     {comment.trim() && (
-                      <Button type="submit" loading={commenting} size="sm">
-                        Odeslat
-                      </Button>
+                      <div className="flex justify-end mt-2">
+                        <Button type="submit" loading={commenting} size="sm" icon={<Send className="w-3.5 h-3.5" />}>
+                          Odeslat
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </form>

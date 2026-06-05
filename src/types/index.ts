@@ -79,6 +79,7 @@ export interface Task {
   subtasks?: SubTask[];
   statusHistory?: TaskStatusHistory[];
   visibility?: string;
+  recurring?: string;
   _count?: { comments: number };
 }
 

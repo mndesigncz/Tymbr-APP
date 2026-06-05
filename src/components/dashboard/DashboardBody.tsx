@@ -12,10 +12,13 @@ import {
 } from "lucide-react";
 import { formatRelative } from "@/lib/utils";
 import type { Task } from "@/types";
+import { ManagerAnalytics } from "@/components/dashboard/ManagerAnalytics";
+import type { MemberStat } from "@/components/dashboard/ManagerAnalytics";
+import { BurndownChart } from "@/components/dashboard/BurndownChart";
 
 type WidgetId =
   | "stat_active" | "stat_todo" | "stat_progress" | "stat_done" | "stat_earning"
-  | "panel_urgent" | "panel_recent" | "panel_done" | "panel_categories";
+  | "panel_chart" | "panel_analytics" | "panel_urgent" | "panel_recent" | "panel_done" | "panel_categories";
 
 interface Category { id: string; name: string; color: string; count: number }
 
@@ -33,6 +36,8 @@ interface DashboardBodyProps {
   doneList: Task[];
   doneTotal: number;
   categories: Category[];
+  memberStats?: MemberStat[];
+  completionData?: { date: string; count: number }[];
 }
 
 const STORAGE_KEY = "tymbr:dashboardWidgets";
@@ -43,6 +48,8 @@ const WIDGET_LABELS: { id: WidgetId; label: string; group: "stat" | "panel" }[] 
   { id: "stat_progress", label: "Probíhá", group: "stat" },
   { id: "stat_done", label: "Hotovo celkem", group: "stat" },
   { id: "stat_earning", label: "Měsíční výdělek", group: "stat" },
+  { id: "panel_chart", label: "Graf dokončení", group: "panel" },
+  { id: "panel_analytics", label: "Přehled týmu (manažer)", group: "panel" },
   { id: "panel_urgent", label: "Urgentní úkoly", group: "panel" },
   { id: "panel_recent", label: "Seznam úkolů", group: "panel" },
   { id: "panel_done", label: "Hotové úkoly", group: "panel" },
@@ -51,14 +58,15 @@ const WIDGET_LABELS: { id: WidgetId; label: string; group: "stat" | "panel" }[] 
 
 const DEFAULTS: Record<WidgetId, boolean> = {
   stat_active: true, stat_todo: true, stat_progress: true, stat_done: true,
-  stat_earning: true, panel_urgent: true, panel_recent: true,
-  panel_done: true, panel_categories: true,
+  stat_earning: true, panel_chart: true, panel_analytics: true, panel_urgent: true,
+  panel_recent: true, panel_done: true, panel_categories: true,
 };
 
 export function DashboardBody(props: DashboardBodyProps) {
   const {
     manager, statActive, statTodo, statProgress, statDone, monthEarning,
     urgentAll, urgentMine, recent, myTasksList, doneList, doneTotal, categories,
+    memberStats = [], completionData = [],
   } = props;
 
   // Visibility is per-device (localStorage) so no schema/migration is needed.
@@ -203,6 +211,16 @@ export function DashboardBody(props: DashboardBodyProps) {
         <div className="grid gap-5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
           {statCards}
         </div>
+      )}
+
+      {/* Completion trend chart */}
+      {vis.panel_chart && completionData.length > 0 && (
+        <BurndownChart data={completionData} />
+      )}
+
+      {/* Manager analytics panel */}
+      {manager && vis.panel_analytics && memberStats.length > 0 && (
+        <ManagerAnalytics members={memberStats} />
       )}
 
       {/* Panels */}

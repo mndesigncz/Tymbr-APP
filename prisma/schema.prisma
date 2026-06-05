@@ -31,6 +31,23 @@ model User {
   foldersCreated    TeamFolder[]      @relation("TeamFolderCreator")
   filesCreated      TeamFile[]        @relation("TeamFileCreator")
   subtasksAssigned  SubTask[]         @relation("SubTaskAssignee")
+  notifications     Notification[]
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  type      String
+  title     String
+  body      String?
+  url       String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
 }
 
 model Team {
@@ -54,6 +71,8 @@ model Team {
   priorityConfigs TaskPriorityConfig[]
   folders        TeamFolder[]
   files          TeamFile[]
+  taskTemplates  TaskTemplate[]
+  webhooks       Webhook[]
 
   @@index([ownerId])
 }
@@ -220,7 +239,41 @@ model Category {
   teamId String?
   team   Team?   @relation(fields: [teamId], references: [id], onDelete: SetNull)
 
-  tasks Task[]
+  tasks     Task[]
+  templates TaskTemplate[]
+
+  @@index([teamId])
+}
+
+model Webhook {
+  id        String   @id @default(cuid())
+  url       String
+  secret    String?
+  events    String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
+}
+
+model TaskTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  status      String   @default("todo")
+  priority    String   @default("medium")
+  hourlyRate  Float?
+  subtasks    Json?
+  createdAt   DateTime @default(now())
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   @@index([teamId])
 }
@@ -236,6 +289,7 @@ model Task {
   completedAt DateTime?
   hourlyRate  Float?
   visibility  String    @default("team")
+  recurring   String    @default("none")
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 

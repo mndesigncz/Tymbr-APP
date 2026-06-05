@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { Header } from "@/components/layout/Header";
 import { Avatar } from "@/components/ui/Avatar";
-import { Clock, TrendingUp, CheckSquare, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Clock, TrendingUp, CheckSquare, Trash2, ChevronDown, ChevronUp, Download } from "lucide-react";
 import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
 import { isManager } from "@/lib/roles";
 import { ScrollFadeX } from "@/components/ui/ScrollFadeX";
 import type { TimeEntry } from "@/types";
@@ -131,6 +132,31 @@ export default function TimePage() {
     ? entries
     : entries.filter((e) => selectedUserIds.has(e.userId));
 
+  const exportCsv = () => {
+    const rows = [
+      ["Úkol", "Podúkol", "Kategorie", "Uživatel", "Začátek", "Konec", "Minut", "Sazba (Kč/h)", "Výdělek (Kč)"],
+      ...filteredEntries.map((e) => {
+        const rate = entryRate(e);
+        return [
+          (e.task as any)?.title ?? "",
+          (e as any).subtask?.title ?? "",
+          (e.task as any)?.category?.name ?? "",
+          (e as any).user?.name ?? "",
+          e.startedAt ? new Date(e.startedAt).toLocaleString("cs-CZ") : "",
+          e.stoppedAt ? new Date(e.stoppedAt).toLocaleString("cs-CZ") : "",
+          String(e.durationMinutes ?? 0),
+          rate ? String(rate) : "",
+          String(entryEarning(e)),
+        ];
+      }),
+    ];
+    const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(";")).join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `vykazy-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const totalMinutes = filteredEntries.reduce((s, e) => s + (e.durationMinutes ?? 0), 0);
   const totalEarning = filteredEntries.reduce((s, e) => s + entryEarning(e), 0);
   const uniqueTasks = new Set(filteredEntries.map((e) => e.taskId)).size;
@@ -207,7 +233,17 @@ export default function TimePage() {
 
   return (
     <div>
-      <Header title="Výkazy práce" subtitle="Přehled odpracovaného času a výdělků" />
+      <Header
+        title="Výkazy práce"
+        subtitle="Přehled odpracovaného času a výdělků"
+        actions={
+          filteredEntries.length > 0 ? (
+            <Button variant="secondary" size="sm" icon={<Download className="w-4 h-4" />} onClick={exportCsv}>
+              Export CSV
+            </Button>
+          ) : undefined
+        }
+      />
 
       <div className="px-4 sm:px-6 lg:px-8 pt-2 pb-12 space-y-6">
         {/* Date range — single scrollable row */}

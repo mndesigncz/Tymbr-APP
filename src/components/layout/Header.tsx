@@ -1,6 +1,7 @@
 "use client";
 
 import { ProfileMenu } from "./ProfileMenu";
+import { NotificationBell } from "./NotificationBell";
 
 interface HeaderProps {
   title: string;
@@ -23,6 +24,7 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
         <div className="flex items-center gap-2 flex-shrink-0">
           {/* Desktop: actions inline next to the title */}
           {actions && <div className="hidden lg:flex items-center gap-2">{actions}</div>}
+          <NotificationBell />
           {/* Avatar profile button — mobile/tablet only; desktop uses the sidebar user card */}
           <div className="lg:hidden">
             <ProfileMenu />

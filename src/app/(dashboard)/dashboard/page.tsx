@@ -7,6 +7,9 @@ import { StartWorkButton } from "@/components/layout/StartWorkButton";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import type { Task } from "@/types";
+import type { MemberStat } from "@/components/dashboard/ManagerAnalytics";
+
+interface CompletionPoint { date: string; count: number }
 
 const taskInclude = {
   category: true,
@@ -88,6 +91,80 @@ export default async function DashboardPage() {
     }, 0)
   );
 
+  // Manager analytics — per-member breakdown
+  let memberStats: MemberStat[] = [];
+  if (manager && teamId) {
+    const now = new Date();
+    const [members, openByMember, overdueByMember, completedByMember, timeByMember] = await Promise.all([
+      prisma.teamMember.findMany({
+        where: { teamId },
+        include: { user: { select: { id: true, name: true, email: true, avatar: true } } },
+        orderBy: { user: { name: "asc" } },
+      }),
+      prisma.task.groupBy({
+        by: ["assigneeId"],
+        where: { teamId, status: { not: "done" }, assigneeId: { not: null } },
+        _count: true,
+      }),
+      prisma.task.groupBy({
+        by: ["assigneeId"],
+        where: { teamId, status: { not: "done" }, dueDate: { lt: now }, assigneeId: { not: null } },
+        _count: true,
+      }),
+      prisma.task.groupBy({
+        by: ["assigneeId"],
+        where: { teamId, status: "done", completedAt: { gte: monthStart }, assigneeId: { not: null } },
+        _count: true,
+      }),
+      prisma.timeEntry.groupBy({
+        by: ["userId"],
+        where: { task: { teamId }, stoppedAt: { not: null }, startedAt: { gte: monthStart } },
+        _sum: { durationMinutes: true },
+      }),
+    ]);
+
+    memberStats = members.map((m) => {
+      const open = openByMember.find((g) => g.assigneeId === m.userId)?._count ?? 0;
+      const overdue = overdueByMember.find((g) => g.assigneeId === m.userId)?._count ?? 0;
+      const completed = completedByMember.find((g) => g.assigneeId === m.userId)?._count ?? 0;
+      const minutes = timeByMember.find((g) => g.userId === m.userId)?._sum.durationMinutes ?? 0;
+      return {
+        userId: m.userId,
+        name: m.user.name,
+        email: m.user.email,
+        avatar: m.user.avatar ?? null,
+        openTasks: open,
+        overdueTasks: overdue,
+        completedThisMonth: completed,
+        hoursThisMonth: Math.round((minutes / 60) * 10) / 10,
+      };
+    });
+  }
+
+  // Completion trend for the last 30 days
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+  thirtyDaysAgo.setHours(0, 0, 0, 0);
+  const completedInPeriod = teamId
+    ? await prisma.task.findMany({
+        where: { teamId, status: "done", completedAt: { gte: thirtyDaysAgo, not: null } },
+        select: { completedAt: true },
+      })
+    : [];
+  const completionMap = new Map<string, number>();
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(thirtyDaysAgo);
+    d.setDate(d.getDate() + i);
+    completionMap.set(d.toISOString().slice(0, 10), 0);
+  }
+  for (const t of completedInPeriod) {
+    if (t.completedAt) {
+      const key = new Date(t.completedAt).toISOString().slice(0, 10);
+      if (completionMap.has(key)) completionMap.set(key, (completionMap.get(key) ?? 0) + 1);
+    }
+  }
+  const completionData: CompletionPoint[] = [...completionMap.entries()].map(([date, count]) => ({ date, count }));
+
   // Priority ordering: urgent > high > medium > low
   const PRIO: Record<string, number> = { urgent: 3, high: 2, medium: 1, low: 0 };
   const byPriority = (a: { priority: string; dueDate: Date | null }, b: { priority: string; dueDate: Date | null }) => {
@@ -147,6 +224,8 @@ export default async function DashboardPage() {
         doneList={doneList}
         doneTotal={doneTotal}
         categories={categories.map((c) => ({ id: c.id, name: c.name, color: c.color, count: c._count.tasks }))}
+        memberStats={memberStats}
+        completionData={completionData}
       />
     </div>
   );

@@ -5,6 +5,7 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { WorkMode } from "@/components/layout/WorkMode";
 import { TeamBrandingLoader } from "@/components/layout/TeamBrandingLoader";
 import { TimeTrackerProvider } from "@/context/TimeTrackerContext";
+import { KeyboardShortcutsProvider } from "@/components/layout/KeyboardShortcutsProvider";
 
 export default async function DashboardLayout({
   children,
@@ -25,6 +26,7 @@ export default async function DashboardLayout({
         <BottomNav />
       </div>
       <WorkMode />
+      <KeyboardShortcutsProvider />
     </TimeTrackerProvider>
   );
 }
