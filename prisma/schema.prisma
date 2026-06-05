@@ -72,6 +72,7 @@ model Team {
   folders        TeamFolder[]
   files          TeamFile[]
   taskTemplates  TaskTemplate[]
+  webhooks       Webhook[]
 
   @@index([ownerId])
 }
@@ -240,6 +241,20 @@ model Category {
 
   tasks     Task[]
   templates TaskTemplate[]
+
+  @@index([teamId])
+}
+
+model Webhook {
+  id        String   @id @default(cuid())
+  url       String
+  secret    String?
+  events    String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   @@index([teamId])
 }

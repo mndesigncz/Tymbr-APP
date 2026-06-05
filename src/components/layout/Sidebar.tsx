@@ -12,7 +12,7 @@ import { useChatUnread } from "@/hooks/useChatUnread";
 import { useTeamBranding } from "@/hooks/useTeamBranding";
 import {
   LayoutDashboard, CheckSquare, Tag, LogOut, Settings,
-  Clock, Users, MessageSquare, ChevronDown, Settings2, FolderOpen,
+  Clock, Users, MessageSquare, ChevronDown, Settings2, FolderOpen, Webhook,
 } from "lucide-react";
 
 const topItems = [
@@ -24,8 +24,9 @@ const topItems = [
 ];
 
 const teamItems = [
-  { href: "/chat",          icon: MessageSquare, label: "Chat"           },
-  { href: "/settings/team", icon: Settings2,     label: "Nastavení týmu" },
+  { href: "/chat",               icon: MessageSquare, label: "Chat"           },
+  { href: "/settings/team",      icon: Settings2,     label: "Nastavení týmu" },
+  { href: "/settings/webhooks",  icon: Webhook,       label: "Webhooks"       },
 ];
 
 export function Sidebar() {

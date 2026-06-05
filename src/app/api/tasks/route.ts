@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { sendTaskAssignedEmail } from "@/lib/email";
+import { fireWebhooks } from "@/lib/webhook";
 
 const taskInclude = {
   category: true,
@@ -168,6 +169,9 @@ export async function POST(req: NextRequest) {
         });
       }
     }
+
+    // Fire webhooks (fire-and-forget)
+    if (teamId && task) void fireWebhooks(teamId, "task.created", { id: task.id, title: task.title, status: task.status, priority: task.priority });
 
     return NextResponse.json(taskWithAssignees, { status: 201 });
   } catch (e: any) {

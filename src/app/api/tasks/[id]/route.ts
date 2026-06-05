@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { sendTaskAssignedEmail, sendStatusChangeEmail } from "@/lib/email";
+import { fireWebhooks } from "@/lib/webhook";
 
 const taskInclude = {
   category: true,
@@ -196,6 +197,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       );
     }
 
+    // Fire webhooks
+    if (task.teamId) {
+      const whEvent = status === "done" && prevStatus !== "done"
+        ? "task.completed"
+        : "task.updated";
+      void fireWebhooks(task.teamId, whEvent, { id: task.id, title: task.title, status: task.status, priority: task.priority });
+    }
+
     // Recurring task: spawn next occurrence when marking as done
     if (status === "done" && prevStatus !== "done" && existingTask) {
       const recurringValue = recurring ?? existingTask.recurring;
@@ -247,7 +256,9 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   const { id } = await params;
   try {
+    const task = await prisma.task.findUnique({ where: { id }, select: { title: true, teamId: true } });
     await prisma.task.delete({ where: { id } });
+    if (task?.teamId) void fireWebhooks(task.teamId, "task.deleted", { id, title: task.title });
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Chyba serveru" }, { status: 500 });
