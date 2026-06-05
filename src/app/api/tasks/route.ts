@@ -85,20 +85,35 @@ export async function GET(req: NextRequest) {
       if (completedTo) where.completedAt.lte = new Date(completedTo);
     }
     const userId = (session.user as any).id;
-    and.push({
+    const visibilityClause = {
       OR: [
         { visibility: "team" },
         { visibility: null },
         { visibility: "private", createdById: userId },
       ],
-    });
-    if (and.length > 0) where.AND = and;
+    };
 
-    const tasks = await prisma.task.findMany({
-      where,
-      include: taskInclude,
-      orderBy: [{ createdAt: "desc" }],
-    });
+    // Build where WITH the visibility filter first. If the `visibility` column
+    // is missing in the DB (migration not applied), retry without it so the
+    // page still loads instead of returning a 500.
+    const withVisibility = { ...where, AND: [...and, visibilityClause] };
+    const withoutVisibility = and.length > 0 ? { ...where, AND: and } : where;
+
+    let tasks;
+    try {
+      tasks = await prisma.task.findMany({
+        where: withVisibility,
+        include: taskInclude,
+        orderBy: [{ createdAt: "desc" }],
+      });
+    } catch (inner: any) {
+      console.error("[GET /api/tasks] primary query failed, retrying without visibility:", inner?.message ?? inner);
+      tasks = await prisma.task.findMany({
+        where: withoutVisibility,
+        include: taskInclude,
+        orderBy: [{ createdAt: "desc" }],
+      });
+    }
     return NextResponse.json(await attachAssignees(tasks));
   } catch (e: any) {
     console.error("[GET /api/tasks]", e?.message ?? e);
