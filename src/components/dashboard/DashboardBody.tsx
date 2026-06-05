@@ -183,9 +183,9 @@ export function DashboardBody(props: DashboardBodyProps) {
   const nothingVisible = statCards.length === 0 && mainPanels.length === 0 && sidePanels.length === 0;
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 pt-2 pb-12 space-y-8">
+    <div className="px-4 sm:px-6 lg:px-8 pt-4 pb-12 space-y-8">
       {/* Customize bar */}
-      <div className="flex justify-end -mb-3">
+      <div className="flex justify-end">
         <button
           onClick={() => setCustomizeOpen(true)}
           className="flex items-center gap-1.5 text-[12.5px] font-semibold px-3 py-1.5 rounded-xl border transition-all hover:bg-black/[0.03]"
