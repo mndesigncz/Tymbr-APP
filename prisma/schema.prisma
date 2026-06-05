@@ -31,6 +31,23 @@ model User {
   foldersCreated    TeamFolder[]      @relation("TeamFolderCreator")
   filesCreated      TeamFile[]        @relation("TeamFileCreator")
   subtasksAssigned  SubTask[]         @relation("SubTaskAssignee")
+  notifications     Notification[]
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  type      String
+  title     String
+  body      String?
+  url       String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
 }
 
 model Team {
