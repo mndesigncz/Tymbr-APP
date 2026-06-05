@@ -4,6 +4,9 @@ import { getSession } from "@/lib/auth";
 import { sendTaskAssignedEmail } from "@/lib/email";
 import { fireWebhooks } from "@/lib/webhook";
 
+export const maxDuration = 30;
+export const dynamic = "force-dynamic";
+
 const taskInclude = {
   category: true,
   createdBy: { select: { id: true, name: true, email: true, avatar: true } },
@@ -32,74 +35,78 @@ async function attachAssignees(tasks: any[]): Promise<any[]> {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Neautorizováno" }, { status: 401 });
+  try {
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: "Neautorizováno" }, { status: 401 });
 
-  const { searchParams } = new URL(req.url);
-  const status = searchParams.get("status");
-  const statuses = searchParams.get("statuses");
-  const categoryId = searchParams.get("categoryId");
-  const assigneeId = searchParams.get("assigneeId");
-  const priority = searchParams.get("priority");
-  const search = searchParams.get("search");
-  const completedFrom = searchParams.get("completedFrom");
-  const completedTo = searchParams.get("completedTo");
-  const teamId = (session.user as any).teamId;
+    const { searchParams } = new URL(req.url);
+    const status = searchParams.get("status");
+    const statuses = searchParams.get("statuses");
+    const categoryId = searchParams.get("categoryId");
+    const assigneeId = searchParams.get("assigneeId");
+    const priority = searchParams.get("priority");
+    const search = searchParams.get("search");
+    const completedFrom = searchParams.get("completedFrom");
+    const completedTo = searchParams.get("completedTo");
+    const teamId = (session.user as any).teamId;
 
-  if (!teamId) return NextResponse.json([]);
+    if (!teamId) return NextResponse.json([]);
 
-  const where: Record<string, any> = { teamId };
-  const and: Record<string, any>[] = [];
-  if (statuses) {
-    where.status = { in: statuses.split(",").map((s) => s.trim()) };
-  } else if (status) {
-    where.status = status;
-  }
-  if (categoryId) where.categoryId = categoryId;
-  const assigneeIds = searchParams.get("assigneeIds");
-  if (assigneeIds) {
-    where.assigneeId = { in: assigneeIds.split(",").map((s) => s.trim()) };
-  } else if (assigneeId) {
-    where.assigneeId = assigneeId;
-  }
-  if (priority) where.priority = priority;
-  if (search) {
+    const where: Record<string, any> = { teamId };
+    const and: Record<string, any>[] = [];
+    if (statuses) {
+      where.status = { in: statuses.split(",").map((s) => s.trim()) };
+    } else if (status) {
+      where.status = status;
+    }
+    if (categoryId) where.categoryId = categoryId;
+    const assigneeIds = searchParams.get("assigneeIds");
+    if (assigneeIds) {
+      where.assigneeId = { in: assigneeIds.split(",").map((s) => s.trim()) };
+    } else if (assigneeId) {
+      where.assigneeId = assigneeId;
+    }
+    if (priority) where.priority = priority;
+    if (search) {
+      and.push({
+        OR: [
+          { title: { contains: search, mode: "insensitive" } },
+          { description: { contains: search, mode: "insensitive" } },
+        ],
+      });
+    }
+    if (completedFrom || completedTo) {
+      where.completedAt = {};
+      if (completedFrom) where.completedAt.gte = new Date(completedFrom);
+      if (completedTo) where.completedAt.lte = new Date(completedTo);
+    }
+    const userId = (session.user as any).id;
     and.push({
       OR: [
-        { title: { contains: search, mode: "insensitive" } },
-        { description: { contains: search, mode: "insensitive" } },
+        { visibility: "team" },
+        { visibility: null },
+        { visibility: "private", createdById: userId },
       ],
     });
-  }
-  if (completedFrom || completedTo) {
-    where.completedAt = {};
-    if (completedFrom) where.completedAt.gte = new Date(completedFrom);
-    if (completedTo) where.completedAt.lte = new Date(completedTo);
-  }
-  // Visibility filter: private tasks are only visible to their creator
-  const userId = (session.user as any).id;
-  and.push({
-    OR: [
-      { visibility: "team" },
-      { visibility: null },
-      { visibility: "private", createdById: userId },
-    ],
-  });
-  if (and.length > 0) where.AND = and;
+    if (and.length > 0) where.AND = and;
 
-  const tasks = await prisma.task.findMany({
-    where,
-    include: taskInclude,
-    orderBy: [{ createdAt: "desc" }],
-  });
-  return NextResponse.json(await attachAssignees(tasks));
+    const tasks = await prisma.task.findMany({
+      where,
+      include: taskInclude,
+      orderBy: [{ createdAt: "desc" }],
+    });
+    return NextResponse.json(await attachAssignees(tasks));
+  } catch (e: any) {
+    console.error("[GET /api/tasks]", e?.message ?? e);
+    return NextResponse.json({ error: e?.message ?? "Chyba serveru" }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Neautorizováno" }, { status: 401 });
-
   try {
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: "Neautorizováno" }, { status: 401 });
+
     const body = await req.json();
     const { title, description, status, priority, dueDate, startDate, categoryId, hourlyRate, recurring } = body;
     // assigneeIds: new multi-assignee array; assigneeId: legacy single

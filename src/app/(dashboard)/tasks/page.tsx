@@ -67,14 +67,14 @@ function startOfToday(): Date {
 
 function TasksContent() {
   const searchParams = useSearchParams();
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
 
   const initialTab = searchParams.get("tab") === "done" ? "done" : "active";
   const [tab, setTab] = useState<"active" | "done">(initialTab);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"kanban" | "list">("kanban");
-  const [scope, setScope] = useState<Scope>("mine");
+  const [scope, setScope] = useState<Scope>("all");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     search: searchParams.get("search") || "",
@@ -91,6 +91,7 @@ function TasksContent() {
   const [dateRange, setDateRange] = useState<DateRange>("month");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const myId = session?.user?.id;
 
@@ -105,53 +106,85 @@ function TasksContent() {
 
   const fetchActive = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams();
-    if (filters.search) params.set("search", filters.search);
-    if (filters.status) params.set("status", filters.status);
-    if (filters.priority) params.set("priority", filters.priority);
-    if (filters.categoryId) params.set("categoryId", filters.categoryId);
+    setFetchError(null);
+    try {
+      const params = new URLSearchParams();
+      if (filters.search) params.set("search", filters.search);
+      if (filters.status) params.set("status", filters.status);
+      if (filters.priority) params.set("priority", filters.priority);
+      if (filters.categoryId) params.set("categoryId", filters.categoryId);
 
-    if (scope === "pick" && selectedMembers.size > 0) {
-      // Multiple assignees: fetch once per member and merge (or pass comma-separated)
-      params.set("assigneeIds", [...selectedMembers].join(","));
-    } else if (scope === "mine" && myId) {
-      params.set("assigneeId", myId);
+      if (scope === "pick" && selectedMembers.size > 0) {
+        params.set("assigneeIds", [...selectedMembers].join(","));
+      } else if (scope === "mine" && myId) {
+        params.set("assigneeId", myId);
+      }
+
+      const doneParams = new URLSearchParams(params);
+      doneParams.set("status", "done");
+      doneParams.set("completedFrom", startOfToday().toISOString());
+
+      const safeJson = async (r: Response) => {
+        const text = await r.text();
+        try { return JSON.parse(text); } catch { return null; }
+      };
+
+      const [activeR, doneR] = await Promise.all([
+        fetch(`/api/tasks?${params}`),
+        fetch(`/api/tasks?${doneParams}`),
+      ]);
+
+      const [activeRes, doneRes] = await Promise.all([safeJson(activeR), safeJson(doneR)]);
+
+      if (!Array.isArray(activeRes)) {
+        const msg = activeRes?.error ?? `HTTP ${activeR.status}`;
+        console.error("[fetchActive] server error:", msg);
+        throw new Error(msg);
+      }
+
+      const activeTasks = activeRes.filter((t: Task) => t.status !== "done");
+      const doneToday = Array.isArray(doneRes) ? doneRes : [];
+      setTasks([...activeTasks, ...doneToday]);
+    } catch (e) {
+      console.error("[fetchActive]", e);
+      setFetchError("Nepodařilo se načíst úkoly. Zkus to znovu.");
+      setTasks([]);
+    } finally {
+      setLoading(false);
     }
-
-    const doneParams = new URLSearchParams(params);
-    doneParams.set("status", "done");
-    doneParams.set("completedFrom", startOfToday().toISOString());
-
-    const [activeRes, doneRes] = await Promise.all([
-      fetch(`/api/tasks?${params}`).then((r) => r.json()),
-      fetch(`/api/tasks?${doneParams}`).then((r) => r.json()),
-    ]);
-
-    const activeTasks = Array.isArray(activeRes) ? activeRes.filter((t: Task) => t.status !== "done") : [];
-    const doneToday = Array.isArray(doneRes) ? doneRes : [];
-    setTasks([...activeTasks, ...doneToday]);
-    setLoading(false);
   }, [filters, scope, myId, selectedMembers]);
 
   const fetchDone = useCallback(async () => {
     setLoading(true);
-    const { from, to } = getDateRange(dateRange, customFrom, customTo);
-    const params = new URLSearchParams();
-    params.set("status", "done");
-    params.set("completedFrom", from.toISOString());
-    params.set("completedTo", to.toISOString());
-    if (filters.search) params.set("search", filters.search);
-    if (filters.categoryId) params.set("categoryId", filters.categoryId);
-    const res = await fetch(`/api/tasks?${params}`);
-    const data = await res.json();
-    setTasks(Array.isArray(data) ? data : []);
-    setLoading(false);
+    setFetchError(null);
+    try {
+      const { from, to } = getDateRange(dateRange, customFrom, customTo);
+      const params = new URLSearchParams();
+      params.set("status", "done");
+      params.set("completedFrom", from.toISOString());
+      params.set("completedTo", to.toISOString());
+      if (filters.search) params.set("search", filters.search);
+      if (filters.categoryId) params.set("categoryId", filters.categoryId);
+      const res = await fetch(`/api/tasks?${params}`);
+      const text = await res.text();
+      let data: any;
+      try { data = JSON.parse(text); } catch { throw new Error(`HTTP ${res.status}: non-JSON response`); }
+      if (!Array.isArray(data)) throw new Error(data?.error ?? `HTTP ${res.status}`);
+      setTasks(data);
+    } catch (e) {
+      console.error("[fetchDone]", e);
+      setFetchError("Nepodařilo se načíst úkoly. Zkus to znovu.");
+      setTasks([]);
+    } finally {
+      setLoading(false);
+    }
   }, [dateRange, customFrom, customTo, filters.search, filters.categoryId]);
 
   useEffect(() => {
+    if (sessionStatus === "loading") return;
     if (tab === "active") fetchActive();
     else fetchDone();
-  }, [tab, fetchActive, fetchDone]);
+  }, [tab, fetchActive, fetchDone, sessionStatus]);
 
   useEffect(() => {
     const handler = () => { if (tab === "active") fetchActive(); };
@@ -398,6 +431,15 @@ function TasksContent() {
           <div className="flex items-center justify-center py-24">
             <div className="w-7 h-7 border-[2.5px] rounded-full animate-spin"
               style={{ borderColor: "var(--accent)", borderTopColor: "transparent" }} />
+          </div>
+        ) : fetchError ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-3">
+            <p className="text-[15px] font-semibold" style={{ color: "var(--text-2)" }}>{fetchError}</p>
+            <button onClick={() => tab === "active" ? fetchActive() : fetchDone()}
+              className="px-4 py-2 rounded-xl text-[13px] font-semibold text-white"
+              style={{ background: "var(--accent)" }}>
+              Zkusit znovu
+            </button>
           </div>
         ) : tab === "done" ? (
           <div className="space-y-3">
