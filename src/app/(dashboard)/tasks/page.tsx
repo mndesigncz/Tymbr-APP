@@ -77,7 +77,7 @@ function TasksContent() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"kanban" | "list" | "calendar">("kanban");
-  const [scope, setScope] = useState<Scope>("mine");
+  const [scope, setScope] = useState<Scope>("all");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     search: searchParams.get("search") || "",
@@ -131,12 +131,25 @@ function TasksContent() {
       doneParams.set("status", "done");
       doneParams.set("completedFrom", startOfToday().toISOString());
 
-      const [activeRes, doneRes] = await Promise.all([
-        fetch(`/api/tasks?${params}`).then((r) => r.json()),
-        fetch(`/api/tasks?${doneParams}`).then((r) => r.json()),
+      const safeJson = async (r: Response) => {
+        const text = await r.text();
+        try { return JSON.parse(text); } catch { return null; }
+      };
+
+      const [activeR, doneR] = await Promise.all([
+        fetch(`/api/tasks?${params}`),
+        fetch(`/api/tasks?${doneParams}`),
       ]);
 
-      const activeTasks = Array.isArray(activeRes) ? activeRes.filter((t: Task) => t.status !== "done") : [];
+      const [activeRes, doneRes] = await Promise.all([safeJson(activeR), safeJson(doneR)]);
+
+      if (!Array.isArray(activeRes)) {
+        const msg = activeRes?.error ?? `HTTP ${activeR.status}`;
+        console.error("[fetchActive] server error:", msg);
+        throw new Error(msg);
+      }
+
+      const activeTasks = activeRes.filter((t: Task) => t.status !== "done");
       const doneToday = Array.isArray(doneRes) ? doneRes : [];
       setTasks([...activeTasks, ...doneToday]);
     } catch (e) {
@@ -160,8 +173,11 @@ function TasksContent() {
       if (filters.search) params.set("search", filters.search);
       if (filters.categoryId) params.set("categoryId", filters.categoryId);
       const res = await fetch(`/api/tasks?${params}`);
-      const data = await res.json();
-      setTasks(Array.isArray(data) ? data : []);
+      const text = await res.text();
+      let data: any;
+      try { data = JSON.parse(text); } catch { throw new Error(`HTTP ${res.status}: non-JSON response`); }
+      if (!Array.isArray(data)) throw new Error(data?.error ?? `HTTP ${res.status}`);
+      setTasks(data);
     } catch (e) {
       console.error("[fetchDone]", e);
       setFetchError("Nepodařilo se načíst úkoly. Zkus to znovu.");

@@ -38,13 +38,18 @@ async function attachAssignees(task: any): Promise<any> {
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Neautorizováno" }, { status: 401 });
+  try {
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: "Neautorizováno" }, { status: 401 });
 
-  const { id } = await params;
-  const task = await prisma.task.findUnique({ where: { id }, include: taskInclude });
-  if (!task) return NextResponse.json({ error: "Úkol nenalezen" }, { status: 404 });
-  return NextResponse.json(await attachAssignees(task));
+    const { id } = await params;
+    const task = await prisma.task.findUnique({ where: { id }, include: taskInclude });
+    if (!task) return NextResponse.json({ error: "Úkol nenalezen" }, { status: 404 });
+    return NextResponse.json(await attachAssignees(task));
+  } catch (e: any) {
+    console.error("[GET /api/tasks/[id]]", e?.message ?? e);
+    return NextResponse.json({ error: e?.message ?? "Chyba serveru" }, { status: 500 });
+  }
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
