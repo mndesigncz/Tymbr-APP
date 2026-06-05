@@ -27,13 +27,13 @@ export async function GET(req: Request) {
 
   // Get all users who have a team and haven't opted out of weekly digest
   const users = await prisma.user.findMany({
-    where: { teamMembers: { some: {} } },
+    where: { teamMemberships: { some: {} } },
     select: {
       id: true,
       name: true,
       email: true,
       notificationPrefs: true,
-      teamMembers: {
+      teamMemberships: {
         take: 1,
         orderBy: { joinedAt: "asc" },
         select: { team: { select: { name: true } } },
@@ -55,7 +55,7 @@ export async function GET(req: Request) {
       }
     }
 
-    const teamName = user.teamMembers[0]?.team?.name ?? "Tymbr";
+    const teamName = user.teamMemberships[0]?.team?.name ?? "Tymbr";
 
     // Fetch overdue tasks (due before today, not done)
     const overdueTasks = await prisma.task.findMany({
