@@ -19,19 +19,23 @@ async function attachAssignees(tasks: any[]): Promise<any[]> {
   if (tasks.length === 0) return tasks;
   const ids = tasks.map((t) => t.id);
   const placeholders = ids.map((_, i) => `$${i + 1}`).join(", ");
-  const rows = await prisma.$queryRawUnsafe<{ taskId: string; userId: string; name: string; email: string; avatar: string | null }[]>(
-    `SELECT ta."taskId", u.id as "userId", u.name, u.email, u.avatar FROM "TaskAssignee" ta JOIN "User" u ON u.id = ta."userId" WHERE ta."taskId" IN (${placeholders}) ORDER BY ta."createdAt"`,
-    ...ids
-  );
-  const byTask = new Map<string, any[]>();
-  for (const r of rows) {
-    if (!byTask.has(r.taskId)) byTask.set(r.taskId, []);
-    byTask.get(r.taskId)!.push({ id: r.userId, name: r.name, email: r.email, avatar: r.avatar });
+  try {
+    const rows = await prisma.$queryRawUnsafe<{ taskId: string; userId: string; name: string; email: string; avatar: string | null }[]>(
+      `SELECT ta."taskId", u.id as "userId", u.name, u.email, u.avatar FROM "TaskAssignee" ta JOIN "User" u ON u.id = ta."userId" WHERE ta."taskId" IN (${placeholders}) ORDER BY ta."createdAt"`,
+      ...ids
+    );
+    const byTask = new Map<string, any[]>();
+    for (const r of rows) {
+      if (!byTask.has(r.taskId)) byTask.set(r.taskId, []);
+      byTask.get(r.taskId)!.push({ id: r.userId, name: r.name, email: r.email, avatar: r.avatar });
+    }
+    return tasks.map((t) => ({
+      ...t,
+      assignees: byTask.get(t.id) ?? (t.assignee ? [t.assignee] : []),
+    }));
+  } catch {
+    return tasks.map((t) => ({ ...t, assignees: t.assignee ? [t.assignee] : [] }));
   }
-  return tasks.map((t) => ({
-    ...t,
-    assignees: byTask.get(t.id) ?? (t.assignee ? [t.assignee] : []),
-  }));
 }
 
 export async function GET(req: NextRequest) {
