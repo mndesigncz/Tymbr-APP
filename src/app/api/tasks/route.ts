@@ -4,6 +4,8 @@ import { getSession } from "@/lib/auth";
 import { sendTaskAssignedEmail } from "@/lib/email";
 import { fireWebhooks } from "@/lib/webhook";
 
+export const maxDuration = 30;
+
 const taskInclude = {
   category: true,
   createdBy: { select: { id: true, name: true, email: true, avatar: true } },
@@ -35,7 +37,8 @@ export async function GET(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Neautorizováno" }, { status: 401 });
 
-  const { searchParams } = new URL(req.url);
+  try {
+    const { searchParams } = new URL(req.url);
   const status = searchParams.get("status");
   const statuses = searchParams.get("statuses");
   const categoryId = searchParams.get("categoryId");
@@ -87,12 +90,16 @@ export async function GET(req: NextRequest) {
   });
   if (and.length > 0) where.AND = and;
 
-  const tasks = await prisma.task.findMany({
-    where,
-    include: taskInclude,
-    orderBy: [{ createdAt: "desc" }],
-  });
-  return NextResponse.json(await attachAssignees(tasks));
+    const tasks = await prisma.task.findMany({
+      where,
+      include: taskInclude,
+      orderBy: [{ createdAt: "desc" }],
+    });
+    return NextResponse.json(await attachAssignees(tasks));
+  } catch (e: any) {
+    console.error("[GET /api/tasks]", e?.message ?? e);
+    return NextResponse.json({ error: e?.message ?? "Chyba serveru" }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
