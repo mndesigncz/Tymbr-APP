@@ -214,6 +214,8 @@ model TeamMember {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
 }
 
 model TeamInvitation {
@@ -227,6 +229,9 @@ model TeamInvitation {
 
   teamId String
   team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
+  @@index([email])
 }
 
 model Category {
@@ -316,6 +321,11 @@ model Task {
   @@index([teamId])
   @@index([status])
   @@index([assigneeId])
+  @@index([categoryId])
+  @@index([createdById])
+  @@index([completedAt])
+  @@index([teamId, status])
+  @@index([teamId, completedAt])
 }
 
 model TaskDependency {
@@ -330,6 +340,7 @@ model TaskDependency {
 
   @@unique([blockerId, blockedId])
   @@index([blockedId])
+  @@index([blockerId])
 }
 
 model SubTask {
@@ -349,6 +360,7 @@ model SubTask {
 
   timeEntries TimeEntry[]
 
+  @@index([taskId])
   @@index([assigneeId])
 }
 
@@ -361,6 +373,8 @@ model TaskStatusHistory {
 
   taskId String
   task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
 }
 
 model Comment {
@@ -373,6 +387,9 @@ model Comment {
 
   userId String
   user   User   @relation(fields: [userId], references: [id])
+
+  @@index([taskId])
+  @@index([userId])
 }
 
 model TimeEntry {
@@ -393,4 +410,7 @@ model TimeEntry {
 
   @@index([userId])
   @@index([taskId])
+  @@index([subtaskId])
+  @@index([startedAt])
+  @@index([userId, stoppedAt])
 }
