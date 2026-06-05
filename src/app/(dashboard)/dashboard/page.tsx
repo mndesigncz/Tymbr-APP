@@ -7,6 +7,7 @@ import { StartWorkButton } from "@/components/layout/StartWorkButton";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import type { Task } from "@/types";
+import type { MemberStat } from "@/components/dashboard/ManagerAnalytics";
 
 const taskInclude = {
   category: true,
@@ -88,6 +89,56 @@ export default async function DashboardPage() {
     }, 0)
   );
 
+  // Manager analytics — per-member breakdown
+  let memberStats: MemberStat[] = [];
+  if (manager && teamId) {
+    const now = new Date();
+    const [members, openByMember, overdueByMember, completedByMember, timeByMember] = await Promise.all([
+      prisma.teamMember.findMany({
+        where: { teamId },
+        include: { user: { select: { id: true, name: true, email: true, avatar: true } } },
+        orderBy: { user: { name: "asc" } },
+      }),
+      prisma.task.groupBy({
+        by: ["assigneeId"],
+        where: { teamId, status: { not: "done" }, assigneeId: { not: null } },
+        _count: true,
+      }),
+      prisma.task.groupBy({
+        by: ["assigneeId"],
+        where: { teamId, status: { not: "done" }, dueDate: { lt: now }, assigneeId: { not: null } },
+        _count: true,
+      }),
+      prisma.task.groupBy({
+        by: ["assigneeId"],
+        where: { teamId, status: "done", completedAt: { gte: monthStart }, assigneeId: { not: null } },
+        _count: true,
+      }),
+      prisma.timeEntry.groupBy({
+        by: ["userId"],
+        where: { task: { teamId }, stoppedAt: { not: null }, startedAt: { gte: monthStart } },
+        _sum: { durationMinutes: true },
+      }),
+    ]);
+
+    memberStats = members.map((m) => {
+      const open = openByMember.find((g) => g.assigneeId === m.userId)?._count ?? 0;
+      const overdue = overdueByMember.find((g) => g.assigneeId === m.userId)?._count ?? 0;
+      const completed = completedByMember.find((g) => g.assigneeId === m.userId)?._count ?? 0;
+      const minutes = timeByMember.find((g) => g.userId === m.userId)?._sum.durationMinutes ?? 0;
+      return {
+        userId: m.userId,
+        name: m.user.name,
+        email: m.user.email,
+        avatar: m.user.avatar ?? null,
+        openTasks: open,
+        overdueTasks: overdue,
+        completedThisMonth: completed,
+        hoursThisMonth: Math.round((minutes / 60) * 10) / 10,
+      };
+    });
+  }
+
   // Priority ordering: urgent > high > medium > low
   const PRIO: Record<string, number> = { urgent: 3, high: 2, medium: 1, low: 0 };
   const byPriority = (a: { priority: string; dueDate: Date | null }, b: { priority: string; dueDate: Date | null }) => {
@@ -147,6 +198,7 @@ export default async function DashboardPage() {
         doneList={doneList}
         doneTotal={doneTotal}
         categories={categories.map((c) => ({ id: c.id, name: c.name, color: c.color, count: c._count.tasks }))}
+        memberStats={memberStats}
       />
     </div>
   );

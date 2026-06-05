@@ -1,16 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
-import { Plus, X, Check } from "lucide-react";
+import { Plus, X, Check, LayoutTemplate, Save, Trash2 } from "lucide-react";
 import type { Task, Category, User } from "@/types";
 import { useStatusConfig } from "@/hooks/useStatusConfig";
 import { usePriorityConfig } from "@/hooks/usePriorityConfig";
+
+interface TaskTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  status: string;
+  priority: string;
+  hourlyRate: number | null;
+  categoryId: string | null;
+  subtasks: { title: string; description?: string; hourlyRate?: string }[] | null;
+}
 
 interface DraftSubtask {
   title: string;
@@ -38,6 +49,14 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [expandedSubtask, setExpandedSubtask] = useState<number | null>(null);
 
+  // Templates
+  const [templates, setTemplates] = useState<TaskTemplate[]>([]);
+  const [templateOpen, setTemplateOpen] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const templateRef = useRef<HTMLDivElement>(null);
+
   // Multi-assignee: array of selected user IDs
   const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<string[]>(
     () => task?.assignees?.map((a) => a.id) ?? (task?.assigneeId ? [task.assigneeId] : [])
@@ -58,11 +77,77 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
     Promise.all([
       fetch("/api/categories").then((r) => r.json()),
       fetch("/api/users").then((r) => r.json()),
-    ]).then(([cats, usrs]) => {
+      fetch("/api/task-templates").then((r) => r.json()),
+    ]).then(([cats, usrs, tmpl]) => {
       setCategories(Array.isArray(cats) ? cats : []);
       setUsers(Array.isArray(usrs) ? usrs : []);
+      setTemplates(Array.isArray(tmpl) ? tmpl : []);
     });
   }, []);
+
+  // Close template dropdown on outside click
+  useEffect(() => {
+    if (!templateOpen) return;
+    const handle = (e: MouseEvent) => {
+      if (templateRef.current && !templateRef.current.contains(e.target as Node)) {
+        setTemplateOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [templateOpen]);
+
+  const applyTemplate = (t: TaskTemplate) => {
+    setForm({
+      title: t.name,
+      description: t.description || "",
+      status: t.status,
+      priority: t.priority as any,
+      dueDate: "",
+      startDate: "",
+      categoryId: t.categoryId || "",
+      hourlyRate: t.hourlyRate ? String(t.hourlyRate) : "",
+    });
+    if (Array.isArray(t.subtasks)) {
+      setDraftSubtasks(t.subtasks.map((st) => ({ title: st.title, description: st.description || "", hourlyRate: st.hourlyRate || "" })));
+    }
+    setSelectedAssigneeIds([]);
+    setTemplateOpen(false);
+  };
+
+  const deleteTemplate = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    await fetch(`/api/task-templates/${id}`, { method: "DELETE" });
+    setTemplates((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const saveAsTemplate = async () => {
+    if (!templateName.trim()) return;
+    setSavingTemplate(true);
+    try {
+      const res = await fetch("/api/task-templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: templateName.trim(),
+          description: form.description || null,
+          status: form.status,
+          priority: form.priority,
+          hourlyRate: form.hourlyRate ? Number(form.hourlyRate) : null,
+          categoryId: form.categoryId || null,
+          subtasks: draftSubtasks.length > 0 ? draftSubtasks : null,
+        }),
+      });
+      if (res.ok) {
+        const t = await res.json();
+        setTemplates((prev) => [t, ...prev]);
+        setSaveTemplateOpen(false);
+        setTemplateName("");
+      }
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
 
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [field]: e.target.value }));
@@ -151,6 +236,61 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Template picker — new tasks only */}
+      {!task && (
+        <div className="relative" ref={templateRef}>
+          <button
+            type="button"
+            onClick={() => setTemplateOpen((o) => !o)}
+            className="flex items-center gap-2 text-[13px] font-semibold px-3.5 py-2 rounded-xl border transition-all hover:opacity-80 w-full justify-center"
+            style={{ background: "var(--bg-subtle)", borderColor: "var(--border-md)", color: "var(--text-2)" }}>
+            <LayoutTemplate className="w-4 h-4" />
+            Použít šablonu
+            {templates.length > 0 && (
+              <span className="text-[11px] px-1.5 py-0.5 rounded-md font-semibold"
+                style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>
+                {templates.length}
+              </span>
+            )}
+          </button>
+
+          {templateOpen && (
+            <div className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-2xl border overflow-hidden shadow-lg"
+              style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
+              {templates.length === 0 ? (
+                <p className="text-[13px] px-4 py-5 text-center" style={{ color: "var(--text-3)" }}>
+                  Žádné šablony. Vyplňte formulář a uložte jako šablonu.
+                </p>
+              ) : (
+                <div className="max-h-56 overflow-y-auto divide-y" style={{ borderColor: "var(--border)" }}>
+                  {templates.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => applyTemplate(t)}
+                      className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-black/[0.03]">
+                      <div className="min-w-0">
+                        <p className="text-[13.5px] font-semibold truncate" style={{ color: "var(--text-1)" }}>{t.name}</p>
+                        {t.description && (
+                          <p className="text-[12px] truncate mt-0.5" style={{ color: "var(--text-3)" }}>{t.description}</p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => deleteTemplate(e, t.id)}
+                        className="flex-shrink-0 p-1.5 rounded-lg transition-colors hover:text-red-500"
+                        style={{ color: "var(--text-3)" }}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       <Input
         label="Název úkolu"
         placeholder="Co je potřeba udělat?"
@@ -326,6 +466,47 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
       )}
 
       {error && <p className="text-sm text-red-400">{error}</p>}
+
+      {/* Save as template — new tasks only */}
+      {!task && (
+        <div className="border-t pt-4" style={{ borderColor: "var(--border)" }}>
+          {saveTemplateOpen ? (
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveAsTemplate(); } if (e.key === "Escape") setSaveTemplateOpen(false); }}
+                placeholder="Název šablony..."
+                autoFocus
+                className="flex-1 text-[13px] rounded-xl px-3 py-2 outline-none"
+                style={{ background: "var(--bg-subtle)", color: "var(--text-1)", border: "1px solid var(--border-md)" }}
+              />
+              <button
+                type="button"
+                onClick={saveAsTemplate}
+                disabled={savingTemplate || !templateName.trim()}
+                className="px-3 py-2 rounded-xl text-[13px] font-semibold transition-all hover:opacity-80 disabled:opacity-50"
+                style={{ background: "var(--accent)", color: "#fff" }}>
+                {savingTemplate ? "…" : "Uložit"}
+              </button>
+              <button type="button" onClick={() => { setSaveTemplateOpen(false); setTemplateName(""); }}
+                className="p-2 rounded-xl transition-colors" style={{ color: "var(--text-3)" }}>
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setSaveTemplateOpen(true)}
+              className="flex items-center gap-1.5 text-[12.5px] font-semibold transition-opacity hover:opacity-70"
+              style={{ color: "var(--text-3)" }}>
+              <Save className="w-3.5 h-3.5" />
+              Uložit jako šablonu
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="flex gap-3 pt-2">
         <Button type="button" variant="secondary" onClick={() => router.back()} className="flex-1">

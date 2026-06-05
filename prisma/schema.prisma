@@ -71,6 +71,7 @@ model Team {
   priorityConfigs TaskPriorityConfig[]
   folders        TeamFolder[]
   files          TeamFile[]
+  taskTemplates  TaskTemplate[]
 
   @@index([ownerId])
 }
@@ -237,7 +238,27 @@ model Category {
   teamId String?
   team   Team?   @relation(fields: [teamId], references: [id], onDelete: SetNull)
 
-  tasks Task[]
+  tasks     Task[]
+  templates TaskTemplate[]
+
+  @@index([teamId])
+}
+
+model TaskTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  status      String   @default("todo")
+  priority    String   @default("medium")
+  hourlyRate  Float?
+  subtasks    Json?
+  createdAt   DateTime @default(now())
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   @@index([teamId])
 }
