@@ -8,7 +8,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
-import { Users, Mail, Trash2, Crown, Copy, Check, Plus, Hash, UserPlus, X, Palette, Image as ImageIcon } from "lucide-react";
+import { Users, Mail, Trash2, Crown, Copy, Check, Plus, Hash, UserPlus, X, Palette, Image as ImageIcon, RefreshCw, AlertTriangle } from "lucide-react";
 import type { Team, TeamMember, TeamInvitation, TeamRole } from "@/types";
 import { ROLE_LABELS } from "@/types";
 import { switchTeam, refreshTeams } from "@/hooks/useTeams";
@@ -248,7 +248,9 @@ function TeamSettingsContent() {
   const [inviteRole, setInviteRole] = useState<TeamRole>("member");
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState("");
+  const [emailWarning, setEmailWarning] = useState("");
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
   const [teamName, setTeamName] = useState("");
   const [savingName, setSavingName] = useState(false);
@@ -341,6 +343,7 @@ function TeamSettingsContent() {
     if (!inviteEmail.trim()) return;
     setInviting(true);
     setInviteError("");
+    setEmailWarning("");
     const res = await fetch("/api/teams/invitations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -348,8 +351,28 @@ function TeamSettingsContent() {
     });
     setInviting(false);
     if (!res.ok) { const d = await res.json(); setInviteError(d.error || "Chyba"); return; }
+    const d = await res.json();
+    if (d.emailSent === false) {
+      setEmailWarning("Pozvánka vytvořena, ale e-mail se nepodařilo odeslat. Zkopírujte odkaz ručně.");
+    }
     setInviteEmail("");
     load();
+  };
+
+  const handleResendInvitation = async (id: string) => {
+    setResendingId(id);
+    const res = await fetch("/api/teams/invitations", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    setResendingId(null);
+    const d = await res.json().catch(() => ({}));
+    if (!d.emailSent) {
+      setEmailWarning("E-mail se nepodařilo znovu odeslat. Zkopírujte odkaz ručně.");
+    } else {
+      setEmailWarning("");
+    }
   };
 
   const handleRemoveMember = async (userId: string) => {
@@ -653,6 +676,12 @@ function TeamSettingsContent() {
                 <Button type="submit" loading={inviting}>Pozvat</Button>
               </div>
               {inviteError && <p className="text-[12px] text-red-400">{inviteError}</p>}
+              {emailWarning && (
+                <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl text-[12px]" style={{ background: "#fef3c7", color: "#92400e" }}>
+                  <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                  <span>{emailWarning}</span>
+                </div>
+              )}
             </form>
 
             {(team.invitations as TeamInvitation[])?.length > 0 && (
@@ -665,6 +694,9 @@ function TeamSettingsContent() {
                       <p className="text-[13px] font-medium truncate" style={{ color: "var(--text-1)" }}>{inv.email}</p>
                       <p className="text-[11px]" style={{ color: "var(--text-3)" }}>{ROLE_LABELS[inv.role as TeamRole]} · čeká na přijetí</p>
                     </div>
+                    <button onClick={() => handleResendInvitation(inv.id)} disabled={resendingId === inv.id} className="p-1.5 rounded-lg transition-colors hover:bg-black/[0.05] disabled:opacity-50" title="Znovu odeslat e-mail" style={{ color: "var(--text-3)" }}>
+                      <RefreshCw className={`w-3.5 h-3.5 ${resendingId === inv.id ? "animate-spin" : ""}`} />
+                    </button>
                     <button onClick={() => copyInviteLink(inv.token)} className="p-1.5 rounded-lg transition-colors hover:bg-black/[0.05]" title="Kopírovat odkaz" style={{ color: "var(--text-3)" }}>
                       {copiedToken === inv.token ? <Check className="w-3.5 h-3.5" style={{ color: "#22C55E" }} /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
