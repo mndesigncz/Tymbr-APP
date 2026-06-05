@@ -69,7 +69,7 @@ function startOfToday(): Date {
 
 function TasksContent() {
   const searchParams = useSearchParams();
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const statuses = useStatusConfig();
 
   const initialTab = searchParams.get("tab") === "done" ? "done" : "active";
@@ -188,9 +188,10 @@ function TasksContent() {
   }, [dateRange, customFrom, customTo, filters.search, filters.categoryId]);
 
   useEffect(() => {
+    if (sessionStatus === "loading") return;
     if (tab === "active") fetchActive();
     else fetchDone();
-  }, [tab, fetchActive, fetchDone]);
+  }, [tab, fetchActive, fetchDone, sessionStatus]);
 
   useEffect(() => {
     const handler = () => { if (tab === "active") fetchActive(); };
