@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { sendTaskAssignedEmail } from "@/lib/email";
+import { sendTaskAssignedEmail, sendStatusChangeEmail } from "@/lib/email";
 
 const taskInclude = {
   category: true,
@@ -78,11 +78,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     // Status tracking
     let completedAtUpdate: { completedAt: Date | null } | undefined;
+    let prevStatus: string | undefined;
     if (status !== undefined) {
       const existing = await prisma.task.findUnique({
         where: { id },
         select: { completedAt: true, status: true, statusHistory: { where: { endedAt: null }, take: 1 } },
       });
+      prevStatus = existing?.status;
       if (status === "done") {
         if (!existing?.completedAt) completedAtUpdate = { completedAt: new Date() };
       } else {
@@ -165,7 +167,29 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       }
     }
 
-    return NextResponse.json(await attachAssignees(task));
+    const result = await attachAssignees(task);
+
+    // Send status-change notifications (fire-and-forget)
+    if (status !== undefined && prevStatus !== undefined && prevStatus !== status) {
+      const changerName = session.user.name ?? "Správce";
+      void Promise.allSettled(
+        (result.assignees as { id: string; name: string | null; email: string }[])
+          .filter((a) => a.id !== session.user.id && a.email)
+          .map((a) =>
+            sendStatusChangeEmail({
+              to: a.email,
+              recipientName: a.name ?? "",
+              taskTitle: task.title,
+              taskId: id,
+              oldStatus: prevStatus!,
+              newStatus: status,
+              changerName,
+            })
+          )
+      );
+    }
+
+    return NextResponse.json(result);
   } catch {
     return NextResponse.json({ error: "Chyba serveru" }, { status: 500 });
   }

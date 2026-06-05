@@ -52,16 +52,17 @@ export async function POST(req: NextRequest) {
   try {
     // Raw SQL to bypass Prisma 7 adapter cuid() generation issue
     const rows = await prisma.$queryRaw<any[]>`
-      INSERT INTO "TeamInvitation" (id, email, token, role, "createdAt", "teamId")
+      INSERT INTO "TeamInvitation" (id, email, token, role, "createdAt", "expiresAt", "teamId")
       VALUES (
         gen_random_uuid()::text,
         ${normalizedEmail},
         gen_random_uuid()::text,
         ${role || "member"},
         NOW(),
+        NOW() + INTERVAL '7 days',
         ${teamId}
       )
-      RETURNING id, email, token, role, "createdAt", "teamId"
+      RETURNING id, email, token, role, "createdAt", "expiresAt", "teamId"
     `;
     const invitation = rows[0];
 

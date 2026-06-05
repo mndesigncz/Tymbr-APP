@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import Link from "next/link";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -12,6 +12,7 @@ export default function InvitePage() {
   const router = useRouter();
   const params = useParams();
   const token = params.token as string;
+  const { data: session, status: sessionStatus } = useSession();
 
   const [invitation, setInvitation] = useState<{
     email: string;
@@ -35,6 +36,20 @@ export default function InvitePage() {
 
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  // Logged-in user accepting their own invite directly
+  const handleAcceptLoggedIn = async () => {
+    setLoading(true);
+    setError("");
+    const res = await fetch(`/api/invitations/${token}`, { method: "POST" });
+    setLoading(false);
+    if (!res.ok) {
+      const d = await res.json();
+      setError(d.error || "Nepodařilo se přijmout pozvánku");
+      return;
+    }
+    router.push("/dashboard");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,7 +123,22 @@ export default function InvitePage() {
           )}
         </div>
 
-        {invitation && (
+        {/* Already logged in and email matches → one-click accept */}
+        {invitation && sessionStatus !== "loading" && session?.user?.email?.toLowerCase() === invitation.email.toLowerCase() && (
+          <div className="rounded-xl border p-5 space-y-3"
+            style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
+            <p className="text-[13.5px] text-center" style={{ color: "var(--text-2)" }}>
+              Jsi přihlášen/a jako <strong>{session!.user.email}</strong>.
+            </p>
+            {error && <p className="text-[12px] text-red-400 text-center">{error}</p>}
+            <Button onClick={handleAcceptLoggedIn} loading={loading} className="w-full">
+              Přijmout pozvánku
+            </Button>
+          </div>
+        )}
+
+        {/* Not logged in, or logged in with a different email → show register form */}
+        {invitation && sessionStatus !== "loading" && session?.user?.email?.toLowerCase() !== invitation.email.toLowerCase() && (
           <div className="rounded-xl border p-5 space-y-3"
             style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
             <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg"
