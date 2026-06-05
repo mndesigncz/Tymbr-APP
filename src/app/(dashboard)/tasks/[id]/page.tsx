@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/tasks/StatusBadge";
 import { PriorityBadge } from "@/components/tasks/PriorityBadge";
 import { TaskForm } from "@/components/tasks/TaskForm";
 import { Subtasks } from "@/components/tasks/Subtasks";
+import { TaskDependencies } from "@/components/tasks/TaskDependencies";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
@@ -214,6 +215,10 @@ export default function TaskDetailPage() {
                 Podúkoly
               </h3>
               <Subtasks taskId={task.id} members={members} />
+            </div>
+
+            <div className="rounded-3xl border p-6" style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
+              <TaskDependencies taskId={task.id} teamId={task.teamId} />
             </div>
 
             <div className="rounded-3xl border p-6" style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>

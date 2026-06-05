@@ -23,13 +23,7 @@ export function useKeyboardShortcuts() {
         case "k":
         case "K":
           e.preventDefault();
-          // Focus the first search input on the page, or go to tasks with search focused
-          const searchInput = document.querySelector<HTMLInputElement>('input[placeholder*="ledat"], input[placeholder*="Hledat"]');
-          if (searchInput) {
-            searchInput.focus();
-          } else {
-            router.push("/tasks");
-          }
+          window.dispatchEvent(new CustomEvent("tymbr:search-open"));
           break;
         case "d":
         case "D":

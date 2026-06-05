@@ -310,10 +310,26 @@ model Task {
   subtasks       SubTask[]
   statusHistory  TaskStatusHistory[]
   assignees      TaskAssignee[]
+  blockedBy      TaskDependency[]    @relation("BlockedTask")
+  blocking       TaskDependency[]    @relation("BlockerTask")
 
   @@index([teamId])
   @@index([status])
   @@index([assigneeId])
+}
+
+model TaskDependency {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  blockerId String
+  blocker   Task   @relation("BlockerTask", fields: [blockerId], references: [id], onDelete: Cascade)
+
+  blockedId String
+  blocked   Task   @relation("BlockedTask", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockedId])
 }
 
 model SubTask {

@@ -187,6 +187,59 @@ export async function sendStatusChangeEmail({
   }
 }
 
+export async function sendWeeklyDigestEmail({
+  to, name, teamName,
+  overdue, dueSoon, completedLastWeek,
+}: {
+  to: string;
+  name: string;
+  teamName: string;
+  overdue: { id: string; title: string; dueDate: string }[];
+  dueSoon: { id: string; title: string; dueDate: string }[];
+  completedLastWeek: { id: string; title: string }[];
+}) {
+  if (!process.env.RESEND_API_KEY) return;
+  const url = `${APP_URL}/tasks`;
+
+  const taskRow = (t: { id: string; title: string; dueDate?: string }) =>
+    `<tr><td style="padding:6px 0;border-bottom:1px solid #f3f4f6"><a href="${APP_URL}/tasks/${t.id}" style="color:#111827;text-decoration:none;font-size:14px">${t.title}</a>${t.dueDate ? `<span style="color:#9ca3af;font-size:12px;margin-left:8px">${t.dueDate}</span>` : ""}</td></tr>`;
+
+  const section = (title: string, color: string, rows: string, emptyMsg: string) =>
+    `<div style="margin-bottom:24px">
+      <p style="margin:0 0 8px;font-size:13px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:${color}">${title}</p>
+      ${rows
+        ? `<table style="width:100%;border-collapse:collapse">${rows}</table>`
+        : `<p style="margin:0;font-size:14px;color:#9ca3af">${emptyMsg}</p>`}
+    </div>`;
+
+  const overdueRows = overdue.map((t) => taskRow({ ...t })).join("");
+  const dueSoonRows = dueSoon.map((t) => taskRow({ ...t })).join("");
+  const completedRows = completedLastWeek.map((t) => taskRow(t)).join("");
+  const total = overdue.length + dueSoon.length;
+
+  try {
+    await resend.emails.send({
+      from: FROM,
+      to,
+      subject: `Týdenní přehled Tymbr${total > 0 ? ` · ${total} úkolů čeká` : ""}`,
+      html: base(`
+        <div class="header"><h1>Tymbr</h1></div>
+        <div class="body">
+          <p>Ahoj ${name},</p>
+          <p>Tady je váš týdenní přehled pro tým <strong>${teamName}</strong>.</p>
+          ${section("Po termínu", "#ef4444", overdueRows, "Žádné úkoly po termínu 🎉")}
+          ${section("Splatné tento týden", "#f97316", dueSoonRows, "Žádné úkoly splatné tento týden")}
+          ${section("Splněno minulý týden", "#22c55e", completedRows, "Žádné dokončené úkoly")}
+          <a href="${url}" class="btn">Otevřít úkoly</a>
+        </div>
+        <div class="footer"><p>Tymbr · Týdenní souhrn. Odhlásit se lze v <a href="${APP_URL}/settings/notifications" style="color:#f7592f">nastavení notifikací</a>.</p></div>
+      `),
+    });
+  } catch (err) {
+    console.error("[email] sendWeeklyDigestEmail failed:", err);
+  }
+}
+
 export async function sendWelcomeEmail({
   to, name, teamName,
 }: {
