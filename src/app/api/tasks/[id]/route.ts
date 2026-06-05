@@ -22,19 +22,23 @@ const taskInclude = {
 };
 
 async function attachAssignees(task: any): Promise<any> {
-  const rows = await prisma.$queryRaw<{ userId: string; name: string; email: string; avatar: string | null }[]>`
-    SELECT u.id as "userId", u.name, u.email, u.avatar
-    FROM "TaskAssignee" ta
-    JOIN "User" u ON u.id = ta."userId"
-    WHERE ta."taskId" = ${task.id}
-    ORDER BY ta."createdAt"
-  `;
-  return {
-    ...task,
-    assignees: rows.length > 0
-      ? rows.map((r) => ({ id: r.userId, name: r.name, email: r.email, avatar: r.avatar }))
-      : task.assignee ? [task.assignee] : [],
-  };
+  try {
+    const rows = await prisma.$queryRaw<{ userId: string; name: string; email: string; avatar: string | null }[]>`
+      SELECT u.id as "userId", u.name, u.email, u.avatar
+      FROM "TaskAssignee" ta
+      JOIN "User" u ON u.id = ta."userId"
+      WHERE ta."taskId" = ${task.id}
+      ORDER BY ta."createdAt"
+    `;
+    return {
+      ...task,
+      assignees: rows.length > 0
+        ? rows.map((r) => ({ id: r.userId, name: r.name, email: r.email, avatar: r.avatar }))
+        : task.assignee ? [task.assignee] : [],
+    };
+  } catch {
+    return { ...task, assignees: task.assignee ? [task.assignee] : [] };
+  }
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
