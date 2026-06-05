@@ -71,6 +71,7 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
     startDate: task?.startDate ? new Date(task.startDate).toISOString().slice(0, 10) : "",
     categoryId: task?.categoryId || "",
     hourlyRate: task?.hourlyRate ? String(task.hourlyRate) : "",
+    recurring: task?.recurring || "none",
   });
 
   useEffect(() => {
@@ -107,6 +108,7 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
       startDate: "",
       categoryId: t.categoryId || "",
       hourlyRate: t.hourlyRate ? String(t.hourlyRate) : "",
+      recurring: "none",
     });
     if (Array.isArray(t.subtasks)) {
       setDraftSubtasks(t.subtasks.map((st) => ({ title: st.title, description: st.description || "", hourlyRate: st.hourlyRate || "" })));
@@ -178,6 +180,7 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
           categoryId: form.categoryId || null,
           hourlyRate: form.hourlyRate ? Number(form.hourlyRate) : null,
           assigneeIds: selectedAssigneeIds,
+          recurring: form.recurring || "none",
         }),
       });
       if (!res.ok) {
@@ -390,6 +393,18 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
         onChange={set("hourlyRate")}
         min="0"
         step="10"
+      />
+
+      <Select
+        label="Opakování"
+        options={[
+          { value: "none", label: "Žádné" },
+          { value: "daily", label: "Denně" },
+          { value: "weekly", label: "Týdně" },
+          { value: "monthly", label: "Měsíčně" },
+        ]}
+        value={form.recurring}
+        onChange={set("recurring")}
       />
 
       {/* Subtasks (only for new tasks) */}

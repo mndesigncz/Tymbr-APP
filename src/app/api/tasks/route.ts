@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { title, description, status, priority, dueDate, startDate, categoryId, hourlyRate } = body;
+    const { title, description, status, priority, dueDate, startDate, categoryId, hourlyRate, recurring } = body;
     // assigneeIds: new multi-assignee array; assigneeId: legacy single
     const assigneeIds: string[] = Array.isArray(body.assigneeIds) ? body.assigneeIds.filter(Boolean) : [];
     if (!assigneeIds.length && body.assigneeId) assigneeIds.push(body.assigneeId);
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
       INSERT INTO "Task" (
         id, title, description, status, priority, "dueDate", "startDate",
         "categoryId", "assigneeId", "hourlyRate", "completedAt",
-        "createdById", "teamId", "createdAt", "updatedAt"
+        "createdById", "teamId", recurring, "createdAt", "updatedAt"
       )
       VALUES (
         gen_random_uuid()::text,
@@ -134,6 +134,7 @@ export async function POST(req: NextRequest) {
         ${completedAt},
         ${session.user.id},
         ${teamId},
+        ${recurring || "none"},
         NOW(),
         NOW()
       )

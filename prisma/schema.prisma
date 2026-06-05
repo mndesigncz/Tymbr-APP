@@ -274,6 +274,7 @@ model Task {
   completedAt DateTime?
   hourlyRate  Float?
   visibility  String    @default("team")
+  recurring   String    @default("none")
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
