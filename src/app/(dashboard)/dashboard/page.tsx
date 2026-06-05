@@ -9,6 +9,8 @@ import Link from "next/link";
 import type { Task } from "@/types";
 import type { MemberStat } from "@/components/dashboard/ManagerAnalytics";
 
+interface CompletionPoint { date: string; count: number }
+
 const taskInclude = {
   category: true,
   assignee: { select: { id: true, name: true, email: true, avatar: true } },
@@ -139,6 +141,30 @@ export default async function DashboardPage() {
     });
   }
 
+  // Completion trend for the last 30 days
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+  thirtyDaysAgo.setHours(0, 0, 0, 0);
+  const completedInPeriod = teamId
+    ? await prisma.task.findMany({
+        where: { teamId, status: "done", completedAt: { gte: thirtyDaysAgo, not: null } },
+        select: { completedAt: true },
+      })
+    : [];
+  const completionMap = new Map<string, number>();
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(thirtyDaysAgo);
+    d.setDate(d.getDate() + i);
+    completionMap.set(d.toISOString().slice(0, 10), 0);
+  }
+  for (const t of completedInPeriod) {
+    if (t.completedAt) {
+      const key = new Date(t.completedAt).toISOString().slice(0, 10);
+      if (completionMap.has(key)) completionMap.set(key, (completionMap.get(key) ?? 0) + 1);
+    }
+  }
+  const completionData: CompletionPoint[] = [...completionMap.entries()].map(([date, count]) => ({ date, count }));
+
   // Priority ordering: urgent > high > medium > low
   const PRIO: Record<string, number> = { urgent: 3, high: 2, medium: 1, low: 0 };
   const byPriority = (a: { priority: string; dueDate: Date | null }, b: { priority: string; dueDate: Date | null }) => {
@@ -199,6 +225,7 @@ export default async function DashboardPage() {
         doneTotal={doneTotal}
         categories={categories.map((c) => ({ id: c.id, name: c.name, color: c.color, count: c._count.tasks }))}
         memberStats={memberStats}
+        completionData={completionData}
       />
     </div>
   );
