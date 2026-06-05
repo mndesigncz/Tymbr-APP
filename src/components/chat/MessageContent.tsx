@@ -33,7 +33,7 @@ export function MessageContent({
       const text = content.slice(lastIndex, match.index);
       parts.push(<Fragment key={key++}>{text}</Fragment>);
     }
-    parts.push(<ChatTaskChip key={key++} task={tasksById[taskId] ?? null} />);
+    parts.push(<ChatTaskChip key={key++} task={tasksById[taskId]} taskId={taskId} />);
     lastIndex = match.index + full.length;
   }
   if (lastIndex < content.length) {
