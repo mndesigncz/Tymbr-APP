@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { Pool } from "pg";
+
+/** Strip -pooler from Neon hostname to get a direct connection that supports DDL. */
+function toDirectUrl(url: string): string {
+  return url.replace(/-pooler\./, ".");
+}
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
@@ -14,9 +20,23 @@ export async function POST(req: NextRequest) {
 
   const trimmed = name.trim();
 
+  // Drop the legacy one-owner-per-team unique constraint if it still exists.
+  // Must use a direct (non-pooler) connection — PgBouncer transaction mode blocks DDL.
+  // Running this inline guarantees it hits the exact same database as the INSERT below.
+  const directUrl = toDirectUrl(process.env.DATABASE_URL ?? "");
+  if (directUrl) {
+    const pool = new Pool({ connectionString: directUrl, connectionTimeoutMillis: 6000 });
+    try {
+      await pool.query(`ALTER TABLE "Team" DROP CONSTRAINT IF EXISTS "Team_ownerId_key"`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS "Team_ownerId_idx" ON "Team" ("ownerId")`);
+    } catch {
+      // DDL may fail on first-run pooler URL — INSERT error will surface the real problem
+    } finally {
+      try { await pool.end(); } catch { /* ignore */ }
+    }
+  }
+
   try {
-    // Use raw SQL to bypass Prisma 7 adapter cuid() generation issue.
-    // joinCode was added via migration_v2.sql and is NOT in Prisma schema.
     await prisma.$executeRaw`
       INSERT INTO "Team" (id, name, "createdAt", "ownerId", "joinCode")
       VALUES (
