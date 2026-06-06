@@ -2,16 +2,18 @@
 
 import { Fragment } from "react";
 import { ChatTaskChip } from "./ChatTaskChip";
+import { ChatUserChip } from "./ChatUserChip";
+import { ChatFileChip } from "./ChatFileChip";
 import type { Task } from "@/types";
 
-const TASK_MARKER = /\[\[task:([a-zA-Z0-9_-]+)\]\]/g;
+// Matches [[task:id]], [[user:id]], [[file:id]]
+const MARKER = /\[\[(task|user|file):([a-zA-Z0-9_-]+)\]\]/g;
 
 export function hasTaskMarkers(content: string): boolean {
-  TASK_MARKER.lastIndex = 0;
-  return TASK_MARKER.test(content);
+  MARKER.lastIndex = 0;
+  return MARKER.test(content);
 }
 
-// Renders a chat message body, replacing [[task:ID]] markers with live task cards.
 export function MessageContent({
   content,
   tasksById,
@@ -26,14 +28,19 @@ export function MessageContent({
   let match: RegExpExecArray | null;
   let key = 0;
 
-  TASK_MARKER.lastIndex = 0;
-  while ((match = TASK_MARKER.exec(content)) !== null) {
-    const [full, taskId] = match;
+  MARKER.lastIndex = 0;
+  while ((match = MARKER.exec(content)) !== null) {
+    const [full, type, id] = match;
     if (match.index > lastIndex) {
-      const text = content.slice(lastIndex, match.index);
-      parts.push(<Fragment key={key++}>{text}</Fragment>);
+      parts.push(<Fragment key={key++}>{content.slice(lastIndex, match.index)}</Fragment>);
     }
-    parts.push(<ChatTaskChip key={key++} task={tasksById[taskId]} taskId={taskId} />);
+    if (type === "task") {
+      parts.push(<ChatTaskChip key={key++} task={tasksById[id]} taskId={id} />);
+    } else if (type === "user") {
+      parts.push(<ChatUserChip key={key++} userId={id} />);
+    } else if (type === "file") {
+      parts.push(<ChatFileChip key={key++} fileId={id} />);
+    }
     lastIndex = match.index + full.length;
   }
   if (lastIndex < content.length) {

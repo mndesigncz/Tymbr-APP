@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import {
   Folder, FolderOpen, File, FileText, FileImage, FileVideo, FileArchive,
-  Link as LinkIcon, Upload, Plus, Trash2, ChevronRight, Home, X, ExternalLink,
+  Link as LinkIcon, Upload, Trash2, ChevronRight, Home, X, ExternalLink,
+  Lock, Globe,
 } from "lucide-react";
 
 interface TeamFolder {
@@ -27,6 +29,8 @@ interface TeamFile {
   folderId: string | null;
   createdAt: string;
   creatorName?: string;
+  visibility?: string;
+  createdById?: string;
 }
 
 function fileIcon(file: TeamFile) {
@@ -53,6 +57,8 @@ type Modal =
   | { kind: "deleteFile"; item: TeamFile };
 
 export default function FilesPage() {
+  const { data: session } = useSession();
+  const myId = (session?.user as any)?.id;
   const [folderId, setFolderId] = useState<string | null>(null);
   const [breadcrumbs, setBreadcrumbs] = useState<{ id: string; name: string }[]>([]);
   const [folders, setFolders] = useState<TeamFolder[]>([]);
@@ -141,6 +147,16 @@ export default function FilesPage() {
     });
     closeModal();
     load(folderId);
+  };
+
+  const toggleVisibility = async (file: TeamFile) => {
+    const next = (file.visibility ?? "team") === "team" ? "private" : "team";
+    await fetch("/api/files", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: file.id, visibility: next }),
+    });
+    setFiles((prev) => prev.map((f) => f.id === file.id ? { ...f, visibility: next } : f));
   };
 
   const isEmpty = !loading && folders.length === 0 && files.length === 0;
@@ -262,7 +278,7 @@ export default function FilesPage() {
                       <ExternalLink className="w-3 h-3 flex-shrink-0" style={{ color: "var(--text-3)" }} />
                     )}
                   </a>
-                  <div className="hidden sm:flex items-center gap-4">
+                  <div className="hidden sm:flex items-center gap-3">
                     {file.size != null && (
                       <span className="text-[12px]" style={{ color: "var(--text-3)" }}>
                         {formatBytes(Number(file.size))}
@@ -271,6 +287,26 @@ export default function FilesPage() {
                     <span className="text-[12px]" style={{ color: "var(--text-3)" }}>
                       {file.creatorName}
                     </span>
+                    {file.createdById === myId && (
+                      <button
+                        onClick={() => toggleVisibility(file)}
+                        title={(file.visibility ?? "team") === "team" ? "Viditelné pro tým — klikni pro soukromé" : "Soukromé — klikni pro sdílené"}
+                        className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-medium transition-all hover:scale-105 active:scale-95"
+                        style={(file.visibility ?? "team") === "private"
+                          ? { background: "#f3f4f6", color: "#6b7280" }
+                          : { background: "var(--accent-soft)", color: "var(--accent)" }}
+                      >
+                        {(file.visibility ?? "team") === "private"
+                          ? <><Lock className="w-3 h-3" /> Soukromé</>
+                          : <><Globe className="w-3 h-3" /> Tým</>
+                        }
+                      </button>
+                    )}
+                    {file.createdById !== myId && (file.visibility ?? "team") === "team" && (
+                      <span className="flex items-center gap-1 text-[11px]" style={{ color: "var(--text-3)" }}>
+                        <Globe className="w-3 h-3" />
+                      </span>
+                    )}
                   </div>
                   <button
                     onClick={() => setModal({ kind: "deleteFile", item: file })}
