@@ -1,14 +1,23 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { Pool } from "pg";
 
-/**
- * One-time migration endpoint — drops the legacy Team_ownerId_key constraint.
- * Tries every known non-pooler env var so it works regardless of Vercel setup.
- * Protected by session — only authenticated users can call it.
- * Safe to call multiple times (IF EXISTS).
- */
 export const dynamic = "force-dynamic";
+
+/** Derives a direct (non-pooler) URL from a Neon pooler URL.
+ *  Neon pooler hostnames contain "-pooler"; removing it gives the direct endpoint.
+ *  If already direct, returns as-is. */
+function toDirectUrl(url: string): string {
+  return url.replace(/-pooler\./, ".");
+}
+
+async function checkConstraintExists(pool: Pool): Promise<boolean> {
+  const r = await pool.query<{ cnt: string }>(
+    `SELECT COUNT(*)::text AS cnt FROM pg_constraint WHERE conname = 'Team_ownerId_key'`
+  );
+  return r.rows[0].cnt !== "0";
+}
 
 export async function GET() {
   const session = await getSession();
@@ -16,26 +25,42 @@ export async function GET() {
     return NextResponse.json({ error: "Přihlaste se nejdříve" }, { status: 401 });
   }
 
-  // Try direct (non-pooler) URLs first — pooler (PgBouncer) cannot run DDL.
-  // Vercel Neon integration provides POSTGRES_URL_NON_POOLING for this purpose.
-  const candidates = [
-    process.env.POSTGRES_URL_NON_POOLING,
-    process.env.DATABASE_URL_UNPOOLED,
-    process.env.DIRECT_URL,
-    process.env.DATABASE_URL,  // last resort — may be pooler
-  ].filter((u): u is string => !!u);
-
   const log: string[] = [];
+  const dbUrl = process.env.DATABASE_URL ?? "";
 
-  if (candidates.length === 0) {
-    return NextResponse.json({ ok: false, log: ["No DATABASE_URL env vars found"] }, { status: 500 });
+  // ── Step 1: Check if constraint exists in the SAME DB the app uses (via Prisma) ──
+  let appDbConstraintExists: boolean | string = "unknown";
+  try {
+    const rows = await prisma.$queryRaw<{ cnt: bigint }[]>`
+      SELECT COUNT(*)::text AS cnt FROM pg_constraint WHERE conname = 'Team_ownerId_key'
+    `;
+    appDbConstraintExists = (rows as any)[0]?.cnt !== "0";
+    log.push(`App DB (DATABASE_URL): constraint ${appDbConstraintExists ? "EXISTS ✗" : "gone ✓"}`);
+  } catch (e: any) {
+    log.push(`App DB check failed: ${e?.message?.split("\n")[0]}`);
   }
+
+  if (appDbConstraintExists === false) {
+    return NextResponse.json({ ok: true, constraintGone: true, log });
+  }
+
+  // ── Step 2: Build candidate direct URLs (pooler cannot run DDL) ──
+  // Priority: derive direct URL from DATABASE_URL itself, then known env vars
+  const candidates = [
+    dbUrl ? toDirectUrl(dbUrl) : "",           // derived direct from app's DB URL
+    process.env.POSTGRES_URL_NON_POOLING ?? "", // Vercel Neon integration
+    process.env.DATABASE_URL_UNPOOLED ?? "",
+    process.env.DIRECT_URL ?? "",
+    dbUrl,                                      // last resort — may be pooler, will fail DDL
+  ].filter((u, i, arr) => u && arr.indexOf(u) === i); // unique, non-empty
+
+  log.push(`Trying ${candidates.length} connection(s) for DDL…`);
 
   let migrationOk = false;
 
   for (const url of candidates) {
     const label = url.replace(/:[^:@]*@/, ":***@").split("?")[0];
-    const pool = new Pool({ connectionString: url });
+    const pool = new Pool({ connectionString: url, connectionTimeoutMillis: 8000 });
     try {
       await pool.query(`ALTER TABLE "Team" DROP CONSTRAINT IF EXISTS "Team_ownerId_key"`);
       await pool.query(`CREATE INDEX IF NOT EXISTS "Team_ownerId_idx" ON "Team" ("ownerId")`);
@@ -45,25 +70,28 @@ export async function GET() {
       break;
     } catch (e: any) {
       log.push(`✗ ${label}: ${e?.message?.split("\n")[0]}`);
-      await pool.end();
+      try { await pool.end(); } catch { /* ignore */ }
     }
   }
 
-  // Verify constraint is actually gone using the first available URL
-  const verifyPool = new Pool({ connectionString: candidates[0] });
-  let constraintGone: boolean | string = false;
+  // ── Step 3: Verify via Prisma (= app's actual DATABASE_URL) ──
+  let constraintGone: boolean | string = "unknown";
   try {
-    const r = await verifyPool.query<{ cnt: string }>(
-      `SELECT COUNT(*)::text AS cnt FROM pg_constraint WHERE conname = 'Team_ownerId_key'`
-    );
-    constraintGone = r.rows[0].cnt === "0";
-    log.push(constraintGone ? "✓ Constraint is gone — team creation will work" : "✗ Constraint still exists in pg_constraint");
+    const rows = await prisma.$queryRaw<{ cnt: string }[]>`
+      SELECT COUNT(*)::text AS cnt FROM pg_constraint WHERE conname = 'Team_ownerId_key'
+    `;
+    constraintGone = (rows as any)[0]?.cnt === "0";
+    log.push(constraintGone
+      ? "✓ Verified via app DB — constraint is gone, team creation will work"
+      : "✗ Constraint STILL exists in app DB — DDL ran on wrong database");
   } catch (e: any) {
-    log.push(`✗ Verify failed: ${e?.message?.split("\n")[0]}`);
-    constraintGone = "unknown";
-  } finally {
-    await verifyPool.end();
+    log.push(`Verify via Prisma failed: ${e?.message?.split("\n")[0]}`);
   }
 
-  return NextResponse.json({ ok: migrationOk && constraintGone === true, migrationOk, constraintGone, log });
+  return NextResponse.json({
+    ok: migrationOk && constraintGone === true,
+    migrationOk,
+    constraintGone,
+    log,
+  });
 }
