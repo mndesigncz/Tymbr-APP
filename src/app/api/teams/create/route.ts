@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { Pool } from "pg";
 
-/** Strip -pooler from Neon hostname to get a direct connection that supports DDL. */
 function toDirectUrl(url: string): string {
   return url.replace(/-pooler\./, ".");
 }
@@ -20,19 +19,36 @@ export async function POST(req: NextRequest) {
 
   const trimmed = name.trim();
 
-  // Drop the legacy one-owner-per-team unique constraint if it still exists.
-  // Must use a direct (non-pooler) connection — PgBouncer transaction mode blocks DDL.
-  // Running this inline guarantees it hits the exact same database as the INSERT below.
-  const directUrl = toDirectUrl(process.env.DATABASE_URL ?? "");
-  if (directUrl) {
-    const pool = new Pool({ connectionString: directUrl, connectionTimeoutMillis: 6000 });
-    try {
-      await pool.query(`ALTER TABLE "Team" DROP CONSTRAINT IF EXISTS "Team_ownerId_key"`);
-      await pool.query(`CREATE INDEX IF NOT EXISTS "Team_ownerId_idx" ON "Team" ("ownerId")`);
-    } catch {
-      // DDL may fail on first-run pooler URL — INSERT error will surface the real problem
-    } finally {
-      try { await pool.end(); } catch { /* ignore */ }
+  // Drop the legacy one-owner-per-team unique constraint before inserting.
+  // Strategy: try via the Prisma client first (identical connection to the INSERT,
+  // so it is guaranteed to hit the same database). If that throws for any reason,
+  // fall back to a separate direct pg connection derived from DATABASE_URL.
+  let ddlErr: string | null = null;
+
+  try {
+    // $executeRawUnsafe uses the simple query protocol (no prepared statements),
+    // which works through PgBouncer transaction-mode pooling.
+    await (prisma as any).$executeRawUnsafe(
+      `ALTER TABLE "Team" DROP CONSTRAINT IF EXISTS "Team_ownerId_key"`
+    );
+    await (prisma as any).$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "Team_ownerId_idx" ON "Team" ("ownerId")`
+    );
+  } catch (e1: any) {
+    ddlErr = `prisma: ${e1?.message?.split("\n")[0]}`;
+    // Fallback: direct pg connection (bypasses PgBouncer entirely)
+    const directUrl = toDirectUrl(process.env.DATABASE_URL ?? "");
+    if (directUrl) {
+      const pool = new Pool({ connectionString: directUrl, connectionTimeoutMillis: 15000 });
+      try {
+        await pool.query(`ALTER TABLE "Team" DROP CONSTRAINT IF EXISTS "Team_ownerId_key"`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS "Team_ownerId_idx" ON "Team" ("ownerId")`);
+        ddlErr = null; // fallback succeeded
+      } catch (e2: any) {
+        ddlErr += ` | pg-direct: ${e2?.message?.split("\n")[0]}`;
+      } finally {
+        try { await pool.end(); } catch { /* ignore */ }
+      }
     }
   }
 
@@ -61,6 +77,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(team, { status: 201 });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Chyba serveru" }, { status: 500 });
+    // Include ddlErr in response so we can see exactly why the migration didn't run
+    return NextResponse.json(
+      { error: e?.message || "Chyba serveru", _ddl: ddlErr },
+      { status: 500 }
+    );
   }
 }
