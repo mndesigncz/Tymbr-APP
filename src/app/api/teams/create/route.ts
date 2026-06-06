@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { Pool } from "pg";
-
-function toDirectUrl(url: string): string {
-  return url.replace(/-pooler\./, ".");
-}
 
 export async function POST(req: NextRequest) {
   const session = await getSession();
@@ -19,38 +14,20 @@ export async function POST(req: NextRequest) {
 
   const trimmed = name.trim();
 
-  // Drop the legacy one-owner-per-team unique constraint before inserting.
-  // Strategy: try via the Prisma client first (identical connection to the INSERT,
-  // so it is guaranteed to hit the same database). If that throws for any reason,
-  // fall back to a separate direct pg connection derived from DATABASE_URL.
-  let ddlErr: string | null = null;
-
+  // Drop the legacy unique index/constraint that blocks a user from owning multiple teams.
+  // The object is a UNIQUE INDEX (not a formal constraint), so DROP INDEX is required.
+  // $executeRawUnsafe uses the simple query protocol — works through PgBouncer.
   try {
-    // $executeRawUnsafe uses the simple query protocol (no prepared statements),
-    // which works through PgBouncer transaction-mode pooling.
+    await (prisma as any).$executeRawUnsafe(
+      `DROP INDEX IF EXISTS "Team_ownerId_key"`
+    );
     await (prisma as any).$executeRawUnsafe(
       `ALTER TABLE "Team" DROP CONSTRAINT IF EXISTS "Team_ownerId_key"`
     );
     await (prisma as any).$executeRawUnsafe(
       `CREATE INDEX IF NOT EXISTS "Team_ownerId_idx" ON "Team" ("ownerId")`
     );
-  } catch (e1: any) {
-    ddlErr = `prisma: ${e1?.message?.split("\n")[0]}`;
-    // Fallback: direct pg connection (bypasses PgBouncer entirely)
-    const directUrl = toDirectUrl(process.env.DATABASE_URL ?? "");
-    if (directUrl) {
-      const pool = new Pool({ connectionString: directUrl, connectionTimeoutMillis: 15000 });
-      try {
-        await pool.query(`ALTER TABLE "Team" DROP CONSTRAINT IF EXISTS "Team_ownerId_key"`);
-        await pool.query(`CREATE INDEX IF NOT EXISTS "Team_ownerId_idx" ON "Team" ("ownerId")`);
-        ddlErr = null; // fallback succeeded
-      } catch (e2: any) {
-        ddlErr += ` | pg-direct: ${e2?.message?.split("\n")[0]}`;
-      } finally {
-        try { await pool.end(); } catch { /* ignore */ }
-      }
-    }
-  }
+  } catch { /* ignore — index may already be gone */ }
 
   try {
     await prisma.$executeRaw`
@@ -77,10 +54,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(team, { status: 201 });
   } catch (e: any) {
-    // Include ddlErr in response so we can see exactly why the migration didn't run
-    return NextResponse.json(
-      { error: e?.message || "Chyba serveru", _ddl: ddlErr },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: e?.message || "Chyba serveru" }, { status: 500 });
   }
 }

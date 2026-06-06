@@ -12,82 +12,81 @@ export async function GET() {
 
   const log: string[] = [];
 
-  // ── Diagnostic: identify which database Prisma is actually connected to ──
-  let dbName: string | null = null;
-  let serverAddr: string | null = null;
-  try {
-    const info = await prisma.$queryRaw<any[]>`
-      SELECT
-        current_database() AS db,
-        current_schema() AS schema,
-        inet_server_addr()::text AS addr,
-        inet_server_port() AS port
-    `;
-    dbName = info[0]?.db ?? null;
-    serverAddr = `${info[0]?.addr ?? "?"}:${info[0]?.port ?? "?"}`;
-    log.push(`Connected to DB "${dbName}" at ${serverAddr} (schema: ${info[0]?.schema})`);
-  } catch (e: any) {
-    log.push(`Diag failed: ${e?.message?.split("\n")[0]}`);
-  }
-
-  // Also show the DATABASE_URL host (masked) so user can match it in Neon console
-  const dbUrlHint = (process.env.DATABASE_URL ?? "")
-    .replace(/:[^:@]*@/, ":***@")
-    .replace(/\?.*/, "")
-    .split("@")[1] ?? "unknown";
-  log.push(`DATABASE_URL host: ${dbUrlHint}`);
-
-  // ── Step 1: Check if constraint exists ──
-  let constraintExists: boolean | null = null;
+  // Check pg_constraint (formal UNIQUE constraint)
+  let isConstraint = false;
   try {
     const rows = await prisma.$queryRaw<any[]>`
       SELECT COUNT(*)::text AS cnt FROM pg_constraint WHERE conname = 'Team_ownerId_key'
     `;
-    constraintExists = (rows as any)[0]?.cnt !== "0";
-    log.push(`Constraint "Team_ownerId_key": ${constraintExists ? "EXISTS ✗" : "already gone ✓"}`);
+    isConstraint = (rows as any)[0]?.cnt !== "0";
+    log.push(`pg_constraint: ${isConstraint ? "EXISTS" : "not found"}`);
   } catch (e: any) {
-    log.push(`Constraint check failed: ${e?.message?.split("\n")[0]}`);
+    log.push(`pg_constraint check failed: ${e?.message?.split("\n")[0]}`);
   }
 
-  if (constraintExists === false) {
-    log.push("Nothing to do — but if team creation still fails, DDL hit a different DB than the INSERT.");
-    return NextResponse.json({ ok: true, constraintGone: true, dbName, serverAddr, log });
-  }
-
-  // ── Step 2: Drop constraint via prisma.$executeRawUnsafe ──
-  // This uses the exact same connection path as every other Prisma query in this app.
-  let ddlOk = false;
+  // Check pg_indexes (UNIQUE INDEX — same name, different catalog)
+  let isIndex = false;
   try {
-    await (prisma as any).$executeRawUnsafe(
-      `ALTER TABLE "Team" DROP CONSTRAINT IF EXISTS "Team_ownerId_key"`
-    );
+    const rows = await prisma.$queryRaw<any[]>`
+      SELECT COUNT(*)::text AS cnt FROM pg_indexes
+      WHERE tablename = 'Team' AND indexname = 'Team_ownerId_key'
+    `;
+    isIndex = (rows as any)[0]?.cnt !== "0";
+    log.push(`pg_indexes: ${isIndex ? "EXISTS ✗" : "not found"}`);
+  } catch (e: any) {
+    log.push(`pg_indexes check failed: ${e?.message?.split("\n")[0]}`);
+  }
+
+  if (!isConstraint && !isIndex) {
+    log.push("Nothing to drop — unique index is already gone ✓");
+    return NextResponse.json({ ok: true, gone: true, log });
+  }
+
+  // Drop whichever exists
+  if (isConstraint) {
+    try {
+      await (prisma as any).$executeRawUnsafe(
+        `ALTER TABLE "Team" DROP CONSTRAINT IF EXISTS "Team_ownerId_key"`
+      );
+      log.push(`ALTER TABLE DROP CONSTRAINT: ✓`);
+    } catch (e: any) {
+      log.push(`DROP CONSTRAINT failed: ${e?.message?.split("\n")[0]}`);
+    }
+  }
+
+  if (isIndex) {
+    try {
+      await (prisma as any).$executeRawUnsafe(
+        `DROP INDEX IF EXISTS "Team_ownerId_key"`
+      );
+      log.push(`DROP INDEX: ✓`);
+    } catch (e: any) {
+      log.push(`DROP INDEX failed: ${e?.message?.split("\n")[0]}`);
+    }
+  }
+
+  // Ensure non-unique index exists for query performance
+  try {
     await (prisma as any).$executeRawUnsafe(
       `CREATE INDEX IF NOT EXISTS "Team_ownerId_idx" ON "Team" ("ownerId")`
     );
-    ddlOk = true;
-    log.push("DDL via prisma.$executeRawUnsafe: ✓");
+    log.push(`CREATE INDEX Team_ownerId_idx: ✓`);
   } catch (e: any) {
-    log.push(`DDL via prisma failed: ${e?.message?.split("\n")[0]}`);
+    log.push(`CREATE INDEX failed: ${e?.message?.split("\n")[0]}`);
   }
 
-  // ── Step 3: Verify ──
-  let constraintGone: boolean | null = null;
+  // Verify
+  let stillExists = false;
   try {
-    const rows = await prisma.$queryRaw<any[]>`
-      SELECT COUNT(*)::text AS cnt FROM pg_constraint WHERE conname = 'Team_ownerId_key'
-    `;
-    constraintGone = (rows as any)[0]?.cnt === "0";
-    log.push(`After DDL — constraint ${constraintGone ? "gone ✓" : "STILL EXISTS ✗ — DDL ran on wrong DB or was blocked"}`);
+    const [r1, r2] = await Promise.all([
+      prisma.$queryRaw<any[]>`SELECT COUNT(*)::text AS cnt FROM pg_constraint WHERE conname = 'Team_ownerId_key'`,
+      prisma.$queryRaw<any[]>`SELECT COUNT(*)::text AS cnt FROM pg_indexes WHERE tablename = 'Team' AND indexname = 'Team_ownerId_key'`,
+    ]);
+    stillExists = (r1 as any)[0]?.cnt !== "0" || (r2 as any)[0]?.cnt !== "0";
+    log.push(stillExists ? "✗ Still exists after drop — team creation will still fail" : "✓ Verified gone — team creation should work now");
   } catch (e: any) {
     log.push(`Verify failed: ${e?.message?.split("\n")[0]}`);
   }
 
-  return NextResponse.json({
-    ok: ddlOk && constraintGone === true,
-    ddlOk,
-    constraintGone,
-    dbName,
-    serverAddr,
-    log,
-  });
+  return NextResponse.json({ ok: !stillExists, gone: !stillExists, log });
 }
