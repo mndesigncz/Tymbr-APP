@@ -1,92 +1,80 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
   <defs>
-    <!-- App background gradient -->
-    <linearGradient id="appbg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#f7592f"/>
-      <stop offset="60%" stop-color="#f96d44"/>
-      <stop offset="100%" stop-color="#ff8c62"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#f7592f"/>
+      <stop offset="100%" stop-color="#ff8355"/>
     </linearGradient>
-    <!-- Folder body -->
-    <linearGradient id="fbody" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="rgba(255,255,255,0.32)"/>
-      <stop offset="100%" stop-color="rgba(255,255,255,0.10)"/>
-    </linearGradient>
-    <!-- Folder tab -->
-    <linearGradient id="ftab" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="rgba(255,255,255,0.52)"/>
-      <stop offset="100%" stop-color="rgba(255,255,255,0.28)"/>
-    </linearGradient>
-    <!-- Document sheets -->
-    <linearGradient id="doc" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="rgba(255,255,255,0.92)"/>
-      <stop offset="100%" stop-color="rgba(255,255,255,0.70)"/>
-    </linearGradient>
-    <!-- Inner shadow for depth -->
-    <filter id="inner-glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="rgba(0,0,0,0.15)"/>
-    </filter>
-    <filter id="doc-shadow">
-      <feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="rgba(0,0,0,0.12)"/>
-    </filter>
-    <clipPath id="icon-clip">
+    <clipPath id="shape">
       <rect width="512" height="512" rx="112"/>
     </clipPath>
   </defs>
 
-  <!-- Clipped app icon shape -->
-  <g clip-path="url(#icon-clip)">
-    <!-- Background -->
-    <rect width="512" height="512" fill="url(#appbg)"/>
+  <g clip-path="url(#shape)">
 
-    <!-- Subtle top shine -->
-    <ellipse cx="256" cy="60" rx="200" ry="80" fill="rgba(255,255,255,0.08)"/>
+    <!-- ░ Background ░ -->
+    <rect width="512" height="512" fill="url(#bg)"/>
 
-    <!-- === FOLDER === -->
+    <!-- ░ Document sheets – straight, clean, no rotation ░ -->
+    <!-- Sheet B (behind, right-offset) -->
+    <rect x="294" y="108" width="78" height="112" rx="10" fill="white" opacity="0.68"/>
+    <rect x="308" y="130" width="50" height="7"   rx="3.5" fill="rgba(200,70,20,0.18)"/>
+    <rect x="308" y="145" width="36" height="7"   rx="3.5" fill="rgba(200,70,20,0.14)"/>
 
-    <!-- Folder tab (top left raised corner) -->
-    <path d="M88 226 L88 206 Q88 188 106 188 L222 188 Q234 188 240 176 L254 152 Q260 140 274 140 L310 140 Q328 140 328 158 L328 226 Z"
-          fill="url(#ftab)" filter="url(#inner-glow)"/>
+    <!-- Sheet A (front, left-offset) -->
+    <rect x="140" y="92"  width="78" height="128" rx="10" fill="white" opacity="0.84"/>
+    <rect x="154" y="116" width="50" height="7"   rx="3.5" fill="rgba(200,70,20,0.18)"/>
+    <rect x="154" y="131" width="36" height="7"   rx="3.5" fill="rgba(200,70,20,0.14)"/>
 
-    <!-- Document sheets peeking out from folder top -->
-    <!-- Back sheet (tilted right) -->
-    <g filter="url(#doc-shadow)">
-      <rect x="280" y="108" width="80" height="110" rx="10" fill="url(#doc)"
-            transform="rotate(8, 320, 163)" opacity="0.7"/>
-      <!-- Lines on back sheet -->
-      <rect x="289" y="130" width="50" height="5" rx="2.5" fill="rgba(200,100,60,0.25)"
-            transform="rotate(8, 320, 163)"/>
-      <rect x="289" y="143" width="38" height="5" rx="2.5" fill="rgba(200,100,60,0.2)"
-            transform="rotate(8, 320, 163)"/>
-    </g>
-    <!-- Front sheet (slight tilt left) -->
-    <g filter="url(#doc-shadow)">
-      <rect x="188" y="100" width="84" height="118" rx="10" fill="url(#doc)"
-            transform="rotate(-5, 230, 159)" opacity="0.85"/>
-      <!-- Lines on front sheet -->
-      <rect x="198" y="122" width="54" height="6" rx="3" fill="rgba(200,100,60,0.2)"
-            transform="rotate(-5, 230, 159)"/>
-      <rect x="198" y="136" width="40" height="6" rx="3" fill="rgba(200,100,60,0.15)"
-            transform="rotate(-5, 230, 159)"/>
-    </g>
-
-    <!-- Folder body (main rectangle) -->
-    <rect x="72" y="218" width="368" height="224" rx="22" fill="url(#fbody)" filter="url(#inner-glow)"/>
-
-    <!-- Folder body bottom highlight line -->
-    <rect x="72" y="424" width="368" height="4" rx="2" fill="rgba(255,255,255,0.12)"/>
-
-    <!-- === N LETTER === -->
+    <!-- ░ Folder shape – single clean path ░ -->
+    <!--
+      Layout:
+        Tab:  x=68..248, y=186..220  (rx=14 on top)
+        Body: x=68..444, y=220..442  (rx=22)
+    -->
     <path
-      d="M148 388 L148 272
-         L188 272 L284 352 L284 272
-         L324 272 L324 388
-         L284 388 L188 308 L188 388 Z"
-      fill="white"
-      opacity="0.95"
+      d="
+        M 82,442
+        Q 68,442 68,428
+        L 68,220
+        L 68,220
+        L 248,220
+        Q 248,220 260,202
+        L 268,188
+        Q 274,186 282,186
+        L 430,186
+        Q 444,186 444,200
+        L 444,220
+        L 444,428
+        Q 444,442 430,442
+        Z
+      "
+      fill="rgba(255,255,255,0.00)"
+    />
+
+    <!-- Simpler, more reliable: two separate shapes that perfectly butt together -->
+    <!-- Folder tab -->
+    <path
+      d="M 82,220 L 68,220 L 68,200 Q 68,186 82,186 L 230,186 Q 242,186 248,200 L 256,220 Z"
+      fill="rgba(255,255,255,0.26)"
+    />
+    <!-- Folder body -->
+    <rect x="68" y="220" width="376" height="220" rx="22" fill="rgba(255,255,255,0.21)"/>
+
+    <!-- ░ N letter – three clean strokes, centred in folder body ░ -->
+    <!--
+      Folder body centre: x=256, y=330
+      N bounding box: 180×168px  → x: 167..345, y: 246..414
+      Bars at x=167 and x=345 (centre offsets ±89)
+    -->
+    <polyline
+      points="167,414 167,246 345,414 345,246"
+      fill="none"
+      stroke="white"
+      stroke-width="46"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      opacity="0.96"
     />
 
   </g>
-
-  <!-- App icon border shine -->
-  <rect width="512" height="512" rx="112" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
 </svg>
