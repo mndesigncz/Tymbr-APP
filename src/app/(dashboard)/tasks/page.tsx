@@ -12,7 +12,9 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import type { Task } from "@/types";
-import { Plus, LayoutGrid, List, Search, SlidersHorizontal, X, CheckCheck, ChevronDown } from "lucide-react";
+import { Plus, LayoutGrid, List, Calendar, Search, SlidersHorizontal, X, CheckCheck, ChevronDown, Trash2, Square, CheckSquare2 } from "lucide-react";
+import { CalendarView } from "@/components/tasks/CalendarView";
+import { useStatusConfig } from "@/hooks/useStatusConfig";
 import Link from "next/link";
 import { Suspense } from "react";
 
@@ -68,12 +70,13 @@ function startOfToday(): Date {
 function TasksContent() {
   const searchParams = useSearchParams();
   const { data: session, status: sessionStatus } = useSession();
+  const statuses = useStatusConfig();
 
   const initialTab = searchParams.get("tab") === "done" ? "done" : "active";
   const [tab, setTab] = useState<"active" | "done">(initialTab);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<"kanban" | "list">("kanban");
+  const [view, setView] = useState<"kanban" | "list" | "calendar">("kanban");
   const [scope, setScope] = useState<Scope>("all");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
@@ -88,10 +91,12 @@ function TasksContent() {
   const [pickDropOpen, setPickDropOpen] = useState(false);
   const pickRef = useRef<HTMLDivElement>(null);
 
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkStatus, setBulkStatus] = useState("");
+
   const [dateRange, setDateRange] = useState<DateRange>("month");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
-  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const myId = session?.user?.id;
 
@@ -103,6 +108,8 @@ function TasksContent() {
     if (pickDropOpen) document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [pickDropOpen]);
+
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchActive = useCallback(async () => {
     setLoading(true);
@@ -207,6 +214,28 @@ function TasksContent() {
       const updated = await res.json();
       setTasks((prev) => prev.map((t) => (t.id === taskId ? updated : t)));
     }
+  };
+
+  const toggleSelect = (id: string) => setSelected((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const selectAll = () => setSelected(new Set(tasks.map((t) => t.id)));
+  const clearSelect = () => setSelected(new Set());
+
+  const handleBulkStatus = async () => {
+    if (!bulkStatus || selected.size === 0) return;
+    await Promise.all([...selected].map((id) => handleStatusChange(id, bulkStatus)));
+    clearSelect();
+    setBulkStatus("");
+  };
+
+  const handleBulkDelete = async () => {
+    if (selected.size === 0 || !confirm(`Smazat ${selected.size} úkolů?`)) return;
+    await Promise.all([...selected].map((id) => fetch(`/api/tasks/${id}`, { method: "DELETE" })));
+    setTasks((prev) => prev.filter((t) => !selected.has(t.id)));
+    clearSelect();
   };
 
   const toggleMember = (id: string) => {
@@ -349,6 +378,10 @@ function TasksContent() {
                   style={view === "list" ? { background: "var(--accent)", color: "#fff" } : { color: "var(--text-3)" }}>
                   <List className="w-4 h-4" />
                 </button>
+                <button onClick={() => setView("calendar")} className="p-2 rounded-lg transition-all"
+                  style={view === "calendar" ? { background: "var(--accent)", color: "#fff" } : { color: "var(--text-3)" }}>
+                  <Calendar className="w-4 h-4" />
+                </button>
               </div>
             </div>
           )}
@@ -456,22 +489,96 @@ function TasksContent() {
           </div>
         ) : view === "kanban" ? (
           <KanbanBoard tasks={tasks} onStatusChange={handleStatusChange} />
+        ) : view === "calendar" ? (
+          <CalendarView tasks={tasks} />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-            {tasks.length === 0 && (
-              <div className="col-span-full flex flex-col items-center justify-center py-24" style={{ color: "var(--text-3)" }}>
-                <p className="text-[15px] font-semibold" style={{ color: "var(--text-2)" }}>Žádné úkoly</p>
-                <Link href="/tasks/new" className="mt-4">
-                  <Button icon={<Plus className="w-4 h-4" />}>Nový úkol</Button>
-                </Link>
+          <>
+            {tasks.length > 0 && (
+              <div className="flex items-center gap-3 px-1">
+                <button
+                  onClick={selected.size === tasks.length ? clearSelect : selectAll}
+                  className="flex items-center gap-2 text-[13px] font-medium transition-opacity hover:opacity-70"
+                  style={{ color: "var(--text-2)" }}>
+                  {selected.size === tasks.length
+                    ? <CheckSquare2 className="w-4 h-4" style={{ color: "var(--accent)" }} />
+                    : <Square className="w-4 h-4" />}
+                  {selected.size === tasks.length ? "Zrušit výběr" : "Vybrat vše"}
+                </button>
+                {selected.size > 0 && (
+                  <span className="text-[12.5px]" style={{ color: "var(--text-3)" }}>
+                    {selected.size} vybráno
+                  </span>
+                )}
               </div>
             )}
-            {tasks.map((task) => (
-              <TaskCard key={task.id} task={task} />
-            ))}
-          </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+              {tasks.length === 0 && (
+                <div className="col-span-full flex flex-col items-center justify-center py-24" style={{ color: "var(--text-3)" }}>
+                  <p className="text-[15px] font-semibold" style={{ color: "var(--text-2)" }}>Žádné úkoly</p>
+                  <Link href="/tasks/new" className="mt-4">
+                    <Button icon={<Plus className="w-4 h-4" />}>Nový úkol</Button>
+                  </Link>
+                </div>
+              )}
+              {tasks.map((task) => (
+                <div key={task.id} className="relative group">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleSelect(task.id); }}
+                    className="absolute top-3 left-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
+                    style={selected.has(task.id) ? { opacity: 1 } : {}}>
+                    {selected.has(task.id)
+                      ? <CheckSquare2 className="w-5 h-5" style={{ color: "var(--accent)" }} />
+                      : <Square className="w-5 h-5" style={{ color: "var(--text-3)" }} />}
+                  </button>
+                  <div className="rounded-2xl transition-shadow"
+                    style={selected.has(task.id) ? { boxShadow: "0 0 0 2px var(--accent)" } : {}}>
+                    <TaskCard task={task} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
+
+      {/* Floating bulk toolbar */}
+      {selected.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 rounded-2xl border"
+          style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", boxShadow: "0 8px 32px rgba(0,0,0,0.15)" }}>
+          <span className="text-[13px] font-semibold mr-1" style={{ color: "var(--text-1)" }}>
+            {selected.size} vybráno
+          </span>
+          <button onClick={clearSelect} className="p-1.5 rounded-lg transition-colors hover:bg-black/[0.06]"
+            style={{ color: "var(--text-3)" }}>
+            <X className="w-4 h-4" />
+          </button>
+          <div className="w-px h-5 mx-1" style={{ background: "var(--border-md)" }} />
+          <select
+            value={bulkStatus}
+            onChange={(e) => setBulkStatus(e.target.value)}
+            className="text-[13px] font-medium rounded-xl px-3 py-1.5 border outline-none"
+            style={{ background: "var(--bg-subtle)", borderColor: "var(--border-md)", color: "var(--text-1)" }}>
+            <option value="">Status...</option>
+            {statuses.map((s) => (
+              <option key={s.key} value={s.key}>{s.label}</option>
+            ))}
+          </select>
+          {bulkStatus && (
+            <button onClick={handleBulkStatus}
+              className="px-3 py-1.5 rounded-xl text-[13px] font-semibold text-white"
+              style={{ background: "var(--accent)" }}>
+              Použít
+            </button>
+          )}
+          <div className="w-px h-5 mx-1" style={{ background: "var(--border-md)" }} />
+          <button onClick={handleBulkDelete}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[13px] font-semibold transition-colors hover:bg-red-50"
+            style={{ color: "#ef4444" }}>
+            <Trash2 className="w-4 h-4" />
+            Smazat
+          </button>
+        </div>
+      )}
     </div>
   );
 }

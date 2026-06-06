@@ -92,27 +92,15 @@ export async function GET(req: NextRequest) {
         { visibility: "private", createdById: userId },
       ],
     };
-
-    // Build where WITH the visibility filter first. If the `visibility` column
-    // is missing in the DB (migration not applied), retry without it so the
-    // page still loads instead of returning a 500.
     const withVisibility: any = { ...where, AND: [...and, visibilityClause] };
     const withoutVisibility: any = and.length > 0 ? { ...where, AND: and } : where;
 
     let tasks;
     try {
-      tasks = await prisma.task.findMany({
-        where: withVisibility,
-        include: taskInclude,
-        orderBy: [{ createdAt: "desc" }],
-      });
+      tasks = await prisma.task.findMany({ where: withVisibility, include: taskInclude, orderBy: [{ createdAt: "desc" }] });
     } catch (inner: any) {
-      console.error("[GET /api/tasks] primary query failed, retrying without visibility:", inner?.message ?? inner);
-      tasks = await prisma.task.findMany({
-        where: withoutVisibility,
-        include: taskInclude,
-        orderBy: [{ createdAt: "desc" }],
-      });
+      console.error("[GET /api/tasks] visibility query failed, retrying:", inner?.message ?? inner);
+      tasks = await prisma.task.findMany({ where: withoutVisibility, include: taskInclude, orderBy: [{ createdAt: "desc" }] });
     }
     return NextResponse.json(await attachAssignees(tasks));
   } catch (e: any) {
@@ -125,7 +113,6 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Neautorizováno" }, { status: 401 });
-
     const body = await req.json();
     const { title, description, status, priority, dueDate, startDate, categoryId, hourlyRate, recurring } = body;
     // assigneeIds: new multi-assignee array; assigneeId: legacy single

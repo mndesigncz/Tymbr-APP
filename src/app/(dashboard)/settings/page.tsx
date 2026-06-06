@@ -44,9 +44,9 @@ export default function SettingsPage() {
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  type NotifKey = "taskAssigned" | "comments" | "dueDates" | "statusChanges";
+  type NotifKey = "taskAssigned" | "comments" | "dueDates" | "statusChanges" | "weeklyDigest";
   const [prefs, setPrefs] = useState<Record<NotifKey, boolean>>({
-    taskAssigned: true, comments: true, dueDates: true, statusChanges: false,
+    taskAssigned: true, comments: true, dueDates: true, statusChanges: false, weeklyDigest: true,
   });
   const [savingPrefs, setSavingPrefs] = useState(false);
 
@@ -189,6 +189,7 @@ export default function SettingsPage() {
               { key: "comments", label: "Komentáře u mých úkolů" },
               { key: "dueDates", label: "Blížící se termíny" },
               { key: "statusChanges", label: "Změny statusu úkolů" },
+              { key: "weeklyDigest", label: "Týdenní přehled (každé pondělí)" },
             ] as { key: NotifKey; label: string }[]).map(({ key, label }) => (
               <label key={key} className="flex items-center justify-between py-2.5 cursor-pointer">
                 <span className="text-[14px]" style={{ color: "var(--text-1)" }}>{label}</span>

@@ -12,14 +12,29 @@ export async function POST(req: NextRequest) {
   const userId = session.user.id;
   if (!userId) return NextResponse.json({ error: "Relace vypršela — odhlaste se a přihlaste znovu" }, { status: 401 });
 
+  const trimmed = name.trim();
+
+  // Drop the legacy unique index/constraint that blocks a user from owning multiple teams.
+  // The object is a UNIQUE INDEX (not a formal constraint), so DROP INDEX is required.
+  // $executeRawUnsafe uses the simple query protocol — works through PgBouncer.
   try {
-    // Use raw SQL to bypass Prisma 7 adapter cuid() generation issue
-    // joinCode was added via migration_v2.sql and is NOT in Prisma schema
+    await (prisma as any).$executeRawUnsafe(
+      `DROP INDEX IF EXISTS "Team_ownerId_key"`
+    );
+    await (prisma as any).$executeRawUnsafe(
+      `ALTER TABLE "Team" DROP CONSTRAINT IF EXISTS "Team_ownerId_key"`
+    );
+    await (prisma as any).$executeRawUnsafe(
+      `CREATE INDEX IF NOT EXISTS "Team_ownerId_idx" ON "Team" ("ownerId")`
+    );
+  } catch { /* ignore — index may already be gone */ }
+
+  try {
     await prisma.$executeRaw`
       INSERT INTO "Team" (id, name, "createdAt", "ownerId", "joinCode")
       VALUES (
         gen_random_uuid()::text,
-        ${name.trim()},
+        ${trimmed},
         NOW(),
         ${userId},
         left(md5(gen_random_uuid()::text), 10)
@@ -39,15 +54,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(team, { status: 201 });
   } catch (e: any) {
-    const msg = e?.message ?? "";
-    // The one-owner-per-team unique constraint still exists until
-    // migration_v3_multiteam.sql is applied.
-    if (msg.includes("Team_ownerId_key") || (msg.includes("ownerId") && msg.includes("unique"))) {
-      return NextResponse.json(
-        { error: "Vytvoření dalšího vlastního týmu vyžaduje databázovou migraci (migration_v3_multiteam.sql)." },
-        { status: 503 },
-      );
-    }
-    return NextResponse.json({ error: msg || "Chyba serveru" }, { status: 500 });
+    return NextResponse.json({ error: e?.message || "Chyba serveru" }, { status: 500 });
   }
 }

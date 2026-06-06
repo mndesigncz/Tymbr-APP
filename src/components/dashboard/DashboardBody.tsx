@@ -183,18 +183,7 @@ export function DashboardBody(props: DashboardBodyProps) {
   const nothingVisible = statCards.length === 0 && mainPanels.length === 0 && sidePanels.length === 0;
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 pt-2 pb-12 space-y-8">
-      {/* Customize bar */}
-      <div className="flex justify-end -mb-3">
-        <button
-          onClick={() => setCustomizeOpen(true)}
-          className="flex items-center gap-1.5 text-[12.5px] font-semibold px-3 py-1.5 rounded-xl border transition-all hover:bg-black/[0.03]"
-          style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-2)" }}>
-          <SlidersHorizontal className="w-3.5 h-3.5" />
-          Přizpůsobit
-        </button>
-      </div>
-
+    <div className="max-w-[1280px] mx-auto w-full px-4 sm:px-6 lg:px-8 pt-4 pb-12 space-y-8">
       {nothingVisible && (
         <div className="flex flex-col items-center justify-center py-20 rounded-3xl border"
           style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
@@ -206,10 +195,35 @@ export function DashboardBody(props: DashboardBodyProps) {
         </div>
       )}
 
+      {/* When stats are hidden but other panels exist, show customize button inline */}
+      {statCards.length === 0 && !nothingVisible && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => setCustomizeOpen(true)}
+            className="flex items-center gap-1.5 text-[12px] font-semibold px-2.5 py-1 rounded-lg border transition-all hover:bg-black/[0.04]"
+            style={{ borderColor: "var(--border-md)", color: "var(--text-2)" }}>
+            <SlidersHorizontal className="w-3 h-3" />
+            Přizpůsobit
+          </button>
+        </div>
+      )}
+
       {/* Stats */}
       {statCards.length > 0 && (
-        <div className="grid gap-5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
-          {statCards}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-semibold" style={{ color: "var(--text-2)" }}>Přehled</span>
+            <button
+              onClick={() => setCustomizeOpen(true)}
+              className="flex items-center gap-1.5 text-[12px] font-semibold px-2.5 py-1 rounded-lg border transition-all hover:bg-black/[0.04]"
+              style={{ borderColor: "var(--border-md)", color: "var(--text-2)" }}>
+              <SlidersHorizontal className="w-3 h-3" />
+              Přizpůsobit
+            </button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            {statCards}
+          </div>
         </div>
       )}
 

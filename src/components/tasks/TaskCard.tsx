@@ -5,7 +5,7 @@ import Link from "next/link";
 import { formatDate, isOverdue } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
 import { PriorityBadge } from "./PriorityBadge";
-import { Calendar, MessageSquare, Play, AlertTriangle, ListChecks, ChevronRight, RefreshCw } from "lucide-react";
+import { Calendar, MessageSquare, Play, AlertTriangle, ListChecks, ChevronRight, RefreshCw, Lock } from "lucide-react";
 import type { Task } from "@/types";
 import { useTimeTracker } from "@/context/TimeTrackerContext";
 import { useStatusConfig } from "@/hooks/useStatusConfig";
@@ -208,6 +208,13 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusChange
                 style={{ color: "#0ea5e9", background: "#0ea5e915" }}>
                 <RefreshCw className="w-3 h-3" />
                 {task.recurring === "daily" ? "Denně" : task.recurring === "weekly" ? "Týdně" : "Měsíčně"}
+              </span>
+            )}
+            {(task.blockedByCount ?? 0) > 0 && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-1.5 py-0.5 rounded-md"
+                style={{ color: "#ef4444", background: "#ef444415" }}>
+                <Lock className="w-3 h-3" />
+                Blokováno
               </span>
             )}
           </div>

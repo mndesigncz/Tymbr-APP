@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
   const teamId = (session.user as any).teamId;
   if (!teamId) return NextResponse.json({ folders: [], files: [] });
 
+  const userId = (session.user as any).id;
   const folderId = req.nextUrl.searchParams.get("folderId") || null;
 
   const [folders, files] = await Promise.all([
@@ -31,14 +32,16 @@ export async function GET(req: NextRequest) {
           ORDER BY f.name ASC`,
     folderId
       ? prisma.$queryRaw<any[]>`
-          SELECT f.id, f.name, f.type, f.url, f."mimeType", f.size, f."folderId", f."createdAt", u.name as "creatorName"
+          SELECT f.id, f.name, f.type, f.url, f."mimeType", f.size, f."folderId", f."createdAt", f.visibility, u.name as "creatorName", f."createdById"
           FROM "TeamFile" f LEFT JOIN "User" u ON u.id = f."createdById"
           WHERE f."teamId" = ${teamId} AND f."folderId" = ${folderId}
+            AND (COALESCE(f.visibility,'team') = 'team' OR f."createdById" = ${userId})
           ORDER BY f."createdAt" DESC`
       : prisma.$queryRaw<any[]>`
-          SELECT f.id, f.name, f.type, f.url, f."mimeType", f.size, f."folderId", f."createdAt", u.name as "creatorName"
+          SELECT f.id, f.name, f.type, f.url, f."mimeType", f.size, f."folderId", f."createdAt", f.visibility, u.name as "creatorName", f."createdById"
           FROM "TeamFile" f LEFT JOIN "User" u ON u.id = f."createdById"
           WHERE f."teamId" = ${teamId} AND f."folderId" IS NULL
+            AND (COALESCE(f.visibility,'team') = 'team' OR f."createdById" = ${userId})
           ORDER BY f."createdAt" DESC`,
   ]);
 
@@ -109,6 +112,24 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ error: "Neznámý typ" }, { status: 400 });
+}
+
+export async function PATCH(req: NextRequest) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Neautorizováno" }, { status: 401 });
+  const teamId = (session.user as any).teamId;
+  const userId = (session.user as any).id;
+  if (!teamId) return NextResponse.json({ error: "Tým nenalezen" }, { status: 404 });
+
+  const { id, visibility } = await req.json();
+  if (!id || !["team", "private"].includes(visibility)) {
+    return NextResponse.json({ error: "Neplatná data" }, { status: 400 });
+  }
+  await prisma.$executeRaw`
+    UPDATE "TeamFile" SET visibility = ${visibility}
+    WHERE id = ${id} AND "teamId" = ${teamId} AND "createdById" = ${userId}
+  `;
+  return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(req: NextRequest) {
