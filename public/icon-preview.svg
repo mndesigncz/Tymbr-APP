@@ -1,44 +1,85 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
-      <stop offset="0%"   stop-color="#f7592f"/>
-      <stop offset="100%" stop-color="#ff8355"/>
+    <!-- Very dark burnt-orange background, lighter toward folder center -->
+    <radialGradient id="bg" cx="40%" cy="38%" r="70%" gradientUnits="objectBoundingBox">
+      <stop offset="0%"   stop-color="#7c2800"/>
+      <stop offset="55%"  stop-color="#481200"/>
+      <stop offset="100%" stop-color="#1e0600"/>
+    </radialGradient>
+
+    <!-- Soft bloom/glow behind folder -->
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%" gradientUnits="objectBoundingBox">
+      <stop offset="0%"   stop-color="rgba(255,175,90,0.52)"/>
+      <stop offset="55%"  stop-color="rgba(255,100,30,0.18)"/>
+      <stop offset="100%" stop-color="rgba(200,55,0,0)"/>
+    </radialGradient>
+
+    <!-- Folder body: cream-orange top → deep orange bottom -->
+    <linearGradient id="folderBody" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#ffd080"/>
+      <stop offset="28%"  stop-color="#ff8c44"/>
+      <stop offset="100%" stop-color="#c83610"/>
     </linearGradient>
-    <clipPath id="shape">
+
+    <!-- Tab: slightly lighter than body top -->
+    <linearGradient id="tabGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#ffe0a0"/>
+      <stop offset="100%" stop-color="#ffb060"/>
+    </linearGradient>
+
+    <clipPath id="iconShape">
       <rect width="512" height="512" rx="112"/>
     </clipPath>
+
+    <filter id="folderShadow" x="-25%" y="-25%" width="150%" height="165%">
+      <feDropShadow dx="0" dy="16" stdDeviation="22" flood-color="rgba(0,0,0,0.48)"/>
+    </filter>
   </defs>
 
-  <g clip-path="url(#shape)">
+  <g clip-path="url(#iconShape)">
 
-    <!-- Background -->
+    <!-- Dark background -->
     <rect width="512" height="512" fill="url(#bg)"/>
 
-    <!-- Folder shadow / depth -->
-    <rect x="80" y="228" width="360" height="216" rx="28"
-          fill="rgba(0,0,0,0.14)"/>
+    <!-- Warm glow bloom centered on folder -->
+    <ellipse cx="244" cy="300" rx="218" ry="195" fill="url(#glow)"/>
 
-    <!-- Folder body -->
-    <rect x="72" y="220" width="368" height="216" rx="28"
-          fill="rgba(255,255,255,0.22)"/>
+    <!-- Folder (tab + body) with drop shadow -->
+    <g filter="url(#folderShadow)">
 
-    <!-- Folder tab -->
-    <path
-      d="M 72,220 L 72,192 Q 72,176 88,176 L 228,176 Q 244,176 252,192 L 264,220 Z"
-      fill="rgba(255,255,255,0.22)"
-    />
+      <!-- Folder tab (top-left) -->
+      <path
+        d="M 108,206
+           L 108,170
+           Q 108,154 124,154
+           L 228,154
+           Q 242,154 248,170
+           L 259,206
+           Z"
+        fill="url(#tabGrad)"
+      />
 
-    <!-- Subtle top highlight -->
-    <rect x="72" y="220" width="368" height="3" rx="0"
-          fill="rgba(255,255,255,0.20)"/>
+      <!-- Bright white highlight strip on tab top edge -->
+      <path
+        d="M 114,160
+           Q 116,157 124,157
+           L 228,157
+           Q 238,157 243,168
+           L 250,184
+           Q 243,176 233,176
+           L 124,176
+           Q 115,176 113,182
+           Z"
+        fill="rgba(255,255,255,0.62)"
+      />
 
-    <!-- Content lines inside folder -->
-    <rect x="112" y="268" width="200" height="14" rx="7"
-          fill="rgba(255,255,255,0.30)"/>
-    <rect x="112" y="298" width="140" height="14" rx="7"
-          fill="rgba(255,255,255,0.20)"/>
-    <rect x="112" y="328" width="168" height="14" rx="7"
-          fill="rgba(255,255,255,0.14)"/>
+      <!-- Folder body -->
+      <rect x="108" y="206" width="280" height="194" rx="22" fill="url(#folderBody)"/>
+
+      <!-- Subtle inner shine top-left of body -->
+      <ellipse cx="180" cy="228" rx="74" ry="26" fill="rgba(255,255,255,0.17)"/>
+
+    </g>
 
   </g>
 </svg>
