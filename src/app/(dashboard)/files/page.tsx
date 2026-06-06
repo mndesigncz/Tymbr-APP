@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/Input";
 import {
   Folder, FolderOpen, File, FileText, FileImage, FileVideo, FileArchive,
   Link as LinkIcon, Upload, Trash2, ChevronRight, Home, X, ExternalLink,
-  Lock, Globe,
+  Lock, Globe, LayoutList, LayoutGrid,
 } from "lucide-react";
 
 interface TeamFolder {
@@ -56,9 +56,12 @@ type Modal =
   | { kind: "deleteFolder"; item: TeamFolder }
   | { kind: "deleteFile"; item: TeamFile };
 
+const VIEW_KEY = "tymbr:filesView";
+
 export default function FilesPage() {
   const { data: session } = useSession();
   const myId = (session?.user as any)?.id;
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [folderId, setFolderId] = useState<string | null>(null);
   const [breadcrumbs, setBreadcrumbs] = useState<{ id: string; name: string }[]>([]);
   const [folders, setFolders] = useState<TeamFolder[]>([]);
@@ -72,6 +75,18 @@ export default function FilesPage() {
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(VIEW_KEY);
+      if (saved === "grid" || saved === "list") setViewMode(saved);
+    } catch {}
+  }, []);
+
+  const toggleView = (v: "list" | "grid") => {
+    setViewMode(v);
+    try { localStorage.setItem(VIEW_KEY, v); } catch {}
+  };
 
   const load = useCallback(async (id: string | null) => {
     setLoading(true);
@@ -168,6 +183,20 @@ export default function FilesPage() {
         subtitle="Sdílené soubory a odkazy"
         actions={
           <div className="flex gap-2">
+            {/* View toggle */}
+            <div className="flex rounded-xl border overflow-hidden flex-shrink-0"
+              style={{ borderColor: "var(--border-md)" }}>
+              <button onClick={() => toggleView("list")}
+                className="p-2 transition-colors"
+                style={{ background: viewMode === "list" ? "var(--bg-card)" : "var(--bg-subtle)", color: viewMode === "list" ? "var(--accent)" : "var(--text-3)" }}>
+                <LayoutList className="w-4 h-4" />
+              </button>
+              <button onClick={() => toggleView("grid")}
+                className="p-2 transition-colors"
+                style={{ background: viewMode === "grid" ? "var(--bg-card)" : "var(--bg-subtle)", color: viewMode === "grid" ? "var(--accent)" : "var(--text-3)" }}>
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+            </div>
             <Button variant="secondary" icon={<Folder className="w-3.5 h-3.5" />} onClick={() => setModal({ kind: "newFolder" })}>
               Složka
             </Button>
@@ -229,7 +258,81 @@ export default function FilesPage() {
               </Button>
             </div>
           </div>
+        ) : viewMode === "grid" ? (
+          /* ── Grid view (Google Drive style) ── */
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            {folders.map((folder) => (
+              <div key={folder.id} className="group relative">
+                <button
+                  onClick={() => navigate(folder.id)}
+                  className="w-full flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all hover:shadow-md hover:-translate-y-0.5"
+                  style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
+                  <div className="w-12 h-12 flex items-center justify-center">
+                    <Folder className="w-10 h-10" style={{ color: "#EAB308" }} />
+                  </div>
+                  <span className="text-[12.5px] font-medium text-center leading-tight line-clamp-2 w-full"
+                    style={{ color: "var(--text-1)" }}>
+                    {folder.name}
+                  </span>
+                </button>
+                <button
+                  onClick={() => setModal({ kind: "deleteFolder", item: folder })}
+                  className="absolute top-2 right-2 p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50 hover:text-red-500"
+                  style={{ color: "var(--text-3)" }}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+            {files.map((file) => {
+              const Icon = fileIcon(file);
+              const iconColor = file.type === "link" ? "#3B82F6" : "var(--text-3)";
+              return (
+                <div key={file.id} className="group relative">
+                  <a
+                    href={file.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all hover:shadow-md hover:-translate-y-0.5"
+                    style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
+                    <div className="w-12 h-12 flex items-center justify-center rounded-xl"
+                      style={{ background: "var(--bg-subtle)" }}>
+                      <Icon className="w-7 h-7" style={{ color: iconColor }} />
+                    </div>
+                    <span className="text-[12.5px] font-medium text-center leading-tight line-clamp-2 w-full"
+                      style={{ color: "var(--text-1)" }}>
+                      {file.name}
+                    </span>
+                    {file.size != null && (
+                      <span className="text-[10.5px]" style={{ color: "var(--text-3)" }}>
+                        {formatBytes(Number(file.size))}
+                      </span>
+                    )}
+                  </a>
+                  <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                    {file.createdById === myId && (
+                      <button
+                        onClick={() => toggleVisibility(file)}
+                        className="p-1 rounded-lg"
+                        title={(file.visibility ?? "team") === "team" ? "Viditelné pro tým" : "Soukromé"}
+                        style={{ background: "var(--bg-subtle)", color: "var(--text-3)" }}>
+                        {(file.visibility ?? "team") === "private"
+                          ? <Lock className="w-3.5 h-3.5" />
+                          : <Globe className="w-3.5 h-3.5" />}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setModal({ kind: "deleteFile", item: file })}
+                      className="p-1 rounded-lg hover:bg-red-50 hover:text-red-500"
+                      style={{ background: "var(--bg-subtle)", color: "var(--text-3)" }}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         ) : (
+          /* ── List view ── */
           <div className="rounded-3xl border overflow-hidden"
             style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
             {/* Folders */}
@@ -249,8 +352,7 @@ export default function FilesPage() {
                 <button
                   onClick={() => setModal({ kind: "deleteFolder", item: folder })}
                   className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50 hover:text-red-500"
-                  style={{ color: "var(--text-3)" }}
-                >
+                  style={{ color: "var(--text-3)" }}>
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -263,12 +365,8 @@ export default function FilesPage() {
                 <div key={file.id}
                   className="flex items-center gap-3 px-5 py-3.5 border-b last:border-b-0 transition-colors hover:bg-black/[0.02] group"
                   style={{ borderColor: "var(--border)" }}>
-                  <a
-                    href={file.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 flex-1 min-w-0"
-                  >
+                  <a href={file.url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-3 flex-1 min-w-0">
                     <Icon className="w-[18px] h-[18px] flex-shrink-0"
                       style={{ color: file.type === "link" ? "#3B82F6" : "var(--text-3)" }} />
                     <span className="text-[14px] font-medium truncate" style={{ color: "var(--text-1)" }}>
@@ -294,25 +392,17 @@ export default function FilesPage() {
                         className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-medium transition-all hover:scale-105 active:scale-95"
                         style={(file.visibility ?? "team") === "private"
                           ? { background: "#f3f4f6", color: "#6b7280" }
-                          : { background: "var(--accent-soft)", color: "var(--accent)" }}
-                      >
+                          : { background: "var(--accent-soft)", color: "var(--accent)" }}>
                         {(file.visibility ?? "team") === "private"
                           ? <><Lock className="w-3 h-3" /> Soukromé</>
-                          : <><Globe className="w-3 h-3" /> Tým</>
-                        }
+                          : <><Globe className="w-3 h-3" /> Tým</>}
                       </button>
-                    )}
-                    {file.createdById !== myId && (file.visibility ?? "team") === "team" && (
-                      <span className="flex items-center gap-1 text-[11px]" style={{ color: "var(--text-3)" }}>
-                        <Globe className="w-3 h-3" />
-                      </span>
                     )}
                   </div>
                   <button
                     onClick={() => setModal({ kind: "deleteFile", item: file })}
                     className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50 hover:text-red-500"
-                    style={{ color: "var(--text-3)" }}
-                  >
+                    style={{ color: "var(--text-3)" }}>
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>

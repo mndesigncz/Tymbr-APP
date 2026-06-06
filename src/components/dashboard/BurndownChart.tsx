@@ -13,7 +13,7 @@ interface BurndownChartProps {
 }
 
 const H = 180;
-const pad = { top: 14, right: 18, bottom: 30, left: 34 };
+const pad = { top: 14, right: 24, bottom: 30, left: 34 };
 
 export function BurndownChart({ data, title = "Dokončené úkoly" }: BurndownChartProps) {
   // Measure the container so the chart fills the available width without
@@ -88,7 +88,8 @@ export function BurndownChart({ data, title = "Dokončené úkoly" }: BurndownCh
         </div>
       </div>
 
-      <div ref={wrapRef} className="px-4 pb-5">
+      <div className="px-4 pb-5">
+        <div ref={wrapRef}>
         <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden>
           <defs>
             <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
@@ -129,6 +130,7 @@ export function BurndownChart({ data, title = "Dokončené úkoly" }: BurndownCh
             </text>
           ))}
         </svg>
+        </div>
       </div>
     </div>
   );

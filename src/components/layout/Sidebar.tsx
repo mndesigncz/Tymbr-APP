@@ -16,15 +16,15 @@ import {
 } from "lucide-react";
 
 const topItems = [
-  { href: "/dashboard",  icon: LayoutDashboard, label: "Přehled"   },
-  { href: "/tasks",      icon: CheckSquare,     label: "Úkoly"     },
-  { href: "/categories", icon: Tag,             label: "Funkce"    },
-  { href: "/time",       icon: Clock,           label: "Výkazy"    },
-  { href: "/files",      icon: FolderOpen,      label: "Soubory"   },
+  { href: "/dashboard",  icon: LayoutDashboard, label: "Přehled" },
+  { href: "/tasks",      icon: CheckSquare,     label: "Úkoly"   },
+  { href: "/categories", icon: Tag,             label: "Funkce"  },
+  { href: "/time",       icon: Clock,           label: "Výkazy"  },
 ];
 
 const teamItems = [
   { href: "/chat",               icon: MessageSquare, label: "Chat"           },
+  { href: "/files",              icon: FolderOpen,    label: "Soubory"        },
   { href: "/settings/team",      icon: Settings2,     label: "Nastavení týmu" },
   { href: "/settings/webhooks",  icon: Webhook,       label: "Webhooks"       },
 ];

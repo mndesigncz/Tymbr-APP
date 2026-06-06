@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { useChatUnread } from "@/hooks/useChatUnread";
 import {
   LayoutDashboard, CheckSquare, Clock, MessageSquare,
-  MoreHorizontal, FolderOpen, Tag, Settings, Users, X,
+  MoreHorizontal, FolderOpen, Tag, Settings, Users, X, Webhook,
 } from "lucide-react";
 
 const navItems = [
@@ -18,10 +18,11 @@ const navItems = [
 ];
 
 const moreItems = [
-  { href: "/categories",    icon: Tag,        label: "Funkce"          },
-  { href: "/files",         icon: FolderOpen, label: "Soubory"         },
-  { href: "/settings/team", icon: Users,      label: "Nastavení týmu"  },
-  { href: "/settings",      icon: Settings,   label: "Nastavení účtu"  },
+  { href: "/categories",         icon: Tag,        label: "Funkce"          },
+  { href: "/files",              icon: FolderOpen, label: "Soubory"         },
+  { href: "/settings/team",      icon: Users,      label: "Nastavení týmu"  },
+  { href: "/settings/webhooks",  icon: Webhook,    label: "Webhooks"        },
+  { href: "/settings",           icon: Settings,   label: "Nastavení účtu"  },
 ];
 
 export function BottomNav() {
