@@ -1,8 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { Pool } from "pg";
 
-/** Inserts a new team owned by userId and returns the created row. */
+/**
+ * Drops the legacy one-owner-per-team unique constraint via a direct pg.Pool
+ * connection — the same pattern used in ensure-schema.ts. Both statements are
+ * idempotent (IF EXISTS / IF NOT EXISTS) so this is safe on every call.
+ */
+async function dropOwnerConstraint() {
+  if (!process.env.DATABASE_URL) return;
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  try {
+    await pool.query(`ALTER TABLE "Team" DROP CONSTRAINT IF EXISTS "Team_ownerId_key"`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS "Team_ownerId_idx" ON "Team" ("ownerId")`);
+  } catch {
+    // Non-fatal — if DDL fails we fall through and the INSERT will surface any real error.
+  } finally {
+    await pool.end();
+  }
+}
+
 async function insertTeam(name: string, userId: string) {
   // Use raw SQL to bypass Prisma 7 adapter cuid() generation issue.
   // joinCode was added via migration_v2.sql and is NOT in Prisma schema.
@@ -31,11 +49,6 @@ async function insertTeam(name: string, userId: string) {
   return team;
 }
 
-/** True when the error is the legacy one-owner-per-team unique constraint. */
-function isOwnerConstraintError(msg: string) {
-  return msg.includes("Team_ownerId_key") || (msg.includes("ownerId") && msg.includes("unique"));
-}
-
 export async function POST(req: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Neautorizováno" }, { status: 401 });
@@ -48,29 +61,14 @@ export async function POST(req: NextRequest) {
 
   const trimmed = name.trim();
 
+  // Remove legacy constraint BEFORE inserting — guarantees multi-team works
+  // without any catch/retry dance. Idempotent, so safe on every request.
+  await dropOwnerConstraint();
+
   try {
     const team = await insertTeam(trimmed, userId);
     return NextResponse.json(team, { status: 201 });
   } catch (e: any) {
-    const msg = e?.message ?? "";
-
-    // The legacy one-owner-per-team unique constraint blocks a second team.
-    // Self-heal by applying migration_v3_multiteam.sql inline, then retry once.
-    // Idempotent (IF EXISTS / IF NOT EXISTS) so it is safe on every call.
-    if (isOwnerConstraintError(msg)) {
-      try {
-        await prisma.$executeRawUnsafe(`ALTER TABLE "Team" DROP CONSTRAINT IF EXISTS "Team_ownerId_key"`);
-        await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Team_ownerId_idx" ON "Team" ("ownerId")`);
-        const team = await insertTeam(trimmed, userId);
-        return NextResponse.json(team, { status: 201 });
-      } catch (retryErr: any) {
-        return NextResponse.json(
-          { error: retryErr?.message || "Tým se nepodařilo vytvořit" },
-          { status: 500 },
-        );
-      }
-    }
-
-    return NextResponse.json({ error: msg || "Chyba serveru" }, { status: 500 });
+    return NextResponse.json({ error: e?.message || "Chyba serveru" }, { status: 500 });
   }
 }
