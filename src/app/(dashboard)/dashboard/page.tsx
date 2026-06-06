@@ -179,7 +179,7 @@ export default async function DashboardPage() {
   const firstName = session?.user.name?.split(" ")[0];
 
   return (
-    <div>
+    <div className="max-w-[1280px] mx-auto w-full">
       <Header
         title={`${greeting}, ${firstName}`}
         subtitle="Mějte přehled o úkolech a postupu vašeho týmu."

@@ -183,7 +183,7 @@ export function DashboardBody(props: DashboardBodyProps) {
   const nothingVisible = statCards.length === 0 && mainPanels.length === 0 && sidePanels.length === 0;
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 pt-4 pb-12 space-y-8">
+    <div className="max-w-[1280px] mx-auto w-full px-4 sm:px-6 lg:px-8 pt-4 pb-12 space-y-8">
       {nothingVisible && (
         <div className="flex flex-col items-center justify-center py-20 rounded-3xl border"
           style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
@@ -221,7 +221,7 @@ export function DashboardBody(props: DashboardBodyProps) {
               Přizpůsobit
             </button>
           </div>
-          <div className="grid gap-5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
             {statCards}
           </div>
         </div>
