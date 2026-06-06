@@ -70,12 +70,27 @@ export default function ChatPage() {
   const inputRef = useRef<MentionInputHandle>(null);
   const lastTimestamp = useRef<string | null>(null);
   const myId = session?.user?.id;
+  const [bgUnread, setBgUnread] = useState(0);
 
   const scrollToBottom = () => endRef.current?.scrollIntoView({ behavior: "smooth" });
 
   useEffect(() => {
     try { localStorage.setItem("chatLastVisit", new Date().toISOString()); } catch {}
   }, []);
+
+  // Reset unread badge when tab becomes visible
+  useEffect(() => {
+    const handle = () => { if (!document.hidden) setBgUnread(0); };
+    document.addEventListener("visibilitychange", handle);
+    return () => document.removeEventListener("visibilitychange", handle);
+  }, []);
+
+  // Update document.title with unread count
+  useEffect(() => {
+    const base = "Tymbr";
+    document.title = bgUnread > 0 ? `(${bgUnread}) Chat – ${base}` : `Chat – ${base}`;
+    return () => { document.title = base; };
+  }, [bgUnread]);
 
   useEffect(() => {
     fetch("/api/users").then((r) => r.json()).then((d) => {
@@ -162,16 +177,23 @@ export default function ChatPage() {
     const data = await res.json();
     const list = Array.isArray(data) ? data : [];
     if (list.length > 0) {
+      let freshCount = 0;
       setMessages((prev) => {
         const existingIds = new Set(prev.map((m) => m.id));
         const fresh = list.filter((m: ChatMessage) => !existingIds.has(m.id));
+        freshCount = fresh.length;
         return fresh.length > 0 ? [...prev, ...fresh] : prev;
       });
+      // Badge: count messages from others when tab is in background
+      if (document.hidden && freshCount > 0) {
+        const fromOthers = list.filter((m: ChatMessage) => m.userId !== myId).length;
+        if (fromOthers > 0) setBgUnread((u) => u + fromOthers);
+      }
       lastTimestamp.current = list[list.length - 1].createdAt;
       setTimeout(scrollToBottom, 50);
       try { localStorage.setItem("chatLastVisit", new Date().toISOString()); } catch {}
     }
-  }, [activeDM]);
+  }, [activeDM, myId]);
 
   useEffect(() => { loadMessages(activeDM); }, [activeDM, loadMessages]);
   useEffect(() => {

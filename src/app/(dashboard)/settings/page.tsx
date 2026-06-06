@@ -6,7 +6,8 @@ import { Header } from "@/components/layout/Header";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
-import { User, Mail, Shield, LogOut, Bell, Camera, Trash2 } from "lucide-react";
+import { User, Mail, Shield, LogOut, Bell, Camera, Trash2, Palette } from "lucide-react";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 // Resize an image file to a small square data URL so it stays tiny in the JWT.
 function fileToAvatarDataUrl(file: File, size = 128): Promise<string> {
@@ -209,6 +210,14 @@ export default function SettingsPage() {
           <p className="text-[12px] mt-3" style={{ color: "var(--text-3)" }}>
             Zatím se odesílají e-maily pouze pro „Nové úkoly přiřazené mně". Ostatní typy budou aktivní postupně.
           </p>
+        </div>
+
+        <div className="rounded-3xl border p-6" style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
+          <div className="flex items-center gap-2 mb-5">
+            <Palette className="w-[18px] h-[18px]" style={{ color: "var(--accent)" }} />
+            <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>Zobrazení</h2>
+          </div>
+          <ThemeToggle />
         </div>
 
         <div className="rounded-3xl border p-6" style={{ background: "var(--bg-card)", borderColor: "rgba(239,68,68,0.18)", boxShadow: "var(--shadow-sm)" }}>
