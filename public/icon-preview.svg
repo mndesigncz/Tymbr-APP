@@ -11,70 +11,34 @@
 
   <g clip-path="url(#shape)">
 
-    <!-- ░ Background ░ -->
+    <!-- Background -->
     <rect width="512" height="512" fill="url(#bg)"/>
 
-    <!-- ░ Document sheets – straight, clean, no rotation ░ -->
-    <!-- Sheet B (behind, right-offset) -->
-    <rect x="294" y="108" width="78" height="112" rx="10" fill="white" opacity="0.68"/>
-    <rect x="308" y="130" width="50" height="7"   rx="3.5" fill="rgba(200,70,20,0.18)"/>
-    <rect x="308" y="145" width="36" height="7"   rx="3.5" fill="rgba(200,70,20,0.14)"/>
+    <!-- Folder shadow / depth -->
+    <rect x="80" y="228" width="360" height="216" rx="28"
+          fill="rgba(0,0,0,0.14)"/>
 
-    <!-- Sheet A (front, left-offset) -->
-    <rect x="140" y="92"  width="78" height="128" rx="10" fill="white" opacity="0.84"/>
-    <rect x="154" y="116" width="50" height="7"   rx="3.5" fill="rgba(200,70,20,0.18)"/>
-    <rect x="154" y="131" width="36" height="7"   rx="3.5" fill="rgba(200,70,20,0.14)"/>
+    <!-- Folder body -->
+    <rect x="72" y="220" width="368" height="216" rx="28"
+          fill="rgba(255,255,255,0.22)"/>
 
-    <!-- ░ Folder shape – single clean path ░ -->
-    <!--
-      Layout:
-        Tab:  x=68..248, y=186..220  (rx=14 on top)
-        Body: x=68..444, y=220..442  (rx=22)
-    -->
-    <path
-      d="
-        M 82,442
-        Q 68,442 68,428
-        L 68,220
-        L 68,220
-        L 248,220
-        Q 248,220 260,202
-        L 268,188
-        Q 274,186 282,186
-        L 430,186
-        Q 444,186 444,200
-        L 444,220
-        L 444,428
-        Q 444,442 430,442
-        Z
-      "
-      fill="rgba(255,255,255,0.00)"
-    />
-
-    <!-- Simpler, more reliable: two separate shapes that perfectly butt together -->
     <!-- Folder tab -->
     <path
-      d="M 82,220 L 68,220 L 68,200 Q 68,186 82,186 L 230,186 Q 242,186 248,200 L 256,220 Z"
-      fill="rgba(255,255,255,0.26)"
+      d="M 72,220 L 72,192 Q 72,176 88,176 L 228,176 Q 244,176 252,192 L 264,220 Z"
+      fill="rgba(255,255,255,0.22)"
     />
-    <!-- Folder body -->
-    <rect x="68" y="220" width="376" height="220" rx="22" fill="rgba(255,255,255,0.21)"/>
 
-    <!-- ░ N letter – three clean strokes, centred in folder body ░ -->
-    <!--
-      Folder body centre: x=256, y=330
-      N bounding box: 180×168px  → x: 167..345, y: 246..414
-      Bars at x=167 and x=345 (centre offsets ±89)
-    -->
-    <polyline
-      points="167,414 167,246 345,414 345,246"
-      fill="none"
-      stroke="white"
-      stroke-width="46"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      opacity="0.96"
-    />
+    <!-- Subtle top highlight -->
+    <rect x="72" y="220" width="368" height="3" rx="0"
+          fill="rgba(255,255,255,0.20)"/>
+
+    <!-- Content lines inside folder -->
+    <rect x="112" y="268" width="200" height="14" rx="7"
+          fill="rgba(255,255,255,0.30)"/>
+    <rect x="112" y="298" width="140" height="14" rx="7"
+          fill="rgba(255,255,255,0.20)"/>
+    <rect x="112" y="328" width="168" height="14" rx="7"
+          fill="rgba(255,255,255,0.14)"/>
 
   </g>
 </svg>
