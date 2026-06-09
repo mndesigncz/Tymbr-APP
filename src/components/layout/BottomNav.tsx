@@ -38,7 +38,7 @@ export function BottomNav() {
     <>
       <nav
         className="lg:hidden fixed bottom-0 left-0 right-0 z-30 border-t backdrop-blur-xl"
-        style={{ background: "rgba(255,255,255,0.85)", borderColor: "var(--border)" }}
+        style={{ background: "var(--nav-bg)", borderColor: "var(--border)" }}
       >
         <div className="flex items-center pb-safe">
           {navItems.map(({ href, icon: Icon, label, chat }) => {

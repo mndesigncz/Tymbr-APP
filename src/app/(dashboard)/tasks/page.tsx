@@ -273,9 +273,25 @@ function TasksContent() {
       <div className="px-4 sm:px-6 lg:px-8 pt-2 pb-12 space-y-5">
         {/* Main toolbar */}
         <div className="flex flex-col lg:flex-row lg:flex-wrap lg:items-center gap-2.5">
-          {/* Toggles row: scope + active/done — scrolls horizontally on small screens */}
+          {/* Toggles row — always: Active/Done first, then scope — scrolls horizontally on small screens */}
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 lg:flex-shrink-0">
-          {/* Scope: Moje / Všechny / Výběr */}
+          {/* Active / Done — always first so position never jumps */}
+          <div className="flex items-center gap-1 p-1 rounded-xl border flex-shrink-0"
+            style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
+            <button onClick={() => setTab("active")}
+              className="px-3.5 py-2 rounded-lg text-[13px] font-semibold transition-all"
+              style={tab === "active" ? { background: "var(--btn-invert-bg)", color: "var(--btn-invert-text)" } : { color: "var(--text-2)" }}>
+              Aktivní
+            </button>
+            <button onClick={() => setTab("done")}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13px] font-semibold transition-all"
+              style={tab === "done" ? { background: "#22C55E", color: "#fff" } : { color: "var(--text-2)" }}>
+              <CheckCheck className="w-3.5 h-3.5" />
+              Hotové
+            </button>
+          </div>
+
+          {/* Scope: Moje / Všechny / Výběr — only in active tab */}
           {tab === "active" && (
             <div className="flex items-center gap-1 p-1 rounded-xl border flex-shrink-0"
               style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
@@ -321,22 +337,6 @@ function TasksContent() {
               </div>
             </div>
           )}
-
-          {/* Active / Done */}
-          <div className="flex items-center gap-1 p-1 rounded-xl border flex-shrink-0"
-            style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
-            <button onClick={() => setTab("active")}
-              className="px-3.5 py-2 rounded-lg text-[13px] font-semibold transition-all"
-              style={tab === "active" ? { background: "var(--text-1)", color: "#fff" } : { color: "var(--text-2)" }}>
-              Aktivní
-            </button>
-            <button onClick={() => setTab("done")}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[13px] font-semibold transition-all"
-              style={tab === "done" ? { background: "#22C55E", color: "#fff" } : { color: "var(--text-2)" }}>
-              <CheckCheck className="w-3.5 h-3.5" />
-              Hotové
-            </button>
-          </div>
           </div>
 
           {/* Search */}
@@ -418,7 +418,7 @@ function TasksContent() {
                 <button onClick={() => setFilters((f) => ({ ...f, categoryId: "" }))}
                   className="px-3 py-1.5 rounded-xl text-[12.5px] font-semibold border transition-all"
                   style={!filters.categoryId
-                    ? { background: "var(--text-1)", color: "#fff", borderColor: "var(--text-1)" }
+                    ? { background: "var(--btn-invert-bg)", color: "var(--btn-invert-text)", borderColor: "var(--btn-invert-bg)" }
                     : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}>
                   Vše
                 </button>
