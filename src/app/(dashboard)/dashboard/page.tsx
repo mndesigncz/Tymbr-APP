@@ -105,7 +105,7 @@ export default async function DashboardPage() {
       ? prisma.task.groupBy({ by: ["assigneeId"], where: { teamId, status: "done", completedAt: { gte: monthStart }, assigneeId: { not: null } }, _count: true })
       : Promise.resolve([] as { assigneeId: string | null; _count: number }[]),
     manager && teamId && memberIds.length > 0
-      ? prisma.timeEntry.groupBy({ by: ["userId"], where: { userId: { in: memberIds }, stoppedAt: { not: null }, startedAt: { gte: monthStart } }, _sum: { durationMinutes: true } })
+      ? prisma.timeEntry.groupBy({ by: ["userId"], where: { userId: { in: memberIds }, stoppedAt: { not: null }, startedAt: { gte: monthStart }, task: { teamId } }, _sum: { durationMinutes: true } })
       : Promise.resolve([] as { userId: string; _sum: { durationMinutes: number | null } }[]),
   ]);
 
