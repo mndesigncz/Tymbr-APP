@@ -7,6 +7,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
+    "prebuild:mac": "node scripts/generate-dmg-bg.mjs",
     "build:mac": "electron-builder --mac",
     "build:win": "electron-builder --win",
     "build:all": "electron-builder --mac --win"
@@ -16,7 +17,8 @@
   },
   "devDependencies": {
     "electron": "^31.0.0",
-    "electron-builder": "^24.13.3"
+    "electron-builder": "^24.13.3",
+    "sharp": "^0.33.5"
   },
   "build": {
     "appId": "app.noisium.desktop",
@@ -42,7 +44,13 @@
     },
     "dmg": {
       "title": "Noisium",
-      "window": { "width": 540, "height": 380 }
+      "background": "build/dmg-background.png",
+      "window": { "width": 540, "height": 380 },
+      "contents": [
+        { "x": 135, "y": 185, "type": "file" },
+        { "x": 405, "y": 185, "type": "link", "path": "/Applications" }
+      ],
+      "iconSize": 100
     },
     "nsis": {
       "oneClick": false,
