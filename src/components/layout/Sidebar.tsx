@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { signOut, useSession } from "next-auth/react";
@@ -100,10 +101,14 @@ export function Sidebar() {
       {/* Logo */}
       <div className="px-3 h-16 flex items-center">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center shadow-sm flex-shrink-0"
-            style={{ background: "var(--accent)" }}>
-            <CheckSquare className="w-4 h-4 text-white" />
-          </div>
+          <Image
+            src="/icon-192.png"
+            alt="Noisium"
+            width={32}
+            height={32}
+            className="w-8 h-8 rounded-xl shadow-sm flex-shrink-0"
+            priority
+          />
           <span className="text-[17px] font-bold tracking-tight truncate" style={{ color: "var(--text-1)" }}>
             Noisium
           </span>
