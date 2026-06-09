@@ -29,7 +29,7 @@
     },
     "mac": {
       "category": "public.app-category.productivity",
-      "icon": "build/icon.icns",
+      "icon": "build/icon.png",
       "target": [
         { "target": "dmg", "arch": ["x64", "arm64"] },
         { "target": "zip", "arch": ["x64", "arm64"] }

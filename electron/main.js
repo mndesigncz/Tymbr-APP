@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, Menu, nativeTheme } = require("electron");
+const { app, BrowserWindow, shell, Menu, nativeTheme, dialog } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const path = require("path");
 
@@ -10,7 +10,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
-    minWidth: 800,
+    minWidth: 900,
     minHeight: 600,
     title: "Noisium",
     icon: path.join(__dirname, "build", "icon.png"),
@@ -18,17 +18,13 @@ function createWindow() {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
-      // Allow the web app to use localStorage, service workers, etc.
       partition: "persist:noisium",
     },
-    // macOS: use native traffic lights
-    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "default",
-    trafficLightPosition: { x: 16, y: 18 },
   });
 
   mainWindow.loadURL(APP_URL);
 
-  // Open external links in the default browser, not in the app
+  // Open external links in the default browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (!url.startsWith(APP_URL)) {
       shell.openExternal(url);
@@ -37,31 +33,56 @@ function createWindow() {
     return { action: "allow" };
   });
 
-  mainWindow.on("closed", () => {
-    mainWindow = null;
-  });
+  mainWindow.on("closed", () => { mainWindow = null; });
 }
 
 function buildMenu() {
   const template = [
-    ...(process.platform === "darwin"
-      ? [
-          {
-            label: app.name,
-            submenu: [
-              { role: "about" },
-              { type: "separator" },
-              { role: "services" },
-              { type: "separator" },
-              { role: "hide" },
-              { role: "hideOthers" },
-              { role: "unhide" },
-              { type: "separator" },
-              { role: "quit" },
-            ],
-          },
-        ]
-      : []),
+    {
+      label: app.name,
+      submenu: [
+        { role: "about", label: `O aplikaci ${app.name}` },
+        { type: "separator" },
+        { role: "services", label: "Služby" },
+        { type: "separator" },
+        { role: "hide", label: `Skrýt ${app.name}` },
+        { role: "hideOthers", label: "Skrýt ostatní" },
+        { role: "unhide", label: "Zobrazit vše" },
+        { type: "separator" },
+        { role: "quit", label: `Ukončit ${app.name}` },
+      ],
+    },
+    {
+      label: "Navigace",
+      submenu: [
+        {
+          label: "Přehled",
+          accelerator: "CmdOrCtrl+1",
+          click: () => mainWindow?.loadURL(`${APP_URL}/dashboard`),
+        },
+        {
+          label: "Úkoly",
+          accelerator: "CmdOrCtrl+2",
+          click: () => mainWindow?.loadURL(`${APP_URL}/tasks`),
+        },
+        {
+          label: "Chat",
+          accelerator: "CmdOrCtrl+3",
+          click: () => mainWindow?.loadURL(`${APP_URL}/chat`),
+        },
+        {
+          label: "Výkazy",
+          accelerator: "CmdOrCtrl+4",
+          click: () => mainWindow?.loadURL(`${APP_URL}/time`),
+        },
+        { type: "separator" },
+        {
+          label: "Nastavení",
+          accelerator: "CmdOrCtrl+,",
+          click: () => mainWindow?.loadURL(`${APP_URL}/settings`),
+        },
+      ],
+    },
     {
       label: "Úpravy",
       submenu: [
@@ -71,6 +92,8 @@ function buildMenu() {
         { role: "cut", label: "Vyjmout" },
         { role: "copy", label: "Kopírovat" },
         { role: "paste", label: "Vložit" },
+        { role: "pasteAndMatchStyle", label: "Vložit a přizpůsobit styl" },
+        { role: "delete", label: "Smazat" },
         { role: "selectAll", label: "Vybrat vše" },
       ],
     },
@@ -81,6 +104,20 @@ function buildMenu() {
           label: "Znovu načíst",
           accelerator: "CmdOrCtrl+R",
           click: () => mainWindow?.webContents.reload(),
+        },
+        {
+          label: "Přejít zpět",
+          accelerator: "CmdOrCtrl+Left",
+          click: () => {
+            if (mainWindow?.webContents.canGoBack()) mainWindow.webContents.goBack();
+          },
+        },
+        {
+          label: "Přejít vpřed",
+          accelerator: "CmdOrCtrl+Right",
+          click: () => {
+            if (mainWindow?.webContents.canGoForward()) mainWindow.webContents.goForward();
+          },
         },
         { type: "separator" },
         { role: "resetZoom", label: "Původní velikost" },
@@ -95,9 +132,19 @@ function buildMenu() {
       submenu: [
         { role: "minimize", label: "Minimalizovat" },
         { role: "zoom", label: "Maximalizovat" },
-        ...(process.platform === "darwin"
-          ? [{ type: "separator" }, { role: "front" }]
-          : [{ role: "close", label: "Zavřít" }]),
+        { type: "separator" },
+        { role: "front", label: "Přenést vše do popředí" },
+        { type: "separator" },
+        { role: "close", label: "Zavřít okno" },
+      ],
+    },
+    {
+      label: "Nápověda",
+      submenu: [
+        {
+          label: "Otevřít v prohlížeči",
+          click: () => shell.openExternal(APP_URL),
+        },
       ],
     },
   ];
@@ -108,8 +155,6 @@ function buildMenu() {
 app.whenReady().then(() => {
   createWindow();
   buildMenu();
-
-  // Check for Electron shell updates silently on startup
   autoUpdater.checkForUpdatesAndNotify();
 
   app.on("activate", () => {
@@ -121,9 +166,7 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
 
-// Auto-updater events — notify user only when update is ready to install
 autoUpdater.on("update-downloaded", () => {
-  const { dialog } = require("electron");
   dialog
     .showMessageBox({
       type: "info",
