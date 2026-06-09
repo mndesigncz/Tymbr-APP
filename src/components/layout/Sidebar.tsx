@@ -22,10 +22,13 @@ const topItems = [
 ];
 
 const teamItems = [
-  { href: "/chat",               icon: MessageSquare, label: "Chat"           },
-  { href: "/files",              icon: FolderOpen,    label: "Soubory"        },
-  { href: "/settings/team",      icon: Settings2,     label: "Nastavení týmu" },
-  { href: "/settings/webhooks",  icon: Webhook,       label: "Webhooks"       },
+  { href: "/chat",          icon: MessageSquare, label: "Chat"    },
+  { href: "/files",         icon: FolderOpen,    label: "Soubory" },
+];
+
+const settingsItems = [
+  { href: "/settings/team",     icon: Settings2, label: "Nastavení týmu" },
+  { href: "/settings/webhooks", icon: Webhook,   label: "Integrace"      },
 ];
 
 export function Sidebar() {
@@ -36,13 +39,21 @@ export function Sidebar() {
   const teamActive = teamItems.some(
     ({ href }) => pathname === href || pathname.startsWith(href)
   );
+  const settingsActive = settingsItems.some(
+    ({ href }) => pathname === href || pathname.startsWith(href)
+  );
   const [teamOpen, setTeamOpen] = useState(teamActive);
+  const [settingsOpen, setSettingsOpen] = useState(settingsActive);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (teamActive) setTeamOpen(true);
   }, [teamActive]);
+
+  useEffect(() => {
+    if (settingsActive) setSettingsOpen(true);
+  }, [settingsActive]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -135,6 +146,40 @@ export function Sidebar() {
             <div className="mt-1 space-y-1">
               {teamItems.map(({ href, icon, label }) =>
                 renderLink(href, icon, label, true, href === "/chat" && chatUnread)
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Collapsible Nastavení group */}
+        <div>
+          <button
+            onClick={() => setSettingsOpen((o) => !o)}
+            className={cn(
+              "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[14px] font-medium transition-all",
+              !settingsActive && "hover:bg-black/[0.035]"
+            )}
+            style={settingsActive
+              ? { background: "var(--bg-card)", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
+              : { color: "var(--text-2)" }
+            }
+          >
+            <Settings className="w-[18px] h-[18px] flex-shrink-0"
+              style={{ color: settingsActive ? "var(--accent)" : "var(--text-2)" }} />
+            <span className="flex-1 text-left">Nastavení</span>
+            <ChevronDown
+              className="w-[14px] h-[14px] transition-transform"
+              style={{
+                color: settingsActive ? "var(--accent)" : "var(--text-3)",
+                transform: settingsOpen ? "rotate(180deg)" : "rotate(0deg)",
+              }}
+            />
+          </button>
+
+          {settingsOpen && (
+            <div className="mt-1 space-y-1">
+              {settingsItems.map(({ href, icon, label }) =>
+                renderLink(href, icon, label, true)
               )}
             </div>
           )}

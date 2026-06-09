@@ -21,7 +21,7 @@ const moreItems = [
   { href: "/categories",         icon: Tag,        label: "Funkce"          },
   { href: "/files",              icon: FolderOpen, label: "Soubory"         },
   { href: "/settings/team",      icon: Users,      label: "Nastavení týmu"  },
-  { href: "/settings/webhooks",  icon: Webhook,    label: "Webhooks"        },
+  { href: "/settings/webhooks",  icon: Webhook,    label: "Integrace"       },
   { href: "/settings",           icon: Settings,   label: "Nastavení účtu"  },
 ];
 
