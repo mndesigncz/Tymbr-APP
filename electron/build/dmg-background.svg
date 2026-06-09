@@ -1,63 +1,68 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="760" viewBox="0 0 1080 760">
-  <!-- Background -->
-  <rect width="1080" height="760" fill="#f6f6f7"/>
+  <!-- Dark background -->
+  <rect width="1080" height="760" fill="#0f0f13"/>
 
-  <!-- Top accent bar -->
-  <rect width="1080" height="5" fill="#f7592f"/>
-
-  <!-- Subtle top gradient overlay -->
+  <!-- Subtle top gradient -->
   <defs>
     <linearGradient id="topGrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#f7592f" stop-opacity="0.07"/>
+      <stop offset="0%" stop-color="#f7592f" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#f7592f" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="glowLeft" cx="50%" cy="50%" r="50%" fx="50%" fy="50%" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#f7592f" stop-opacity="0.10"/>
       <stop offset="100%" stop-color="#f7592f" stop-opacity="0"/>
     </linearGradient>
   </defs>
-  <rect width="1080" height="200" fill="url(#topGrad)"/>
+  <rect width="1080" height="300" fill="url(#topGrad)"/>
 
-  <!-- App icon placeholder circle (left, where .app icon appears) -->
-  <circle cx="270" cy="370" r="80" fill="rgba(247,89,47,0.06)" stroke="rgba(247,89,47,0.18)" stroke-width="1.5" stroke-dasharray="7,5"/>
+  <!-- Top accent line -->
+  <rect width="1080" height="3" fill="#f7592f" opacity="0.9"/>
 
-  <!-- Applications folder placeholder circle (right) -->
-  <circle cx="810" cy="370" r="80" fill="rgba(0,0,0,0.035)" stroke="rgba(0,0,0,0.10)" stroke-width="1.5" stroke-dasharray="7,5"/>
+  <!-- Glow under left icon -->
+  <ellipse cx="270" cy="380" rx="130" ry="80" fill="#f7592f" opacity="0.06"/>
 
-  <!-- Arrow -->
-  <line x1="365" y1="370" x2="705" y2="370" stroke="#d1d1d6" stroke-width="2.5" stroke-dasharray="10,6" stroke-linecap="round"/>
+  <!-- Icon placeholder circle left -->
+  <circle cx="270" cy="370" r="88" fill="none" stroke="#f7592f" stroke-width="1" stroke-dasharray="8,6" opacity="0.3"/>
+
+  <!-- Icon placeholder circle right -->
+  <circle cx="810" cy="370" r="88" fill="none" stroke="#ffffff" stroke-width="1" stroke-dasharray="8,6" opacity="0.08"/>
+
+  <!-- Arrow shaft -->
+  <line x1="375" y1="370" x2="695" y2="370" stroke="#3a3a4a" stroke-width="2" stroke-dasharray="10,7" stroke-linecap="round"/>
   <!-- Arrowhead -->
-  <polygon points="705,358 730,370 705,382" fill="#c7c7cc"/>
+  <polygon points="698,358 722,370 698,382" fill="#3a3a4a"/>
+
+  <!-- Logo mark (orange rounded square) -->
+  <rect x="492" y="148" width="96" height="96" rx="22" fill="#f7592f"/>
+  <polyline points="516,196 532,212 564,180" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
 
   <!-- App name -->
-  <text x="540" y="90"
+  <text x="540" y="278"
     text-anchor="middle"
     font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif"
-    font-size="42"
+    font-size="40"
     font-weight="700"
-    letter-spacing="-1"
-    fill="#1a1a1f">Noisium</text>
+    letter-spacing="-0.8"
+    fill="#f0f0f5">Noisium</text>
 
   <!-- Tagline -->
-  <text x="540" y="128"
+  <text x="540" y="314"
     text-anchor="middle"
     font-family="-apple-system, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif"
-    font-size="17"
-    fill="#6b6b72">Řiďte tým bez chaosu</text>
+    font-size="16"
+    fill="#5e5e6e">Řiďte tým bez chaosu</text>
 
-  <!-- Instruction text -->
+  <!-- Instruction -->
   <text x="540" y="570"
     text-anchor="middle"
     font-family="-apple-system, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif"
     font-size="14"
-    fill="#9a9aa2">Přetáhněte Noisium do složky Aplikace</text>
+    fill="#3a3a4a">Přetáhněte Noisium do složky Aplikace</text>
 
-  <!-- Bottom domain -->
-  <text x="540" y="730"
+  <!-- Domain -->
+  <text x="540" y="728"
     text-anchor="middle"
     font-family="-apple-system, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif"
     font-size="12"
-    fill="#c7c7cc">noisium.app</text>
-
-  <!-- Orange dot logo mark -->
-  <rect x="492" y="160" width="96" height="96" rx="22" fill="#f7592f"/>
-  <!-- Checkmark inside logo -->
-  <polyline points="516,208 532,224 564,192"
-    stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    fill="#2a2a38">noisium.app</text>
 </svg>

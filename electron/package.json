@@ -7,7 +7,6 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "prebuild:mac": "node scripts/generate-dmg-bg.mjs",
     "build:mac": "electron-builder --mac",
     "build:win": "electron-builder --win",
     "build:all": "electron-builder --mac --win"
@@ -34,23 +33,45 @@
       "icon": "build/icon.png",
       "identity": null,
       "target": [
-        { "target": "dmg", "arch": ["x64", "arm64"] },
-        { "target": "zip", "arch": ["x64", "arm64"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ]
     },
     "win": {
       "icon": "build/icon.ico",
-      "target": [{ "target": "nsis", "arch": ["x64"] }]
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
     },
     "dmg": {
       "title": "Noisium",
       "background": "build/dmg-background.png",
-      "window": { "width": 540, "height": 380 },
+      "window": {
+        "width": 560,
+        "height": 400
+      },
       "contents": [
-        { "x": 135, "y": 185, "type": "file" },
-        { "x": 405, "y": 185, "type": "link", "path": "/Applications" }
+        { "x": 140, "y": 200, "type": "file" },
+        { "x": 420, "y": 200, "type": "link", "path": "/Applications" }
       ],
-      "iconSize": 100
+      "iconSize": 96
     },
     "nsis": {
       "oneClick": false,
