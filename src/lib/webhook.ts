@@ -26,12 +26,12 @@ export async function fireWebhooks(teamId: string, event: WebhookEvent, payload:
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      "X-Tymbr-Event": event,
+      "X-Noisium-Event": event,
     };
 
     if (hook.secret) {
       const sig = crypto.createHmac("sha256", hook.secret).update(body).digest("hex");
-      headers["X-Tymbr-Signature"] = `sha256=${sig}`;
+      headers["X-Noisium-Signature"] = `sha256=${sig}`;
     }
 
     fetch(hook.url, { method: "POST", headers, body }).catch(() => {});

@@ -104,7 +104,7 @@ export function Sidebar() {
             </div>
           )}
           <span className="text-[17px] font-bold tracking-tight truncate" style={{ color: "var(--text-1)" }}>
-            {branding.name || "Tymbr"}
+            {branding.name || "Noisium"}
           </span>
         </div>
       </div>
