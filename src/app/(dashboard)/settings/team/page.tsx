@@ -460,7 +460,7 @@ function TeamSettingsContent() {
         </div>
       )}
 
-      <div className="px-4 sm:px-6 lg:px-8 pt-2 pb-12 space-y-6 max-w-3xl">
+      <div className="px-4 sm:px-6 lg:px-8 pt-2 pb-12 space-y-6 max-w-3xl mx-auto">
         {/* Join code */}
         {(team as any).joinCode && (
           <div className="rounded-3xl border p-5"
