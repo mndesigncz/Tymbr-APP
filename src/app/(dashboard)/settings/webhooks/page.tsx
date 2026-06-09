@@ -108,8 +108,8 @@ export default function WebhooksPage() {
   return (
     <div>
       <Header
-        title="Webhooks"
-        subtitle="Automatické notifikace na váš server při každé události."
+        title="Integrace"
+        subtitle="Propojte Noisium s dalšími nástroji a automatizujte svůj tým."
       />
 
       <div className="px-4 sm:px-6 lg:px-8 pt-2 pb-12 max-w-2xl mx-auto space-y-5">
