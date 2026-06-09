@@ -29,7 +29,7 @@ const ALL_EVENTS = [
 const USE_CASES = [
   { icon: Zap,      title: "Zapier / Make",   desc: "Automaticky vytvoř úkol v Notion, pošli Slack zprávu nebo aktualizuj CRM." },
   { icon: ArrowRight, title: "Vlastní server", desc: "Příjmi HTTP POST na svůj backend a reaguj na události v reálném čase." },
-  { icon: Lock,     title: "HMAC ověření",    desc: "Secret generuje podpis v hlavičce X-Tymbr-Signature — ověř autentičnost." },
+  { icon: Lock,     title: "HMAC ověření",    desc: "Secret generuje podpis v hlavičce X-Noisium-Signature — ověř autentičnost." },
 ];
 
 export default function WebhooksPage() {
@@ -125,7 +125,7 @@ export default function WebhooksPage() {
             <div>
               <h2 className="text-[14.5px] font-bold" style={{ color: "var(--text-1)" }}>Co jsou webhooky?</h2>
               <p className="text-[13px] mt-1 leading-relaxed" style={{ color: "var(--text-2)" }}>
-                Webhook je URL adresa vašeho serveru, na kterou Tymbr odešle HTTP POST požadavek
+                Webhook je URL adresa vašeho serveru, na kterou Noisium odešle HTTP POST požadavek
                 vždy, když nastane vybraná událost — například vytvoření úkolu nebo přidání komentáře.
               </p>
             </div>
@@ -206,7 +206,7 @@ export default function WebhooksPage() {
             <Webhook className="w-8 h-8 mx-auto mb-3" style={{ color: "var(--text-3)" }} />
             <p className="text-[14px] font-semibold mb-1" style={{ color: "var(--text-2)" }}>Žádné webhooky</p>
             <p className="text-[13px] px-6" style={{ color: "var(--text-3)" }}>
-              Přidejte první endpoint a začněte přijímat události z Tymbr v reálném čase.
+              Přidejte první endpoint a začněte přijímat události z Noisium v reálném čase.
             </p>
           </div>
         ) : hooks.length > 0 ? (
@@ -288,7 +288,7 @@ export default function WebhooksPage() {
                             HMAC-SHA256 podpis je v hlavičce{" "}
                             <code className="font-mono text-[11px] px-1.5 py-0.5 rounded-md"
                               style={{ background: "var(--bg-subtle)" }}>
-                              X-Tymbr-Signature
+                              X-Noisium-Signature
                             </code>
                           </p>
                         </div>
