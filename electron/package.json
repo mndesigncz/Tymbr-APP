@@ -1,0 +1,56 @@
+{
+  "name": "noisium",
+  "version": "1.0.0",
+  "description": "Noisium – Řiďte tým bez chaosu",
+  "main": "main.js",
+  "author": "Noisium",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build:all": "electron-builder --mac --win"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "app.noisium.desktop",
+    "productName": "Noisium",
+    "copyright": "Copyright © 2026 Noisium",
+    "publish": {
+      "provider": "github",
+      "owner": "mndesigncz",
+      "repo": "Tymbr-APP"
+    },
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.icns",
+      "target": [
+        { "target": "dmg", "arch": ["x64", "arm64"] },
+        { "target": "zip", "arch": ["x64", "arm64"] }
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [{ "target": "nsis", "arch": ["x64"] }]
+    },
+    "dmg": {
+      "title": "Noisium",
+      "background": "build/dmg-background.png",
+      "window": { "width": 540, "height": 380 }
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}
