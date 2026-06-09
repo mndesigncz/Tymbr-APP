@@ -29,6 +29,8 @@ export async function GET(req: NextRequest) {
   const where: Record<string, any> = canSeeTeam
     ? { user: { teamMemberships: { some: { teamId } } } }
     : { userId: session.user.id };
+  // Always scope to the current team's tasks
+  if (teamId) where.task = { teamId };
   if (taskId) where.taskId = taskId;
   if (dateFrom || dateTo) {
     where.startedAt = {};
