@@ -8,7 +8,10 @@ import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 import {
   Plus, X, Check, LayoutTemplate, Save, Trash2, ChevronDown,
-  Circle, Flag, CalendarRange, Tag, Users, Banknote, Repeat, Play, Smile,
+  Circle, Flag, CalendarRange, Tag, Users, Banknote, Repeat, Play,
+  CheckSquare, Star, Target, Zap, AlertTriangle, FileText, Package,
+  FolderOpen, Globe, Home, MessageSquare, Settings2, Wrench, Heart,
+  Briefcase, BookOpen, Bell, PenLine,
 } from "lucide-react";
 import type { Task, Category, User } from "@/types";
 import { useStatusConfig } from "@/hooks/useStatusConfig";
@@ -46,11 +49,37 @@ const RECURRING_LABELS: Record<string, string> = {
   monthly: "Měsíčně",
 };
 
-const EMOJI_OPTIONS = [
-  "📋", "✅", "🔥", "⚡", "🎯", "📌", "🏷️", "💡",
-  "🛠️", "📦", "🚀", "⭐", "📝", "🔔", "💬", "🗂️",
-  "📊", "🎨", "🔍", "🧩", "⏰", "📅", "💼", "🌟",
+// Lucide icons available for task icon picker
+const ICON_OPTIONS: { key: string; Icon: React.ElementType }[] = [
+  { key: "CheckSquare", Icon: CheckSquare },
+  { key: "Star",        Icon: Star },
+  { key: "Flag",        Icon: Flag },
+  { key: "Target",      Icon: Target },
+  { key: "Zap",         Icon: Zap },
+  { key: "AlertTriangle", Icon: AlertTriangle },
+  { key: "FileText",    Icon: FileText },
+  { key: "Package",     Icon: Package },
+  { key: "FolderOpen",  Icon: FolderOpen },
+  { key: "Tag",         Icon: Tag },
+  { key: "Globe",       Icon: Globe },
+  { key: "Home",        Icon: Home },
+  { key: "Users",       Icon: Users },
+  { key: "Calendar",    Icon: CalendarRange },
+  { key: "MessageSquare", Icon: MessageSquare },
+  { key: "Settings",    Icon: Settings2 },
+  { key: "Wrench",      Icon: Wrench },
+  { key: "Heart",       Icon: Heart },
+  { key: "Briefcase",   Icon: Briefcase },
+  { key: "BookOpen",    Icon: BookOpen },
+  { key: "Bell",        Icon: Bell },
+  { key: "PenLine",     Icon: PenLine },
+  { key: "Circle",      Icon: Circle },
+  { key: "Repeat",      Icon: Repeat },
 ];
+
+const ICON_MAP: Record<string, React.ElementType> = Object.fromEntries(
+  ICON_OPTIONS.map(({ key, Icon }) => [key, Icon])
+);
 
 function Row({
   icon: Icon,
@@ -355,6 +384,12 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
   const curCategory = categories.find((c) => c.id === form.categoryId);
   const selectedUsers = users.filter((u) => selectedAssigneeIds.includes(u.id));
 
+  // Priority color for the header tint (fallback to neutral if not loaded yet)
+  const priorityColor = curPriority?.color ?? "#6366f1";
+
+  // Current task icon component (if one is selected)
+  const TaskIcon = form.icon ? ICON_MAP[form.icon] : null;
+
   const filteredUsers = assigneeSearch.trim()
     ? users.filter((u) =>
         u.name.toLowerCase().includes(assigneeSearch.toLowerCase()) ||
@@ -437,38 +472,62 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
         </div>
       )}
 
-      {/* Title card with emoji picker */}
-      <div className="rounded-3xl border px-5 py-4" style={cardStyle}>
-        <div className="relative mb-2" ref={iconPickerRef}>
-          <button
-            type="button"
-            onClick={() => setIconPickerOpen((o) => !o)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition-all hover:bg-black/[0.05]"
-            style={{ color: form.icon ? "var(--text-1)" : "var(--text-3)", background: iconPickerOpen ? "var(--bg-subtle)" : "transparent" }}
-          >
-            {form.icon ? (
-              <span className="text-[20px] leading-none">{form.icon}</span>
-            ) : (
-              <Smile className="w-4 h-4" />
-            )}
-            <span className="text-[12px] font-medium">{form.icon ? "Změnit ikonu" : "Přidat ikonu"}</span>
-          </button>
+      {/* Title card — colored header + title + icon picker */}
+      <div className="rounded-3xl border overflow-hidden" style={cardStyle}>
+        {/* Priority-tinted header with icon button */}
+        <div
+          className="px-4 pt-3.5 pb-3 relative"
+          style={{ background: `color-mix(in srgb, ${priorityColor} 13%, var(--bg-card))` }}
+          ref={iconPickerRef}
+        >
+          <div className="flex items-center gap-3">
+            {/* Icon picker button */}
+            <button
+              type="button"
+              onClick={() => setIconPickerOpen((o) => !o)}
+              className="w-11 h-11 rounded-2xl flex-shrink-0 flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+              style={{
+                background: `color-mix(in srgb, ${priorityColor} 22%, var(--bg-card))`,
+                color: priorityColor,
+                boxShadow: `0 2px 8px color-mix(in srgb, ${priorityColor} 20%, transparent)`,
+              }}
+            >
+              {TaskIcon
+                ? <TaskIcon className="w-5 h-5" />
+                : <PenLine className="w-4 h-4" style={{ color: `color-mix(in srgb, ${priorityColor} 70%, var(--text-3))` }} />
+              }
+            </button>
 
+            {/* Title input */}
+            <input
+              value={form.title}
+              onChange={set("title")}
+              required
+              placeholder="Co je potřeba udělat?"
+              className="flex-1 bg-transparent outline-none text-[18px] font-bold tracking-tight placeholder:font-semibold"
+              style={{ color: "var(--text-1)" }}
+            />
+          </div>
+
+          {/* Icon picker dropdown */}
           {iconPickerOpen && (
             <div
               className="absolute top-full left-0 mt-1.5 z-50 rounded-2xl border p-3 shadow-lg"
-              style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", minWidth: "220px" }}
+              style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", minWidth: "252px" }}
             >
-              <div className="grid grid-cols-8 gap-1">
-                {EMOJI_OPTIONS.map((emoji) => (
+              <div className="grid grid-cols-6 gap-1.5">
+                {ICON_OPTIONS.map(({ key, Icon: Opt }) => (
                   <button
-                    key={emoji}
+                    key={key}
                     type="button"
-                    onClick={() => { setForm((f) => ({ ...f, icon: f.icon === emoji ? "" : emoji })); setIconPickerOpen(false); }}
-                    className="text-[18px] w-7 h-7 flex items-center justify-center rounded-lg transition-all hover:bg-black/[0.08]"
-                    style={{ background: form.icon === emoji ? "var(--accent-soft)" : "transparent" }}
+                    onClick={() => { setForm((f) => ({ ...f, icon: f.icon === key ? "" : key })); setIconPickerOpen(false); }}
+                    className="w-9 h-9 flex items-center justify-center rounded-xl transition-all hover:bg-black/[0.07]"
+                    style={{
+                      background: form.icon === key ? `color-mix(in srgb, ${priorityColor} 14%, transparent)` : "transparent",
+                      color: form.icon === key ? priorityColor : "var(--text-2)",
+                    }}
                   >
-                    {emoji}
+                    <Opt className="w-[18px] h-[18px]" />
                   </button>
                 ))}
               </div>
@@ -476,7 +535,7 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
                 <button
                   type="button"
                   onClick={() => { setForm((f) => ({ ...f, icon: "" })); setIconPickerOpen(false); }}
-                  className="mt-2 w-full text-[12px] py-1.5 rounded-xl transition-colors hover:text-red-500 text-center"
+                  className="mt-2 w-full text-[12px] py-1.5 rounded-xl text-center transition-colors hover:text-red-500"
                   style={{ color: "var(--text-3)" }}
                 >
                   Odebrat ikonu
@@ -485,15 +544,6 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
             </div>
           )}
         </div>
-
-        <input
-          value={form.title}
-          onChange={set("title")}
-          required
-          placeholder="Co je potřeba udělat?"
-          className="w-full bg-transparent outline-none text-[19px] font-bold tracking-tight placeholder:font-semibold"
-          style={{ color: "var(--text-1)" }}
-        />
       </div>
 
       {/* Settings rows */}
@@ -771,15 +821,15 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
           </Button>
         </div>
 
-        {/* Creates the task and immediately starts focus mode */}
+        {/* Matches the "Zahájit práci" button style from dashboard header */}
         <button
           type="button"
           onClick={handleStartWork}
           disabled={startingWork || loading}
-          className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-2xl font-semibold text-[15px] transition-all hover:opacity-90 disabled:opacity-50"
-          style={{ background: "var(--accent)", color: "#fff", boxShadow: "0 2px 12px color-mix(in srgb, var(--accent) 35%, transparent)" }}
+          className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-[13.5px] font-semibold border transition-all hover:bg-black/[0.03] disabled:opacity-50"
+          style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}
         >
-          <Play className="w-[18px] h-[18px] fill-current" />
+          <Play className="w-3.5 h-3.5 fill-current" style={{ color: "#16a34a" }} />
           {startingWork ? "Spouštím…" : "Začít pracovat"}
         </button>
       </div>
