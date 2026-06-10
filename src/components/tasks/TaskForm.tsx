@@ -473,10 +473,11 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
       )}
 
       {/* Title card — colored header + title + icon picker */}
-      <div className="rounded-3xl border overflow-hidden" style={cardStyle}>
-        {/* Priority-tinted header with icon button */}
+      {/* No overflow-hidden on card so the icon picker dropdown isn't clipped */}
+      <div className="rounded-3xl border" style={cardStyle}>
+        {/* Priority-tinted header — rounded-t-3xl clips its own background */}
         <div
-          className="px-4 pt-3.5 pb-3 relative"
+          className="rounded-t-3xl px-4 pt-3.5 pb-3 relative"
           style={{ background: `color-mix(in srgb, ${priorityColor} 13%, var(--bg-card))` }}
           ref={iconPickerRef}
         >
@@ -561,33 +562,33 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
         {/* Merged start date + due date */}
         <Row icon={CalendarRange} label="Termín" open={openRow === "termin"} onToggle={() => toggleRow("termin")}
           value={termínValue}>
-          <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[12px] font-semibold mb-1.5 block" style={{ color: "var(--text-3)" }}>
-                Datum začátku
+              <label className="text-[11.5px] font-semibold mb-1.5 block" style={{ color: "var(--text-3)" }}>
+                Začátek
               </label>
-              <div className="flex items-center gap-2">
-                <Input type="date" value={form.startDate} onChange={set("startDate")} className="flex-1" />
+              <div className="flex items-center gap-1">
+                <Input type="date" value={form.startDate} onChange={set("startDate")} className="flex-1 min-w-0" />
                 {form.startDate && (
                   <button type="button" onClick={() => setForm((f) => ({ ...f, startDate: "" }))}
-                    className="p-2.5 rounded-xl transition-colors hover:text-red-500"
+                    className="p-1.5 rounded-lg transition-colors hover:text-red-500 flex-shrink-0"
                     style={{ color: "var(--text-3)" }}>
-                    <X className="w-4 h-4" />
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
             </div>
             <div>
-              <label className="text-[12px] font-semibold mb-1.5 block" style={{ color: "var(--text-3)" }}>
-                Termín splnění
+              <label className="text-[11.5px] font-semibold mb-1.5 block" style={{ color: "var(--text-3)" }}>
+                Splnění
               </label>
-              <div className="flex items-center gap-2">
-                <Input type="date" value={form.dueDate} onChange={set("dueDate")} className="flex-1" />
+              <div className="flex items-center gap-1">
+                <Input type="date" value={form.dueDate} onChange={set("dueDate")} className="flex-1 min-w-0" />
                 {form.dueDate && (
                   <button type="button" onClick={() => setForm((f) => ({ ...f, dueDate: "" }))}
-                    className="p-2.5 rounded-xl transition-colors hover:text-red-500"
+                    className="p-1.5 rounded-lg transition-colors hover:text-red-500 flex-shrink-0"
                     style={{ color: "var(--text-3)" }}>
-                    <X className="w-4 h-4" />
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
