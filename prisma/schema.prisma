@@ -32,6 +32,7 @@ model User {
   filesCreated      TeamFile[]        @relation("TeamFileCreator")
   subtasksAssigned  SubTask[]         @relation("SubTaskAssignee")
   notifications     Notification[]
+  eventsCreated     Event[]           @relation("EventCreator")
 }
 
 model Notification {
@@ -73,6 +74,7 @@ model Team {
   files          TeamFile[]
   taskTemplates  TaskTemplate[]
   webhooks       Webhook[]
+  events         Event[]
 
   @@index([ownerId])
 }
@@ -327,6 +329,31 @@ model Task {
   @@index([completedAt])
   @@index([teamId, status])
   @@index([teamId, completedAt])
+}
+
+model Event {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  startAt     DateTime
+  endAt       DateTime
+  allDay      Boolean  @default(false)
+  location    String?
+  color       String?
+  visibility  String   @default("personal")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  teamId String?
+  team   Team?   @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  createdById String
+  createdBy   User   @relation("EventCreator", fields: [createdById], references: [id])
+
+  @@index([teamId])
+  @@index([createdById])
+  @@index([startAt])
+  @@index([teamId, startAt])
 }
 
 model TaskDependency {

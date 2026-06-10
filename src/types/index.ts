@@ -99,6 +99,25 @@ export interface SubTask {
   timeEntries?: TimeEntry[];
 }
 
+export type EventVisibility = "personal" | "team";
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  description?: string | null;
+  startAt: Date | string;
+  endAt: Date | string;
+  allDay: boolean;
+  location?: string | null;
+  color?: string | null;
+  visibility: EventVisibility;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  teamId?: string | null;
+  createdById: string;
+  createdBy?: User;
+}
+
 export interface TaskStatusHistory {
   id: string;
   taskId: string;

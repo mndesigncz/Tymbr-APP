@@ -13,13 +13,15 @@ import { useChatUnread } from "@/hooks/useChatUnread";
 import {
   LayoutDashboard, CheckSquare, Tag, LogOut, Settings,
   Clock, Users, MessageSquare, ChevronDown, Settings2, FolderOpen, Webhook,
+  Calendar,
 } from "lucide-react";
 
 const topItems = [
-  { href: "/dashboard",  icon: LayoutDashboard, label: "Přehled" },
-  { href: "/tasks",      icon: CheckSquare,     label: "Úkoly"   },
-  { href: "/categories", icon: Tag,             label: "Funkce"  },
-  { href: "/time",       icon: Clock,           label: "Výkazy"  },
+  { href: "/dashboard",  icon: LayoutDashboard, label: "Přehled"  },
+  { href: "/tasks",      icon: CheckSquare,     label: "Úkoly"    },
+  { href: "/calendar",   icon: Calendar,        label: "Kalendář" },
+  { href: "/categories", icon: Tag,             label: "Funkce"   },
+  { href: "/time",       icon: Clock,           label: "Výkazy"   },
 ];
 
 const teamItems = [
