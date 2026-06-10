@@ -487,16 +487,15 @@ function TeamSettingsContent() {
 
         {/* Pending join requests — managers only */}
         {isOwnerOrAdmin && joinRequests.length > 0 && (
-          <div className="rounded-3xl border overflow-hidden"
+          <div className="rounded-3xl border p-4"
             style={{ background: "var(--bg-card)", borderColor: "rgba(234,179,8,0.3)", boxShadow: "var(--shadow-sm)" }}>
-            <div className="px-6 pt-5 pb-3">
-              <p className="text-[15px] font-bold" style={{ color: "var(--text-1)" }}>
-                Žádosti o přidání ({joinRequests.length})
-              </p>
-            </div>
-            <div className="divide-y" style={{ borderColor: "var(--border)" }}>
+            <p className="text-[15px] font-bold px-2 pb-3" style={{ color: "var(--text-1)" }}>
+              Žádosti o přidání ({joinRequests.length})
+            </p>
+            <div className="space-y-2">
               {joinRequests.map((req) => (
-                <div key={req.id} className="flex items-center gap-4 px-6 py-4">
+                <div key={req.id} className="flex items-center gap-4 px-4 py-3.5 rounded-2xl border"
+                  style={{ borderColor: "var(--border)", background: "var(--bg-subtle)" }}>
                   <Avatar name={req.user.name} src={req.user.avatar} size="md" />
                   <div className="flex-1 min-w-0">
                     <p className="text-[13.5px] font-semibold" style={{ color: "var(--text-1)" }}>{req.user.name}</p>
@@ -622,25 +621,24 @@ function TeamSettingsContent() {
         )}
 
         {/* Members */}
-        <div className="rounded-3xl border overflow-hidden"
+        <div className="rounded-3xl border p-4"
           style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
-          <div className="px-6 pt-6 pb-4">
-            <h2 className="text-[15px] font-bold" style={{ color: "var(--text-1)" }}>
-              Členové ({team.members?.length ?? 0})
-            </h2>
-          </div>
-          <div className="divide-y" style={{ borderColor: "var(--border)" }}>
+          <h2 className="text-[15px] font-bold px-2 pb-3" style={{ color: "var(--text-1)" }}>
+            Členové ({team.members?.length ?? 0})
+          </h2>
+          <div className="space-y-2">
             {(team.members as TeamMember[])?.map((member) => {
               const isMe = member.userId === session?.user?.id;
               const isMemberOwner = member.role === "owner";
               return (
-                <div key={member.id} className="flex items-center gap-4 px-6 py-4">
+                <div key={member.id} className="flex items-center gap-4 px-4 py-3.5 rounded-2xl border"
+                  style={{ borderColor: "var(--border)", background: "var(--bg-subtle)" }}>
                   <Avatar name={member.user?.name ?? "?"} src={member.user?.avatar} size="md" />
                   <div className="flex-1 min-w-0">
                     <p className="text-[13.5px] font-semibold flex items-center gap-1.5" style={{ color: "var(--text-1)" }}>
                       {member.user?.name}
                       {isMemberOwner && <Crown className="w-3.5 h-3.5" style={{ color: "var(--accent)" }} />}
-                      {isMe && <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-md" style={{ background: "var(--bg-subtle)", color: "var(--text-3)" }}>Já</span>}
+                      {isMe && <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-md" style={{ background: "var(--bg-card)", color: "var(--text-3)" }}>Já</span>}
                     </p>
                     <p className="text-[12px]" style={{ color: "var(--text-3)" }}>{member.user?.email}</p>
                   </div>
@@ -652,7 +650,7 @@ function TeamSettingsContent() {
                       </button>
                     </div>
                   ) : (
-                    <span className="text-[12.5px] font-semibold px-2.5 py-1 rounded-xl" style={{ background: "var(--bg-subtle)", color: "var(--text-2)" }}>
+                    <span className="text-[12.5px] font-semibold px-2.5 py-1 rounded-xl" style={{ background: "var(--bg-card)", color: "var(--text-2)" }}>
                       {ROLE_LABELS[member.role as TeamRole] ?? member.role}
                     </span>
                   )}

@@ -80,6 +80,7 @@ export interface Task {
   statusHistory?: TaskStatusHistory[];
   visibility?: string;
   recurring?: string;
+  icon?: string | null;
   blockedByCount?: number;
   _count?: { comments: number };
 }

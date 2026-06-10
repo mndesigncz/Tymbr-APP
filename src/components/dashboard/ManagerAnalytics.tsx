@@ -40,7 +40,7 @@ export function ManagerAnalytics({ members }: { members: MemberStat[] }) {
       </div>
 
       {/* Header row — desktop only */}
-      <div className="hidden sm:grid px-6 pb-2 text-[11px] font-semibold uppercase tracking-wider"
+      <div className="hidden sm:grid px-5 pb-2 text-[11px] font-semibold uppercase tracking-wider"
         style={{ color: "var(--text-3)", gridTemplateColumns: "1fr repeat(4, minmax(0, 1fr))" }}>
         <span>Člen</span>
         <span className="text-center">Otevřené</span>
@@ -49,7 +49,7 @@ export function ManagerAnalytics({ members }: { members: MemberStat[] }) {
         <span className="text-center">Hod. / měsíc</span>
       </div>
 
-      <div className="divide-y" style={{ borderColor: "var(--border)" }}>
+      <div className="space-y-2 px-4 pb-4">
         {members.map((m) => (
           <MemberRow key={m.userId} m={m} />
         ))}
@@ -73,8 +73,8 @@ function MemberRow({ m }: { m: MemberStat }) {
   return (
     <Link
       href={`/tasks?assigneeId=${m.userId}`}
-      className="flex flex-col sm:grid gap-4 sm:gap-2 px-6 py-4 transition-colors hover:bg-black/[0.025]"
-      style={{ gridTemplateColumns: "1fr repeat(4, minmax(0, 1fr))" }}>
+      className="flex flex-col sm:grid gap-4 sm:gap-2 px-5 py-4 rounded-2xl border transition-colors hover:bg-black/[0.025]"
+      style={{ gridTemplateColumns: "1fr repeat(4, minmax(0, 1fr))", borderColor: "var(--border)", background: "var(--bg-subtle)" }}>
 
       {/* Member info */}
       <div className="flex items-center gap-3">
