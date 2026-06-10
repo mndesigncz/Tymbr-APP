@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   startOfDay, endOfDay, addDays, addMonths, subMonths,
@@ -41,6 +42,9 @@ type DayItem =
   | { kind: "task"; date: Date; color: string; data: Task };
 
 export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
   const [current, setCurrent] = useState(() => new Date());
   const [scope, setScope] = useState<Scope>(canUseTeam ? "all" : "personal");
   const [showTasks, setShowTasks] = useState(true);
@@ -97,6 +101,15 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
       .then((data) => setTasks(Array.isArray(data) ? data.filter((t: Task) => t.dueDate) : []))
       .catch(() => setTasks([]));
   }, []);
+
+  // Allow other sections to deep-link into "new event" via /calendar?new=event
+  useEffect(() => {
+    if (searchParams.get("new") === "event") {
+      setEditingEvent(null);
+      setModalOpen(true);
+      router.replace("/calendar");
+    }
+  }, [searchParams, router]);
 
   // Items intersecting a given day
   const itemsForDay = useCallback((day: Date): DayItem[] => {
@@ -200,30 +213,22 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
 
   return (
     <div className="space-y-4">
-      {/* ── Filter bar ── */}
+      {/* ── Filter bar — everything in one row, like the tasks tab ── */}
       <div className="space-y-3">
-        {/* Range presets */}
         <div className="flex items-center gap-2 flex-wrap">
-          {([["day", "Dnes"], ["week", "Tento týden"], ["month", "Tento měsíc"], ["custom", "Vlastní"]] as [RangeMode, string][]).map(([m, label]) => (
-            <button key={m} onClick={() => setRangePreset(m)}
-              className="px-3.5 py-2 rounded-xl border text-[13px] font-semibold transition-all"
-              style={chip(rangeMode === m)}>
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {/* Custom range inputs */}
-        {rangeMode === "custom" && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="w-auto" />
-            <span className="text-[13px]" style={{ color: "var(--text-3)" }}>–</span>
-            <Input type="date" value={customTo} min={customFrom} onChange={(e) => setCustomTo(e.target.value)} className="w-auto" />
+          {/* Range segmented */}
+          <div className="flex items-center gap-1 p-1 rounded-xl border"
+            style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
+            {([["day", "Dnes"], ["week", "Týden"], ["month", "Měsíc"], ["custom", "Vlastní"]] as [RangeMode, string][]).map(([m, label]) => (
+              <button key={m} onClick={() => setRangePreset(m)}
+                className="px-3 py-1.5 rounded-lg text-[12.5px] font-semibold transition-all"
+                style={seg(rangeMode === m)}>
+                {label}
+              </button>
+            ))}
           </div>
-        )}
 
-        {/* Scope + layer toggles */}
-        <div className="flex items-center gap-2 flex-wrap">
+          {/* Scope segmented */}
           <div className="flex items-center gap-1 p-1 rounded-xl border"
             style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
             {([["all", "Vše"], ["personal", "Osobní"], ["team", "Týmové"]] as [Scope, string][])
@@ -237,6 +242,7 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
               ))}
           </div>
 
+          {/* Layer toggles */}
           <button onClick={() => setShowEvents((v) => !v)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[12.5px] font-semibold transition-all"
             style={chip(showEvents)}>
@@ -250,6 +256,15 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
             Úkoly
           </button>
         </div>
+
+        {/* Custom range inputs */}
+        {rangeMode === "custom" && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <Input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="w-auto" />
+            <span className="text-[13px]" style={{ color: "var(--text-3)" }}>–</span>
+            <Input type="date" value={customTo} min={customFrom} onChange={(e) => setCustomTo(e.target.value)} className="w-auto" />
+          </div>
+        )}
       </div>
 
       {/* ── Calendar + agenda ── */}
@@ -268,8 +283,8 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <button onClick={() => { const t = new Date(); setCurrent(t); selectDay(t); }}
-                className="px-3 py-1.5 text-[12.5px] font-semibold rounded-xl border transition-colors hover:opacity-80"
-                style={{ background: "var(--bg-subtle)", borderColor: "var(--border-md)", color: "var(--accent)" }}>
+                className="px-3 py-1.5 text-[12.5px] font-semibold rounded-xl border transition-colors hover:bg-black/[0.04]"
+                style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-2)" }}>
                 Dnes
               </button>
               <button onClick={() => setCurrent((c) => addMonths(c, 1))} aria-label="Další měsíc"

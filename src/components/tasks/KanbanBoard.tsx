@@ -75,9 +75,10 @@ export function KanbanBoard({ tasks, onStatusChange }: KanbanBoardProps) {
           </Link>
         </div>
 
-        {/* Column body — vertical task list. On mobile the column shrinks to
-            its content so empty columns stay compact when stacked. */}
-        <div className="flex-1 flex flex-col gap-4 min-h-0 lg:min-h-[140px]">
+        {/* Column body — vertical task list. The column hugs its own content
+            (see items-start on the row) so a fuller column never stretches the
+            empty space of shorter ones. A small min-height keeps a drop area. */}
+        <div className="flex flex-col gap-4 min-h-0 lg:min-h-[120px]">
           {colTasks.map((task) => (
             <div
               key={task.id}
@@ -90,7 +91,7 @@ export function KanbanBoard({ tasks, onStatusChange }: KanbanBoardProps) {
             </div>
           ))}
           {colTasks.length === 0 && (
-            <div className="flex items-center justify-center py-6 lg:flex-1 lg:py-10">
+            <div className="flex items-center justify-center py-8">
               <span className="text-[12.5px]" style={{ color: "var(--text-3)" }}>Prázdné</span>
             </div>
           )}
@@ -106,8 +107,9 @@ export function KanbanBoard({ tasks, onStatusChange }: KanbanBoardProps) {
         {columns}
       </div>
 
-      {/* Desktop: horizontally scrollable board with edge fades. */}
-      <ScrollFadeX className="hidden lg:flex gap-4 pb-2" fadeColor="var(--bg-page)">
+      {/* Desktop: horizontally scrollable board with edge fades. items-start so
+          each column hugs its own content height instead of matching the tallest. */}
+      <ScrollFadeX className="hidden lg:flex items-start gap-4 pb-2" fadeColor="var(--bg-page)">
         {columns}
       </ScrollFadeX>
     </>
