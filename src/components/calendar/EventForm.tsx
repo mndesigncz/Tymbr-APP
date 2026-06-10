@@ -201,33 +201,26 @@ export function EventForm({ event, defaultDate, canUseTeam, onSaved, onDeleted, 
       {/* Color */}
       <div>
         <label className="text-[12px] font-semibold mb-1.5 block" style={{ color: "var(--text-3)" }}>Barva</label>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-wrap gap-2">
           {EVENT_COLORS.map((c) => (
             <button key={c} type="button" onClick={() => setColor(c)}
-              className="w-7 h-7 rounded-full transition-transform hover:scale-110"
+              className="w-8 h-8 rounded-full transition-transform hover:scale-110"
               style={{
-                background: c,
-                outline: color === c ? `2px solid ${c}` : "none",
+                backgroundColor: c,
+                outline: color === c ? `3px solid ${c}` : undefined,
                 outlineOffset: "2px",
-              }}>
-              {color === c && <span className="block w-full h-full" />}
-            </button>
+              }} />
           ))}
         </div>
       </div>
 
       {/* Location */}
-      <div className="flex items-center gap-2 rounded-xl border px-3"
-        style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
-        <MapPin className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-3)" }} />
-        <input
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          placeholder="Místo (nepovinné)"
-          className="flex-1 bg-transparent outline-none text-[14px] py-2.5"
-          style={{ color: "var(--text-1)" }}
-        />
-      </div>
+      <Input
+        icon={<MapPin className="w-4 h-4" />}
+        value={location}
+        onChange={(e) => setLocation(e.target.value)}
+        placeholder="Místo (nepovinné)"
+      />
 
       {/* Description */}
       <Textarea
