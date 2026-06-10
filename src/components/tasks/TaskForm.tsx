@@ -3,14 +3,17 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
-import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
-import { Plus, X, Check, LayoutTemplate, Save, Trash2 } from "lucide-react";
+import {
+  Plus, X, Check, LayoutTemplate, Save, Trash2, ChevronDown,
+  Circle, Flag, CalendarDays, CalendarClock, Tag, Users, Banknote, Repeat,
+} from "lucide-react";
 import type { Task, Category, User } from "@/types";
 import { useStatusConfig } from "@/hooks/useStatusConfig";
 import { usePriorityConfig } from "@/hooks/usePriorityConfig";
+import { formatDate } from "@/lib/utils";
 
 interface TaskTemplate {
   id: string;
@@ -35,6 +38,58 @@ interface TaskFormProps {
   onSuccess?: (task: Task) => void;
 }
 
+const RECURRING_LABELS: Record<string, string> = {
+  none: "Žádné",
+  daily: "Denně",
+  weekly: "Týdně",
+  monthly: "Měsíčně",
+};
+
+/** A single collapsible setting row — icon + label on the left, current value on the
+ *  right, expands inline to reveal its editor (Apple Reminders style). */
+function Row({
+  icon: Icon,
+  label,
+  value,
+  open,
+  onToggle,
+  children,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: React.ReactNode;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border overflow-hidden"
+      style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-black/[0.02]"
+      >
+        <Icon className="w-[18px] h-[18px] flex-shrink-0"
+          style={{ color: open ? "var(--accent)" : "var(--text-3)" }} />
+        <span className="text-[14px] font-medium flex-shrink-0" style={{ color: "var(--text-1)" }}>
+          {label}
+        </span>
+        <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
+          {!open && (
+            <span className="text-[13.5px] truncate flex items-center gap-1.5" style={{ color: "var(--text-3)" }}>
+              {value}
+            </span>
+          )}
+          <ChevronDown className="w-4 h-4 flex-shrink-0 transition-transform"
+            style={{ color: "var(--text-3)", transform: open ? "rotate(180deg)" : "none" }} />
+        </div>
+      </button>
+      {open && <div className="px-4 pb-4 pt-0.5">{children}</div>}
+    </div>
+  );
+}
+
 export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
   const router = useRouter();
   const statuses = useStatusConfig();
@@ -48,6 +103,10 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
   const [draftSubtasks, setDraftSubtasks] = useState<DraftSubtask[]>([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [expandedSubtask, setExpandedSubtask] = useState<number | null>(null);
+
+  // Accordion — which settings row is currently expanded (one at a time)
+  const [openRow, setOpenRow] = useState<string | null>(null);
+  const toggleRow = (key: string) => setOpenRow((cur) => (cur === key ? null : key));
 
   // Templates
   const [templates, setTemplates] = useState<TaskTemplate[]>([]);
@@ -237,8 +296,25 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
 
   const catOptions = categories.map((c) => ({ value: c.id, label: c.name }));
 
+  // ── Current-value summaries for the collapsed rows ──
+  const curStatus = statuses.find((s) => s.key === form.status);
+  const curPriority = priorities.find((p) => p.key === form.priority);
+  const curCategory = categories.find((c) => c.id === form.categoryId);
+  const selectedUsers = users.filter((u) => selectedAssigneeIds.includes(u.id));
+
+  const dot = (color: string) => (
+    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
+  );
+  const placeholder = (text: string) => <span style={{ color: "var(--text-3)" }}>{text}</span>;
+
+  const cardStyle = {
+    background: "var(--bg-card)",
+    borderColor: "var(--border)",
+    boxShadow: "var(--shadow-sm)",
+  } as const;
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-4 max-w-2xl mx-auto">
       {/* Template picker — new tasks only */}
       {!task && (
         <div className="relative" ref={templateRef}>
@@ -294,123 +370,136 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
         </div>
       )}
 
-      <Input
-        label="Název úkolu"
-        placeholder="Co je potřeba udělat?"
-        value={form.title}
-        onChange={set("title")}
-        required
-      />
-
-      <Textarea
-        label="Popis"
-        placeholder="Podrobnější popis úkolu..."
-        value={form.description}
-        onChange={set("description")}
-        rows={4}
-      />
-
-      <div className="grid grid-cols-2 gap-4">
-        <Select
-          label="Status"
-          options={STATUS_OPTIONS}
-          value={form.status}
-          onChange={set("status")}
-        />
-        <Select
-          label="Priorita"
-          options={PRIORITY_OPTIONS}
-          value={form.priority}
-          onChange={set("priority")}
+      {/* Title card — prominent */}
+      <div className="rounded-3xl border px-5 py-4" style={cardStyle}>
+        <input
+          value={form.title}
+          onChange={set("title")}
+          required
+          placeholder="Co je potřeba udělat?"
+          className="w-full bg-transparent outline-none text-[19px] font-bold tracking-tight placeholder:font-semibold"
+          style={{ color: "var(--text-1)" }}
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Input
-          label="Datum začátku"
-          type="date"
-          value={form.startDate}
-          onChange={set("startDate")}
-        />
-        <Input
-          label="Termín splnění"
-          type="date"
-          value={form.dueDate}
-          onChange={set("dueDate")}
-        />
-      </div>
+      {/* Settings rows card */}
+      <div className="space-y-2">
+        {/* Status */}
+        <Row icon={Circle} label="Status" open={openRow === "status"} onToggle={() => toggleRow("status")}
+          value={curStatus ? <>{dot(curStatus.color)}{curStatus.label}</> : placeholder("Vybrat")}>
+          <Select options={STATUS_OPTIONS} value={form.status} onChange={set("status")} />
+        </Row>
 
-      <Select
-        label="Kategorie"
-        options={catOptions}
-        value={form.categoryId}
-        onChange={set("categoryId")}
-        placeholder="Vybrat kategorii"
-      />
+        {/* Priority */}
+        <Row icon={Flag} label="Priorita" open={openRow === "priority"} onToggle={() => toggleRow("priority")}
+          value={curPriority ? <>{dot(curPriority.color)}{curPriority.label}</> : placeholder("Vybrat")}>
+          <Select options={PRIORITY_OPTIONS} value={form.priority} onChange={set("priority")} />
+        </Row>
 
-      {/* Multi-assignee picker */}
-      {users.length > 0 && (
-        <div className="space-y-2">
-          <label className="text-[13px] font-medium" style={{ color: "var(--text-2)" }}>
-            Přiřazeno
-            {selectedAssigneeIds.length > 0 && (
-              <span className="ml-1.5 text-[11px] px-1.5 py-0.5 rounded-md font-semibold"
-                style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>
-                {selectedAssigneeIds.length}
-              </span>
+        {/* Start date */}
+        <Row icon={CalendarDays} label="Datum začátku" open={openRow === "startDate"} onToggle={() => toggleRow("startDate")}
+          value={form.startDate ? formatDate(form.startDate) : placeholder("Nenastaveno")}>
+          <div className="flex items-center gap-2">
+            <Input type="date" value={form.startDate} onChange={set("startDate")} className="flex-1" />
+            {form.startDate && (
+              <button type="button" onClick={() => setForm((f) => ({ ...f, startDate: "" }))}
+                className="p-2.5 rounded-xl transition-colors hover:text-red-500"
+                style={{ color: "var(--text-3)" }}>
+                <X className="w-4 h-4" />
+              </button>
             )}
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {users.map((u) => {
-              const selected = selectedAssigneeIds.includes(u.id);
-              return (
-                <button
-                  key={u.id}
-                  type="button"
-                  onClick={() => toggleAssignee(u.id)}
-                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all text-[12.5px] font-medium"
-                  style={{
-                    background: selected ? "var(--accent-soft)" : "var(--bg-subtle)",
-                    borderColor: selected ? "var(--accent)" : "var(--border-md)",
-                    color: selected ? "var(--accent)" : "var(--text-2)",
-                  }}
-                >
-                  <Avatar name={u.name} src={u.avatar} size="xs" />
-                  {u.name}
-                  {selected && <Check className="w-3 h-3 flex-shrink-0" />}
-                </button>
-              );
-            })}
           </div>
-        </div>
-      )}
+        </Row>
 
-      <Input
-        label="Hodinová sazba (Kč/h)"
-        type="number"
-        placeholder="Např. 500"
-        value={form.hourlyRate}
-        onChange={set("hourlyRate")}
-        min="0"
-        step="10"
-      />
+        {/* Due date */}
+        <Row icon={CalendarClock} label="Termín splnění" open={openRow === "dueDate"} onToggle={() => toggleRow("dueDate")}
+          value={form.dueDate ? formatDate(form.dueDate) : placeholder("Nenastaveno")}>
+          <div className="flex items-center gap-2">
+            <Input type="date" value={form.dueDate} onChange={set("dueDate")} className="flex-1" />
+            {form.dueDate && (
+              <button type="button" onClick={() => setForm((f) => ({ ...f, dueDate: "" }))}
+                className="p-2.5 rounded-xl transition-colors hover:text-red-500"
+                style={{ color: "var(--text-3)" }}>
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </Row>
 
-      <Select
-        label="Opakování"
-        options={[
-          { value: "none", label: "Žádné" },
-          { value: "daily", label: "Denně" },
-          { value: "weekly", label: "Týdně" },
-          { value: "monthly", label: "Měsíčně" },
-        ]}
-        value={form.recurring}
-        onChange={set("recurring")}
-      />
+        {/* Category */}
+        <Row icon={Tag} label="Kategorie" open={openRow === "category"} onToggle={() => toggleRow("category")}
+          value={curCategory ? <>{dot(curCategory.color)}{curCategory.name}</> : placeholder("Žádná")}>
+          <Select options={catOptions} value={form.categoryId} onChange={set("categoryId")} placeholder="Vybrat kategorii" />
+        </Row>
+
+        {/* Assignees */}
+        <Row icon={Users} label="Přiřazeno" open={openRow === "assignees"} onToggle={() => toggleRow("assignees")}
+          value={selectedUsers.length > 0
+            ? <span className="flex items-center gap-1.5">
+                <span className="flex -space-x-1.5">
+                  {selectedUsers.slice(0, 3).map((u) => (
+                    <span key={u.id} className="ring-2 rounded-full" style={{ ["--tw-ring-color" as any]: "var(--bg-card)" }}>
+                      <Avatar name={u.name} src={u.avatar} size="xs" />
+                    </span>
+                  ))}
+                </span>
+                {selectedUsers.length > 3 && <span>+{selectedUsers.length - 3}</span>}
+              </span>
+            : placeholder("Nikdo")}>
+          {users.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {users.map((u) => {
+                const selected = selectedAssigneeIds.includes(u.id);
+                return (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => toggleAssignee(u.id)}
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all text-[12.5px] font-medium"
+                    style={{
+                      background: selected ? "var(--accent-soft)" : "var(--bg-subtle)",
+                      borderColor: selected ? "var(--accent)" : "var(--border-md)",
+                      color: selected ? "var(--accent)" : "var(--text-2)",
+                    }}
+                  >
+                    <Avatar name={u.name} src={u.avatar} size="xs" />
+                    {u.name}
+                    {selected && <Check className="w-3 h-3 flex-shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-[13px]" style={{ color: "var(--text-3)" }}>Žádní členové týmu</p>
+          )}
+        </Row>
+
+        {/* Hourly rate */}
+        <Row icon={Banknote} label="Hodinová sazba" open={openRow === "rate"} onToggle={() => toggleRow("rate")}
+          value={form.hourlyRate ? `${form.hourlyRate} Kč/h` : placeholder("Nenastaveno")}>
+          <Input type="number" placeholder="Např. 500" value={form.hourlyRate} onChange={set("hourlyRate")} min="0" step="10" />
+        </Row>
+
+        {/* Recurring */}
+        <Row icon={Repeat} label="Opakování" open={openRow === "recurring"} onToggle={() => toggleRow("recurring")}
+          value={form.recurring && form.recurring !== "none" ? RECURRING_LABELS[form.recurring] : placeholder("Žádné")}>
+          <Select
+            options={[
+              { value: "none", label: "Žádné" },
+              { value: "daily", label: "Denně" },
+              { value: "weekly", label: "Týdně" },
+              { value: "monthly", label: "Měsíčně" },
+            ]}
+            value={form.recurring}
+            onChange={set("recurring")}
+          />
+        </Row>
+      </div>
 
       {/* Subtasks (only for new tasks) */}
       {!task && (
-        <div className="space-y-2">
-          <label className="text-[13px] font-medium" style={{ color: "var(--text-2)" }}>Podúkoly</label>
+        <div className="rounded-3xl border p-4 space-y-2.5" style={cardStyle}>
+          <label className="text-[13px] font-semibold px-1" style={{ color: "var(--text-2)" }}>Podúkoly</label>
           <div className="space-y-1.5">
             {draftSubtasks.map((st, i) => (
               <div key={i} className="rounded-xl border overflow-hidden"
@@ -480,11 +569,23 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
         </div>
       )}
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {/* Notes / description */}
+      <div className="rounded-3xl border p-4" style={cardStyle}>
+        <textarea
+          value={form.description}
+          onChange={set("description")}
+          placeholder="Přidej poznámky, odkazy nebo podrobnější popis…"
+          rows={4}
+          className="w-full bg-transparent outline-none text-[14px] resize-none placeholder:text-[var(--text-3)]"
+          style={{ color: "var(--text-1)" }}
+        />
+      </div>
+
+      {error && <p className="text-sm text-red-400 px-1">{error}</p>}
 
       {/* Save as template — new tasks only */}
       {!task && (
-        <div className="border-t pt-4" style={{ borderColor: "var(--border)" }}>
+        <div className="px-1">
           {saveTemplateOpen ? (
             <div className="flex gap-2">
               <input
@@ -523,7 +624,7 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
         </div>
       )}
 
-      <div className="flex gap-3 pt-2">
+      <div className="flex gap-3 pt-1">
         <Button type="button" variant="secondary" onClick={() => router.back()} className="flex-1">
           Zrušit
         </Button>
