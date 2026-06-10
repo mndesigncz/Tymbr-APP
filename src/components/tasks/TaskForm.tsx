@@ -8,11 +8,12 @@ import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 import {
   Plus, X, Check, LayoutTemplate, Save, Trash2, ChevronDown,
-  Circle, Flag, CalendarDays, CalendarClock, Tag, Users, Banknote, Repeat,
+  Circle, Flag, CalendarRange, Tag, Users, Banknote, Repeat, Play, Smile,
 } from "lucide-react";
 import type { Task, Category, User } from "@/types";
 import { useStatusConfig } from "@/hooks/useStatusConfig";
 import { usePriorityConfig } from "@/hooks/usePriorityConfig";
+import { useTimeTracker } from "@/context/TimeTrackerContext";
 import { formatDate } from "@/lib/utils";
 
 interface TaskTemplate {
@@ -45,8 +46,12 @@ const RECURRING_LABELS: Record<string, string> = {
   monthly: "Měsíčně",
 };
 
-/** A single collapsible setting row — icon + label on the left, current value on the
- *  right, expands inline to reveal its editor (Apple Reminders style). */
+const EMOJI_OPTIONS = [
+  "📋", "✅", "🔥", "⚡", "🎯", "📌", "🏷️", "💡",
+  "🛠️", "📦", "🚀", "⭐", "📝", "🔔", "💬", "🗂️",
+  "📊", "🎨", "🔍", "🧩", "⏰", "📅", "💼", "🌟",
+];
+
 function Row({
   icon: Icon,
   label,
@@ -96,19 +101,23 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
   const STATUS_OPTIONS = statuses.map((s) => ({ value: s.key, label: s.label }));
   const priorities = usePriorityConfig();
   const PRIORITY_OPTIONS = priorities.map((p) => ({ value: p.key, label: p.label }));
+  const { start, openFocus } = useTimeTracker();
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
+  const [startingWork, setStartingWork] = useState(false);
   const [error, setError] = useState("");
   const [draftSubtasks, setDraftSubtasks] = useState<DraftSubtask[]>([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [expandedSubtask, setExpandedSubtask] = useState<number | null>(null);
 
-  // Accordion — which settings row is currently expanded (one at a time)
   const [openRow, setOpenRow] = useState<string | null>(null);
   const toggleRow = (key: string) => setOpenRow((cur) => (cur === key ? null : key));
 
-  // Templates
+  const [iconPickerOpen, setIconPickerOpen] = useState(false);
+  const iconPickerRef = useRef<HTMLDivElement>(null);
+
   const [templates, setTemplates] = useState<TaskTemplate[]>([]);
   const [templateOpen, setTemplateOpen] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
@@ -116,7 +125,8 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
   const [templateName, setTemplateName] = useState("");
   const templateRef = useRef<HTMLDivElement>(null);
 
-  // Multi-assignee: array of selected user IDs
+  const [assigneeSearch, setAssigneeSearch] = useState("");
+
   const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<string[]>(
     () => task?.assignees?.map((a) => a.id) ?? (task?.assigneeId ? [task.assigneeId] : [])
   );
@@ -131,6 +141,7 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
     categoryId: task?.categoryId || "",
     hourlyRate: task?.hourlyRate ? String(task.hourlyRate) : "",
     recurring: task?.recurring || "none",
+    icon: task?.icon || "",
   });
 
   useEffect(() => {
@@ -145,7 +156,6 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
     });
   }, []);
 
-  // Close template dropdown on outside click
   useEffect(() => {
     if (!templateOpen) return;
     const handle = (e: MouseEvent) => {
@@ -157,8 +167,20 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
     return () => document.removeEventListener("mousedown", handle);
   }, [templateOpen]);
 
+  useEffect(() => {
+    if (!iconPickerOpen) return;
+    const handle = (e: MouseEvent) => {
+      if (iconPickerRef.current && !iconPickerRef.current.contains(e.target as Node)) {
+        setIconPickerOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [iconPickerOpen]);
+
   const applyTemplate = (t: TaskTemplate) => {
-    setForm({
+    setForm((f) => ({
+      ...f,
       title: t.name,
       description: t.description || "",
       status: t.status,
@@ -168,7 +190,7 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
       categoryId: t.categoryId || "",
       hourlyRate: t.hourlyRate ? String(t.hourlyRate) : "",
       recurring: "none",
-    });
+    }));
     if (Array.isArray(t.subtasks)) {
       setDraftSubtasks(t.subtasks.map((st) => ({ title: st.title, description: st.description || "", hourlyRate: st.hourlyRate || "" })));
     }
@@ -219,6 +241,17 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
     );
   };
 
+  const buildPayload = () => ({
+    ...form,
+    dueDate: form.dueDate || null,
+    startDate: form.startDate || null,
+    categoryId: form.categoryId || null,
+    hourlyRate: form.hourlyRate ? Number(form.hourlyRate) : null,
+    assigneeIds: selectedAssigneeIds,
+    recurring: form.recurring || "none",
+    icon: form.icon || null,
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title.trim()) { setError("Název je povinný"); return; }
@@ -232,15 +265,7 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          dueDate: form.dueDate || null,
-          startDate: form.startDate || null,
-          categoryId: form.categoryId || null,
-          hourlyRate: form.hourlyRate ? Number(form.hourlyRate) : null,
-          assigneeIds: selectedAssigneeIds,
-          recurring: form.recurring || "none",
-        }),
+        body: JSON.stringify(buildPayload()),
       });
       if (!res.ok) {
         const d = await res.json();
@@ -248,7 +273,6 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
         return;
       }
       const saved: Task = await res.json();
-      // Create draft subtasks for new tasks
       if (!task && draftSubtasks.length > 0) {
         await Promise.all(
           draftSubtasks.map((st, i) =>
@@ -279,6 +303,36 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
     }
   };
 
+  const handleStartWork = async () => {
+    if (!form.title.trim()) { setError("Název je povinný"); return; }
+    setStartingWork(true);
+    setError("");
+
+    const url = task ? `/api/tasks/${task.id}` : "/api/tasks";
+    const method = task ? "PUT" : "POST";
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildPayload()),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        setError(d.error || "Chyba");
+        return;
+      }
+      const saved: Task = await res.json();
+      const categoryColor = categories.find((c) => c.id === form.categoryId)?.color;
+      await start(saved.id, saved.title, categoryColor);
+      openFocus();
+      if (onSuccess) onSuccess(saved);
+      else router.push(`/tasks/${saved.id}`);
+    } finally {
+      setStartingWork(false);
+    }
+  };
+
   const addDraftSubtask = () => {
     if (!newSubtaskTitle.trim()) return;
     setDraftSubtasks((prev) => [...prev, { title: newSubtaskTitle.trim(), description: "", hourlyRate: "" }]);
@@ -296,11 +350,24 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
 
   const catOptions = categories.map((c) => ({ value: c.id, label: c.name }));
 
-  // ── Current-value summaries for the collapsed rows ──
   const curStatus = statuses.find((s) => s.key === form.status);
   const curPriority = priorities.find((p) => p.key === form.priority);
   const curCategory = categories.find((c) => c.id === form.categoryId);
   const selectedUsers = users.filter((u) => selectedAssigneeIds.includes(u.id));
+
+  const filteredUsers = assigneeSearch.trim()
+    ? users.filter((u) =>
+        u.name.toLowerCase().includes(assigneeSearch.toLowerCase()) ||
+        u.email.toLowerCase().includes(assigneeSearch.toLowerCase())
+      )
+    : users;
+
+  const termínValue = (() => {
+    if (form.startDate && form.dueDate) return `${formatDate(form.startDate)} → ${formatDate(form.dueDate)}`;
+    if (form.dueDate) return formatDate(form.dueDate);
+    if (form.startDate) return `Od ${formatDate(form.startDate)}`;
+    return <span style={{ color: "var(--text-3)" }}>Nenastaveno</span>;
+  })();
 
   const dot = (color: string) => (
     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
@@ -370,8 +437,55 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
         </div>
       )}
 
-      {/* Title card — prominent */}
+      {/* Title card with emoji picker */}
       <div className="rounded-3xl border px-5 py-4" style={cardStyle}>
+        <div className="relative mb-2" ref={iconPickerRef}>
+          <button
+            type="button"
+            onClick={() => setIconPickerOpen((o) => !o)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition-all hover:bg-black/[0.05]"
+            style={{ color: form.icon ? "var(--text-1)" : "var(--text-3)", background: iconPickerOpen ? "var(--bg-subtle)" : "transparent" }}
+          >
+            {form.icon ? (
+              <span className="text-[20px] leading-none">{form.icon}</span>
+            ) : (
+              <Smile className="w-4 h-4" />
+            )}
+            <span className="text-[12px] font-medium">{form.icon ? "Změnit ikonu" : "Přidat ikonu"}</span>
+          </button>
+
+          {iconPickerOpen && (
+            <div
+              className="absolute top-full left-0 mt-1.5 z-50 rounded-2xl border p-3 shadow-lg"
+              style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", minWidth: "220px" }}
+            >
+              <div className="grid grid-cols-8 gap-1">
+                {EMOJI_OPTIONS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => { setForm((f) => ({ ...f, icon: f.icon === emoji ? "" : emoji })); setIconPickerOpen(false); }}
+                    className="text-[18px] w-7 h-7 flex items-center justify-center rounded-lg transition-all hover:bg-black/[0.08]"
+                    style={{ background: form.icon === emoji ? "var(--accent-soft)" : "transparent" }}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+              {form.icon && (
+                <button
+                  type="button"
+                  onClick={() => { setForm((f) => ({ ...f, icon: "" })); setIconPickerOpen(false); }}
+                  className="mt-2 w-full text-[12px] py-1.5 rounded-xl transition-colors hover:text-red-500 text-center"
+                  style={{ color: "var(--text-3)" }}
+                >
+                  Odebrat ikonu
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
         <input
           value={form.title}
           onChange={set("title")}
@@ -382,57 +496,61 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
         />
       </div>
 
-      {/* Settings rows card */}
+      {/* Settings rows */}
       <div className="space-y-2">
-        {/* Status */}
         <Row icon={Circle} label="Status" open={openRow === "status"} onToggle={() => toggleRow("status")}
           value={curStatus ? <>{dot(curStatus.color)}{curStatus.label}</> : placeholder("Vybrat")}>
           <Select options={STATUS_OPTIONS} value={form.status} onChange={set("status")} />
         </Row>
 
-        {/* Priority */}
         <Row icon={Flag} label="Priorita" open={openRow === "priority"} onToggle={() => toggleRow("priority")}
           value={curPriority ? <>{dot(curPriority.color)}{curPriority.label}</> : placeholder("Vybrat")}>
           <Select options={PRIORITY_OPTIONS} value={form.priority} onChange={set("priority")} />
         </Row>
 
-        {/* Start date */}
-        <Row icon={CalendarDays} label="Datum začátku" open={openRow === "startDate"} onToggle={() => toggleRow("startDate")}
-          value={form.startDate ? formatDate(form.startDate) : placeholder("Nenastaveno")}>
-          <div className="flex items-center gap-2">
-            <Input type="date" value={form.startDate} onChange={set("startDate")} className="flex-1" />
-            {form.startDate && (
-              <button type="button" onClick={() => setForm((f) => ({ ...f, startDate: "" }))}
-                className="p-2.5 rounded-xl transition-colors hover:text-red-500"
-                style={{ color: "var(--text-3)" }}>
-                <X className="w-4 h-4" />
-              </button>
-            )}
+        {/* Merged start date + due date */}
+        <Row icon={CalendarRange} label="Termín" open={openRow === "termin"} onToggle={() => toggleRow("termin")}
+          value={termínValue}>
+          <div className="space-y-3">
+            <div>
+              <label className="text-[12px] font-semibold mb-1.5 block" style={{ color: "var(--text-3)" }}>
+                Datum začátku
+              </label>
+              <div className="flex items-center gap-2">
+                <Input type="date" value={form.startDate} onChange={set("startDate")} className="flex-1" />
+                {form.startDate && (
+                  <button type="button" onClick={() => setForm((f) => ({ ...f, startDate: "" }))}
+                    className="p-2.5 rounded-xl transition-colors hover:text-red-500"
+                    style={{ color: "var(--text-3)" }}>
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+            <div>
+              <label className="text-[12px] font-semibold mb-1.5 block" style={{ color: "var(--text-3)" }}>
+                Termín splnění
+              </label>
+              <div className="flex items-center gap-2">
+                <Input type="date" value={form.dueDate} onChange={set("dueDate")} className="flex-1" />
+                {form.dueDate && (
+                  <button type="button" onClick={() => setForm((f) => ({ ...f, dueDate: "" }))}
+                    className="p-2.5 rounded-xl transition-colors hover:text-red-500"
+                    style={{ color: "var(--text-3)" }}>
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </Row>
 
-        {/* Due date */}
-        <Row icon={CalendarClock} label="Termín splnění" open={openRow === "dueDate"} onToggle={() => toggleRow("dueDate")}
-          value={form.dueDate ? formatDate(form.dueDate) : placeholder("Nenastaveno")}>
-          <div className="flex items-center gap-2">
-            <Input type="date" value={form.dueDate} onChange={set("dueDate")} className="flex-1" />
-            {form.dueDate && (
-              <button type="button" onClick={() => setForm((f) => ({ ...f, dueDate: "" }))}
-                className="p-2.5 rounded-xl transition-colors hover:text-red-500"
-                style={{ color: "var(--text-3)" }}>
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </Row>
-
-        {/* Category */}
         <Row icon={Tag} label="Kategorie" open={openRow === "category"} onToggle={() => toggleRow("category")}
           value={curCategory ? <>{dot(curCategory.color)}{curCategory.name}</> : placeholder("Žádná")}>
           <Select options={catOptions} value={form.categoryId} onChange={set("categoryId")} placeholder="Vybrat kategorii" />
         </Row>
 
-        {/* Assignees */}
+        {/* Assignees — search-based list */}
         <Row icon={Users} label="Přiřazeno" open={openRow === "assignees"} onToggle={() => toggleRow("assignees")}
           value={selectedUsers.length > 0
             ? <span className="flex items-center gap-1.5">
@@ -447,40 +565,58 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
               </span>
             : placeholder("Nikdo")}>
           {users.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {users.map((u) => {
-                const selected = selectedAssigneeIds.includes(u.id);
-                return (
-                  <button
-                    key={u.id}
-                    type="button"
-                    onClick={() => toggleAssignee(u.id)}
-                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all text-[12.5px] font-medium"
-                    style={{
-                      background: selected ? "var(--accent-soft)" : "var(--bg-subtle)",
-                      borderColor: selected ? "var(--accent)" : "var(--border-md)",
-                      color: selected ? "var(--accent)" : "var(--text-2)",
-                    }}
-                  >
-                    <Avatar name={u.name} src={u.avatar} size="xs" />
-                    {u.name}
-                    {selected && <Check className="w-3 h-3 flex-shrink-0" />}
-                  </button>
-                );
-              })}
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={assigneeSearch}
+                onChange={(e) => setAssigneeSearch(e.target.value)}
+                placeholder="Hledat člena týmu..."
+                className="w-full text-[13px] rounded-xl px-3 py-2 outline-none"
+                style={{ background: "var(--bg-subtle)", color: "var(--text-1)", border: "1px solid var(--border-md)" }}
+              />
+              <div className="space-y-1 max-h-48 overflow-y-auto">
+                {filteredUsers.length === 0 ? (
+                  <p className="text-[12.5px] text-center py-3" style={{ color: "var(--text-3)" }}>Nikdo nenalezen</p>
+                ) : (
+                  filteredUsers.map((u) => {
+                    const selected = selectedAssigneeIds.includes(u.id);
+                    return (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onClick={() => toggleAssignee(u.id)}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left"
+                        style={{
+                          background: selected ? "color-mix(in srgb, var(--accent) 8%, transparent)" : "var(--bg-subtle)",
+                        }}
+                      >
+                        <Avatar name={u.name} src={u.avatar} size="sm" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-semibold truncate" style={{ color: "var(--text-1)" }}>{u.name}</p>
+                          <p className="text-[11.5px] truncate" style={{ color: "var(--text-3)" }}>{u.email}</p>
+                        </div>
+                        {selected && (
+                          <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                            style={{ background: "var(--accent)" }}>
+                            <Check className="w-3 h-3 text-white" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
             </div>
           ) : (
             <p className="text-[13px]" style={{ color: "var(--text-3)" }}>Žádní členové týmu</p>
           )}
         </Row>
 
-        {/* Hourly rate */}
         <Row icon={Banknote} label="Hodinová sazba" open={openRow === "rate"} onToggle={() => toggleRow("rate")}
           value={form.hourlyRate ? `${form.hourlyRate} Kč/h` : placeholder("Nenastaveno")}>
           <Input type="number" placeholder="Např. 500" value={form.hourlyRate} onChange={set("hourlyRate")} min="0" step="10" />
         </Row>
 
-        {/* Recurring */}
         <Row icon={Repeat} label="Opakování" open={openRow === "recurring"} onToggle={() => toggleRow("recurring")}
           value={form.recurring && form.recurring !== "none" ? RECURRING_LABELS[form.recurring] : placeholder("Žádné")}>
           <Select
@@ -624,13 +760,28 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
         </div>
       )}
 
-      <div className="flex gap-3 pt-1">
-        <Button type="button" variant="secondary" onClick={() => router.back()} className="flex-1">
-          Zrušit
-        </Button>
-        <Button type="submit" loading={loading} className="flex-1">
-          {task ? "Uložit změny" : "Vytvořit úkol"}
-        </Button>
+      {/* Action buttons */}
+      <div className="space-y-2.5 pt-1">
+        <div className="flex gap-3">
+          <Button type="button" variant="secondary" onClick={() => router.back()} className="flex-1">
+            Zrušit
+          </Button>
+          <Button type="submit" loading={loading} className="flex-1">
+            {task ? "Uložit změny" : "Vytvořit úkol"}
+          </Button>
+        </div>
+
+        {/* Creates the task and immediately starts focus mode */}
+        <button
+          type="button"
+          onClick={handleStartWork}
+          disabled={startingWork || loading}
+          className="w-full flex items-center justify-center gap-2.5 py-3.5 rounded-2xl font-semibold text-[15px] transition-all hover:opacity-90 disabled:opacity-50"
+          style={{ background: "var(--accent)", color: "#fff", boxShadow: "0 2px 12px color-mix(in srgb, var(--accent) 35%, transparent)" }}
+        >
+          <Play className="w-[18px] h-[18px] fill-current" />
+          {startingWork ? "Spouštím…" : "Začít pracovat"}
+        </button>
       </div>
     </form>
   );

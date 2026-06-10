@@ -63,7 +63,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params;
   try {
     const body = await req.json();
-    const { title, description, status, priority, dueDate, startDate, categoryId, hourlyRate, visibility, recurring } = body;
+    const { title, description, status, priority, dueDate, startDate, categoryId, hourlyRate, visibility, recurring, icon } = body;
 
     // Resolve assigneeIds array
     const hasAssigneeIds = "assigneeIds" in body;
@@ -130,6 +130,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         ...(hourlyRate !== undefined && { hourlyRate: hourlyRate ? Number(hourlyRate) : null }),
         ...(visibility !== undefined && { visibility }),
         ...(recurring !== undefined && { recurring }),
+        ...(icon !== undefined && { icon: icon || null }),
         ...completedAtUpdate,
       },
       include: taskInclude,
