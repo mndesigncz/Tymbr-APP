@@ -32,10 +32,12 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
         </div>
       </div>
 
-      {/* Mobile/tablet: actions stretched full-width below the title */}
+      {/* Mobile/tablet: compact scrollable action strip below the title */}
       {actions && (
-        <div className="lg:hidden mt-4 flex items-stretch gap-2 [&>*]:flex-1 [&>div]:flex [&>div]:items-stretch [&>div]:gap-2 [&>div>*]:flex-1 [&_button]:w-full [&_button]:justify-center">
-          {actions}
+        <div className="lg:hidden mt-3 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-2 w-max">
+            {actions}
+          </div>
         </div>
       )}
     </header>
