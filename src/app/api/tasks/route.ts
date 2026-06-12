@@ -85,10 +85,11 @@ export async function GET(req: NextRequest) {
       if (completedTo) where.completedAt.lte = new Date(completedTo);
     }
     const userId = (session.user as any).id;
+    // visibility is NOT NULL DEFAULT 'team' (migration v9) — private tasks are
+    // only visible to their creator, everything else to the whole team.
     const visibilityClause = {
       OR: [
-        { visibility: "team" },
-        { visibility: null },
+        { visibility: { not: "private" } },
         { visibility: "private", createdById: userId },
       ],
     };

@@ -40,9 +40,10 @@ export async function POST(req: NextRequest) {
   const code = joinCode.trim().toLowerCase();
 
   try {
-    // Look up team whose ID ends with the join code
+    // The UI shows the last 10 chars of the team id as the code, but older
+    // teams may share their stored joinCode column — accept both.
     const teams = await prisma.team.findMany({
-      where: { id: { endsWith: code } },
+      where: { OR: [{ id: { endsWith: code } }, { joinCode: { equals: code, mode: "insensitive" } }] },
       select: { id: true, name: true },
     });
     if (teams.length === 0) return NextResponse.json({ error: "Tým s tímto kódem neexistuje" }, { status: 404 });
