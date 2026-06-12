@@ -14,11 +14,11 @@ export async function getAccessibleTask(taskId: string, session: Session) {
   });
   if (!task) return null;
 
-  const userId = (session.user as any).id as string;
+  const userId = session.user.id;
   if (task.visibility === "private" && task.createdById !== userId) return null;
 
   if (task.teamId) {
-    const currentTeamId = (session.user as any).teamId ?? null;
+    const currentTeamId = session.user.teamId ?? null;
     if (task.teamId !== currentTeamId) {
       const member = await prisma.teamMember.findFirst({
         where: { userId, teamId: task.teamId },

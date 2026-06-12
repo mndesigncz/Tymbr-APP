@@ -13,7 +13,7 @@ import { useChatUnread } from "@/hooks/useChatUnread";
 import {
   LayoutDashboard, CheckSquare, Tag, LogOut, Settings,
   Clock, Users, MessageSquare, ChevronDown, Settings2, FolderOpen, Webhook,
-  Calendar,
+  Calendar, Megaphone,
 } from "lucide-react";
 
 const topItems = [
@@ -25,8 +25,9 @@ const topItems = [
 ];
 
 const teamItems = [
-  { href: "/chat",          icon: MessageSquare, label: "Chat"    },
-  { href: "/files",         icon: FolderOpen,    label: "Soubory" },
+  { href: "/chat",          icon: MessageSquare, label: "Chat"        },
+  { href: "/files",         icon: FolderOpen,    label: "Soubory"     },
+  { href: "/content",       icon: Megaphone,     label: "Content plán" },
 ];
 
 const settingsItems = [

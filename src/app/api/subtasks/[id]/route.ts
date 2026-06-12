@@ -4,7 +4,7 @@ import { getSession } from "@/lib/auth";
 import { getAccessibleTask } from "@/lib/access";
 
 /** Verifies the subtask exists and its parent task is accessible to the caller. */
-async function findAccessibleSubtask(id: string, session: any) {
+async function findAccessibleSubtask(id: string, session: Parameters<typeof getAccessibleTask>[1]) {
   const subtask = await prisma.subTask.findUnique({ where: { id }, select: { taskId: true } });
   if (!subtask) return false;
   return !!(await getAccessibleTask(subtask.taskId, session));

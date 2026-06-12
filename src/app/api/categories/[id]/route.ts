@@ -3,8 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
 /** Categories belong to the currently selected team — verify before mutating. */
-async function categoryInCurrentTeam(id: string, session: any): Promise<boolean> {
-  const teamId = (session.user as any).teamId ?? null;
+async function categoryInCurrentTeam(id: string, session: { user: { teamId?: string | null } }): Promise<boolean> {
+  const teamId = session.user.teamId ?? null;
   if (!teamId) return false;
   const cat = await prisma.category.findUnique({ where: { id }, select: { teamId: true } });
   return !!cat && cat.teamId === teamId;
