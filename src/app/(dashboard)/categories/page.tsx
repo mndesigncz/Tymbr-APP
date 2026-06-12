@@ -292,7 +292,7 @@ export default function CategoriesPage() {
                       <Tag className="w-4 h-4" style={{ color: cat.color }} />
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => openEdit(cat)} className="p-1.5 rounded-lg transition-colors hover:bg-black/[0.05]" style={{ color: "var(--text-3)" }}><Edit2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => openEdit(cat)} className="p-1.5 rounded-lg transition-colors hover:bg-[var(--hover)]" style={{ color: "var(--text-3)" }}><Edit2 className="w-3.5 h-3.5" /></button>
                       <button onClick={() => handleDelete(cat.id)} className="p-1.5 rounded-lg transition-colors hover:bg-red-50 hover:text-red-500" style={{ color: "var(--text-3)" }}><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
@@ -354,7 +354,7 @@ export default function CategoriesPage() {
                       {s.showInFocus ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
                       Focus mód
                     </button>
-                    <button onClick={() => openEditStatus(s)} className="p-1.5 rounded-lg transition-colors hover:bg-black/[0.05]" style={{ color: "var(--text-3)" }}>
+                    <button onClick={() => openEditStatus(s)} className="p-1.5 rounded-lg transition-colors hover:bg-[var(--hover)]" style={{ color: "var(--text-3)" }}>
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     {!s.isBuiltin && (
@@ -402,7 +402,7 @@ export default function CategoriesPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => openEditPrio(p)} className="p-1.5 rounded-lg transition-colors hover:bg-black/[0.05]" style={{ color: "var(--text-3)" }}>
+                    <button onClick={() => openEditPrio(p)} className="p-1.5 rounded-lg transition-colors hover:bg-[var(--hover)]" style={{ color: "var(--text-3)" }}>
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     {!p.isUrgent && (

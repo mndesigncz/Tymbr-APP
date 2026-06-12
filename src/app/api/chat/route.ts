@@ -90,6 +90,13 @@ export async function POST(req: NextRequest) {
   const dmSupport = await hasDMSupport();
 
   if (dmSupport && recipientId) {
+    // DMs may only target members of the current team
+    const member = await prisma.teamMember.findFirst({
+      where: { teamId, userId: recipientId },
+      select: { id: true },
+    });
+    if (!member) return NextResponse.json({ error: "Příjemce není členem týmu" }, { status: 400 });
+
     const rows = await prisma.$queryRaw<any[]>`
       INSERT INTO "ChatMessage" (id, content, "teamId", "userId", "recipientId", "createdAt")
       VALUES (gen_random_uuid()::text, ${content.trim()}, ${teamId}, ${session.user.id}, ${recipientId}, NOW())

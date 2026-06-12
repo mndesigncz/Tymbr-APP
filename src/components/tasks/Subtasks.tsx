@@ -235,7 +235,7 @@ export function Subtasks({ taskId, dark, onChange, activeSubtaskId, onActivateSu
                               {assignee && (
                                 <button
                                   onClick={() => updateAssignee(st, null)}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-[12.5px] transition-colors hover:bg-black/[0.04]"
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-[12.5px] transition-colors hover:bg-[var(--hover)]"
                                   style={{ color: "var(--text-3)" }}
                                 >
                                   <span className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "var(--bg-subtle)" }}>
@@ -248,7 +248,7 @@ export function Subtasks({ taskId, dark, onChange, activeSubtaskId, onActivateSu
                                 <button
                                   key={m.id}
                                   onClick={() => updateAssignee(st, m.id)}
-                                  className="w-full flex items-center gap-2 px-3 py-2 text-[12.5px] transition-colors hover:bg-black/[0.04]"
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-[12.5px] transition-colors hover:bg-[var(--hover)]"
                                   style={{ color: "var(--text-1)" }}
                                 >
                                   <Avatar name={m.name} src={m.avatar} size="sm" />

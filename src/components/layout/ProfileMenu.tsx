@@ -76,7 +76,7 @@ export function ProfileMenu() {
                         setSwitching(true);
                         await switchTeam(t.id, currentTeamId, update);
                       }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2 transition-colors hover:bg-black/[0.035] text-left disabled:opacity-60"
+                      className="w-full flex items-center gap-2.5 px-4 py-2 transition-colors hover:bg-[var(--hover)] text-left disabled:opacity-60"
                     >
                       <span className="flex-1 min-w-0 text-[13px] font-medium truncate" style={{ color: "var(--text-1)" }}>
                         {t.name}
@@ -88,7 +88,7 @@ export function ProfileMenu() {
               </div>
               <button
                 onClick={() => { setOpen(false); router.push("/settings/team?new=1"); }}
-                className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium transition-colors hover:bg-black/[0.035] text-left"
+                className="w-full flex items-center gap-3 px-4 py-2 text-[13px] font-medium transition-colors hover:bg-[var(--hover)] text-left"
                 style={{ color: "var(--text-2)" }}
               >
                 <Plus className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-3)" }} />
@@ -102,7 +102,7 @@ export function ProfileMenu() {
             <Link
               href="/settings"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-3 px-4 py-2.5 text-[13.5px] transition-colors hover:bg-black/[0.035]"
+              className="flex items-center gap-3 px-4 py-2.5 text-[13.5px] transition-colors hover:bg-[var(--hover)]"
               style={{ color: "var(--text-1)" }}
             >
               <Settings className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-3)" }} />
@@ -111,7 +111,7 @@ export function ProfileMenu() {
             <Link
               href="/settings/team"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-3 px-4 py-2.5 text-[13.5px] transition-colors hover:bg-black/[0.035]"
+              className="flex items-center gap-3 px-4 py-2.5 text-[13.5px] transition-colors hover:bg-[var(--hover)]"
               style={{ color: "var(--text-1)" }}
             >
               <Users className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-3)" }} />

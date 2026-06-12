@@ -32,7 +32,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 function cap(s: string) { return s.charAt(0).toUpperCase() + s.slice(1); }
 function taskColor(t: Task) {
-  if (t.status !== "done" && isOverdue(t.dueDate)) return "#ef4444";
+  if (t.status !== "done" && isOverdue(t.dueDate)) return "var(--danger)";
   return STATUS_COLORS[t.status] ?? "#6B7280";
 }
 
@@ -279,16 +279,16 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
             </h2>
             <div className="flex items-center gap-1">
               <button onClick={() => setCurrent((c) => subMonths(c, 1))} aria-label="Předchozí měsíc"
-                className="p-2 rounded-xl transition-colors hover:bg-black/[0.05]" style={{ color: "var(--text-2)" }}>
+                className="p-2 rounded-xl transition-colors hover:bg-[var(--hover)]" style={{ color: "var(--text-2)" }}>
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <button onClick={() => { const t = new Date(); setCurrent(t); selectDay(t); }}
-                className="px-3 py-1.5 text-[12.5px] font-semibold rounded-xl border transition-colors hover:bg-black/[0.04]"
+                className="px-3 py-1.5 text-[12.5px] font-semibold rounded-xl border transition-colors hover:bg-[var(--hover)]"
                 style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-2)" }}>
                 Dnes
               </button>
               <button onClick={() => setCurrent((c) => addMonths(c, 1))} aria-label="Další měsíc"
-                className="p-2 rounded-xl transition-colors hover:bg-black/[0.05]" style={{ color: "var(--text-2)" }}>
+                className="p-2 rounded-xl transition-colors hover:bg-[var(--hover)]" style={{ color: "var(--text-2)" }}>
                 <ChevronRight className="w-5 h-5" />
               </button>
             </div>
@@ -406,7 +406,7 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
                   {group.list.map((it, idx) =>
                     it.kind === "event" ? (
                       <button key={"e" + it.data.id + idx} onClick={() => openEdit(it.data)}
-                        className="w-full flex items-start gap-3 px-3 py-2.5 rounded-2xl text-left transition-colors hover:bg-black/[0.03]">
+                        className="w-full flex items-start gap-3 px-3 py-2.5 rounded-2xl text-left transition-colors hover:bg-[var(--hover)]">
                         <span className="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: it.color }} />
                         <div className="min-w-0 flex-1">
                           <p className="text-[13.5px] font-semibold leading-snug line-clamp-2" style={{ color: "var(--text-1)" }}>
@@ -431,7 +431,7 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
                       </button>
                     ) : (
                       <Link key={"t" + it.data.id + idx} href={`/tasks/${it.data.id}`}
-                        className="flex items-start gap-3 px-3 py-2.5 rounded-2xl transition-colors hover:bg-black/[0.03]">
+                        className="flex items-start gap-3 px-3 py-2.5 rounded-2xl transition-colors hover:bg-[var(--hover)]">
                         <CheckSquare className="w-3.5 h-3.5 mt-1 flex-shrink-0" style={{ color: it.color }} />
                         <div className="min-w-0 flex-1">
                           <p className="text-[13.5px] font-semibold leading-snug line-clamp-2" style={{ color: "var(--text-1)" }}>

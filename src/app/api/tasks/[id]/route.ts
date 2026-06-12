@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { sendTaskAssignedEmail, sendStatusChangeEmail } from "@/lib/email";
 import { fireWebhooks } from "@/lib/webhook";
+import { getAccessibleTask } from "@/lib/access";
 
 const taskInclude = {
   category: true,
@@ -47,6 +48,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (!session) return NextResponse.json({ error: "Neautorizováno" }, { status: 401 });
 
     const { id } = await params;
+    const accessible = await getAccessibleTask(id, session);
+    if (!accessible) return NextResponse.json({ error: "Úkol nenalezen" }, { status: 404 });
     const task = await prisma.task.findUnique({ where: { id }, include: taskInclude });
     if (!task) return NextResponse.json({ error: "Úkol nenalezen" }, { status: 404 });
     return NextResponse.json(await attachAssignees(task));
@@ -62,6 +65,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   try {
+    const accessible = await getAccessibleTask(id, session);
+    if (!accessible) return NextResponse.json({ error: "Úkol nenalezen" }, { status: 404 });
+
     const body = await req.json();
     const { title, description, status, priority, dueDate, startDate, categoryId, hourlyRate, visibility, recurring, icon } = body;
 
@@ -266,9 +272,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   const { id } = await params;
   try {
-    const task = await prisma.task.findUnique({ where: { id }, select: { title: true, teamId: true } });
+    const task = await getAccessibleTask(id, session);
+    if (!task) return NextResponse.json({ error: "Úkol nenalezen" }, { status: 404 });
     await prisma.task.delete({ where: { id } });
-    if (task?.teamId) void fireWebhooks(task.teamId, "task.deleted", { id, title: task.title });
+    if (task.teamId) void fireWebhooks(task.teamId, "task.deleted", { id, title: task.title });
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Chyba serveru" }, { status: 500 });

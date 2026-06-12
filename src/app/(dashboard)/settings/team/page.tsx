@@ -132,7 +132,7 @@ function CreateJoinForms({ title, subtitle, onCreated, onCancel }: CreateJoinPro
       <div className="max-w-md mx-auto space-y-4">
         <div className="rounded-3xl border p-8 text-center relative" style={{ background: "var(--bg-card)", borderColor: "var(--border)" }}>
           {onCancel && (
-            <button onClick={onCancel} className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-black/[0.05]" style={{ color: "var(--text-3)" }}>
+            <button onClick={onCancel} className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-[var(--hover)]" style={{ color: "var(--text-3)" }}>
               <X className="w-4 h-4" />
             </button>
           )}
@@ -474,7 +474,7 @@ function TeamSettingsContent() {
                 <p className="text-[12px] mt-1" style={{ color: "var(--text-3)" }}>Sdílej tento kód — zájemce pošle žádost, ty ji schválíš</p>
               </div>
               <button onClick={copyJoinCode}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold border transition-all hover:bg-black/[0.03]"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold border transition-all hover:bg-[var(--hover)]"
                 style={copiedCode
                   ? { background: "#22C55E15", color: "#22C55E", borderColor: "#22C55E" }
                   : { background: "var(--bg-subtle)", borderColor: "var(--border-md)", color: "var(--text-2)" }}>
@@ -692,10 +692,10 @@ function TeamSettingsContent() {
                       <p className="text-[13px] font-medium truncate" style={{ color: "var(--text-1)" }}>{inv.email}</p>
                       <p className="text-[11px]" style={{ color: "var(--text-3)" }}>{ROLE_LABELS[inv.role as TeamRole]} · čeká na přijetí</p>
                     </div>
-                    <button onClick={() => handleResendInvitation(inv.id)} disabled={resendingId === inv.id} className="p-1.5 rounded-lg transition-colors hover:bg-black/[0.05] disabled:opacity-50" title="Znovu odeslat e-mail" style={{ color: "var(--text-3)" }}>
+                    <button onClick={() => handleResendInvitation(inv.id)} disabled={resendingId === inv.id} className="p-1.5 rounded-lg transition-colors hover:bg-[var(--hover)] disabled:opacity-50" title="Znovu odeslat e-mail" style={{ color: "var(--text-3)" }}>
                       <RefreshCw className={`w-3.5 h-3.5 ${resendingId === inv.id ? "animate-spin" : ""}`} />
                     </button>
-                    <button onClick={() => copyInviteLink(inv.token)} className="p-1.5 rounded-lg transition-colors hover:bg-black/[0.05]" title="Kopírovat odkaz" style={{ color: "var(--text-3)" }}>
+                    <button onClick={() => copyInviteLink(inv.token)} className="p-1.5 rounded-lg transition-colors hover:bg-[var(--hover)]" title="Kopírovat odkaz" style={{ color: "var(--text-3)" }}>
                       {copiedToken === inv.token ? <Check className="w-3.5 h-3.5" style={{ color: "#22C55E" }} /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
                     <button onClick={() => handleDeleteInvitation(inv.id)} className="p-1.5 rounded-lg transition-colors hover:bg-red-50 hover:text-red-500" style={{ color: "var(--text-3)" }}>

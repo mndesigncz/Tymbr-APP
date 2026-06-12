@@ -74,7 +74,9 @@ export async function POST(req: NextRequest) {
     }
 
     const start = new Date(startAt);
+    if (isNaN(start.getTime())) return NextResponse.json({ error: "Neplatné datum začátku" }, { status: 400 });
     const end = endAt ? new Date(endAt) : new Date(start.getTime() + 60 * 60 * 1000);
+    if (isNaN(end.getTime())) return NextResponse.json({ error: "Neplatné datum konce" }, { status: 400 });
 
     const event = await prisma.event.create({
       data: {

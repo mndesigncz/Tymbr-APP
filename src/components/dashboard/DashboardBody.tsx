@@ -98,14 +98,14 @@ export function DashboardBody(props: DashboardBodyProps) {
       <StatsCard key="todo" title="K provedení" value={statTodo} icon={Clock} color="#6366f1" />
     ),
     vis.stat_progress && (
-      <StatsCard key="progress" title="Probíhá" value={statProgress} icon={CheckCircle2} color="#eab308" />
+      <StatsCard key="progress" title="Probíhá" value={statProgress} icon={CheckCircle2} color="var(--warning)" />
     ),
     vis.stat_done && (
-      <StatsCard key="done" title="Hotovo celkem" value={statDone} icon={CheckCheck} color="#22c55e" />
+      <StatsCard key="done" title="Hotovo celkem" value={statDone} icon={CheckCheck} color="var(--success)" />
     ),
     vis.stat_earning && (
       <StatsCard key="earning" title={manager ? "Výdělek tým / měsíc" : "Můj výdělek / měsíc"}
-        value={monthEarning > 0 ? `${monthEarning.toLocaleString("cs-CZ")} Kč` : "—"} icon={Wallet} color="#0ea5e9" />
+        value={monthEarning > 0 ? `${monthEarning.toLocaleString("cs-CZ")} Kč` : "—"} icon={Wallet} color="var(--info)" />
     ),
   ].filter(Boolean);
 
@@ -117,13 +117,13 @@ export function DashboardBody(props: DashboardBodyProps) {
   const showDonePanel = vis.panel_done && doneList.length > 0;
   const sidePanels = [
     showDonePanel && (
-      <div key="donelist" className="rounded-3xl border" style={{ background: "var(--bg-card)", borderColor: "#22C55E20", boxShadow: "var(--shadow-sm)" }}>
+      <div key="donelist" className="rounded-3xl border" style={{ background: "var(--bg-card)", borderColor: "color-mix(in srgb, var(--success) 14%, transparent)", boxShadow: "var(--shadow-sm)" }}>
         <div className="flex items-center justify-between px-6 pt-6 pb-5">
           <div className="flex items-center gap-2">
-            <CheckCheck className="w-[18px] h-[18px]" style={{ color: "#22C55E" }} />
+            <CheckCheck className="w-[18px] h-[18px]" style={{ color: "var(--success)" }} />
             <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>Hotové</h2>
             <span className="text-[11.5px] font-semibold px-2 py-0.5 rounded-md"
-              style={{ background: "#22C55E15", color: "#22C55E" }}>{doneTotal}</span>
+              style={{ background: "color-mix(in srgb, var(--success) 10%, transparent)", color: "var(--success)" }}>{doneTotal}</span>
           </div>
           <Link href="/tasks?tab=done" className="text-[13px] font-semibold hover:opacity-80 transition-opacity"
             style={{ color: "var(--accent)" }}>
@@ -133,9 +133,9 @@ export function DashboardBody(props: DashboardBodyProps) {
         <div className="px-4 pb-5 space-y-1">
           {doneList.map((task) => (
             <Link key={task.id} href={`/tasks/${task.id}`}
-              className="flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors hover:bg-black/[0.03]">
+              className="flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors hover:bg-[var(--hover)]">
               <div className="flex items-center gap-2.5 min-w-0">
-                <CheckCheck className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#22C55E" }} />
+                <CheckCheck className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--success)" }} />
                 <span className="text-[13px] font-medium line-clamp-1" style={{ color: "var(--text-1)" }}>
                   {task.title}
                 </span>
@@ -165,7 +165,7 @@ export function DashboardBody(props: DashboardBodyProps) {
           )}
           {categories.map((cat) => (
             <Link key={cat.id} href={`/tasks?categoryId=${cat.id}`}
-              className="flex items-center justify-between px-3 py-3 rounded-xl transition-colors hover:bg-black/[0.03]"
+              className="flex items-center justify-between px-3 py-3 rounded-xl transition-colors hover:bg-[var(--hover)]"
               style={{ color: "var(--text-2)" }}>
               <div className="flex items-center gap-3">
                 <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cat.color }} />
@@ -200,7 +200,7 @@ export function DashboardBody(props: DashboardBodyProps) {
         <div className="flex justify-end">
           <button
             onClick={() => setCustomizeOpen(true)}
-            className="flex items-center gap-1.5 text-[12px] font-semibold px-2.5 py-1 rounded-lg border transition-all hover:bg-black/[0.04]"
+            className="flex items-center gap-1.5 text-[12px] font-semibold px-2.5 py-1 rounded-lg border transition-all hover:bg-[var(--hover)]"
             style={{ borderColor: "var(--border-md)", color: "var(--text-2)" }}>
             <SlidersHorizontal className="w-3 h-3" />
             Přizpůsobit
@@ -215,7 +215,7 @@ export function DashboardBody(props: DashboardBodyProps) {
             <span className="text-[13px] font-semibold" style={{ color: "var(--text-2)" }}>Přehled</span>
             <button
               onClick={() => setCustomizeOpen(true)}
-              className="flex items-center gap-1.5 text-[12px] font-semibold px-2.5 py-1 rounded-lg border transition-all hover:bg-black/[0.04]"
+              className="flex items-center gap-1.5 text-[12px] font-semibold px-2.5 py-1 rounded-lg border transition-all hover:bg-[var(--hover)]"
               style={{ borderColor: "var(--border-md)", color: "var(--text-2)" }}>
               <SlidersHorizontal className="w-3 h-3" />
               Přizpůsobit

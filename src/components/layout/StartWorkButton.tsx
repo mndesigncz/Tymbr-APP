@@ -35,7 +35,7 @@ export function StartWorkButton() {
       <button
         onClick={openFocus}
         className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[13.5px] font-semibold text-white transition-all hover:opacity-90"
-        style={{ background: "#16a34a", boxShadow: "0 4px 12px rgba(34,197,94,0.3)" }}
+        style={{ background: "var(--success-strong)", boxShadow: "0 4px 12px color-mix(in srgb, var(--success-strong) 30%, transparent)" }}
       >
         <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
         <span className="tabular-nums">{formatElapsed(elapsed)}</span>
@@ -48,10 +48,10 @@ export function StartWorkButton() {
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[13.5px] font-semibold border transition-all hover:bg-black/[0.03]"
+        className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[13.5px] font-semibold border transition-all hover:bg-[var(--hover)]"
         style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}
       >
-        <Play className="w-3.5 h-3.5 fill-current" style={{ color: "#16a34a" }} />
+        <Play className="w-3.5 h-3.5 fill-current" style={{ color: "var(--success)" }} />
         <span>Zahájit práci</span>
         <ChevronDown className="w-3.5 h-3.5" style={{ color: "var(--text-3)" }} />
       </button>
@@ -60,7 +60,7 @@ export function StartWorkButton() {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="absolute top-full left-0 sm:left-auto sm:right-0 mt-2 w-72 rounded-2xl border overflow-hidden z-50"
-            style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", boxShadow: "0 12px 40px rgba(0,0,0,0.15)" }}>
+            style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)" }}>
             <div className="p-2 border-b" style={{ borderColor: "var(--border)" }}>
               <input
                 autoFocus
@@ -79,7 +79,7 @@ export function StartWorkButton() {
                 <button
                   key={task.id}
                   onClick={() => handleStart(task)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-black/[0.03]"
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-[var(--hover)]"
                 >
                   {task.category ? (
                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: task.category.color }} />

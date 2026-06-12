@@ -93,15 +93,8 @@ export async function GET(req: NextRequest) {
       ],
     };
     const withVisibility: any = { ...where, AND: [...and, visibilityClause] };
-    const withoutVisibility: any = and.length > 0 ? { ...where, AND: and } : where;
 
-    let tasks;
-    try {
-      tasks = await prisma.task.findMany({ where: withVisibility, include: taskInclude, orderBy: [{ createdAt: "desc" }] });
-    } catch (inner: any) {
-      console.error("[GET /api/tasks] visibility query failed, retrying:", inner?.message ?? inner);
-      tasks = await prisma.task.findMany({ where: withoutVisibility, include: taskInclude, orderBy: [{ createdAt: "desc" }] });
-    }
+    const tasks = await prisma.task.findMany({ where: withVisibility, include: taskInclude, orderBy: [{ createdAt: "desc" }] });
     return NextResponse.json(await attachAssignees(tasks));
   } catch (e: any) {
     console.error("[GET /api/tasks]", e?.message ?? e);

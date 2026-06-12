@@ -144,7 +144,7 @@ export function TaskDependencies({ taskId, teamId }: Props) {
               {loadingSug && <p className="text-[12px] px-4 py-3" style={{ color: "var(--text-3)" }}>Hledám…</p>}
               {suggestions.map((t) => (
                 <button key={t.id} onClick={() => addDep(t)}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 text-left transition-colors hover:bg-black/[0.04]">
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-left transition-colors hover:bg-[var(--hover)]">
                   <span className="w-2 h-2 rounded-full flex-shrink-0"
                     style={{ background: STATUS_COLORS[t.status] ?? "#6B7280" }} />
                   <span className="flex-1 text-[13px] font-medium truncate" style={{ color: "var(--text-1)" }}>{t.title}</span>

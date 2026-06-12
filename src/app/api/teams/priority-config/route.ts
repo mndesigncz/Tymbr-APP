@@ -99,7 +99,7 @@ export async function PATCH(req: NextRequest) {
     if (color !== undefined && !isUrgent) await prisma.$executeRaw`UPDATE "TaskPriorityConfig" SET color = ${color} WHERE id = ${id} AND "teamId" = ${teamId}`;
     if (order !== undefined) await prisma.$executeRaw`UPDATE "TaskPriorityConfig" SET "order" = ${order} WHERE id = ${id} AND "teamId" = ${teamId}`;
 
-    const updated = await prisma.$queryRaw<any[]>`SELECT * FROM "TaskPriorityConfig" WHERE id = ${id}`;
+    const updated = await prisma.$queryRaw<any[]>`SELECT * FROM "TaskPriorityConfig" WHERE id = ${id} AND "teamId" = ${teamId}`;
     return NextResponse.json(updated[0] ?? {});
   } catch {
     return NextResponse.json({ error: "Chyba serveru" }, { status: 500 });
@@ -120,7 +120,7 @@ export async function DELETE(req: NextRequest) {
     const rows = await prisma.$queryRaw<any[]>`SELECT * FROM "TaskPriorityConfig" WHERE id = ${id} AND "teamId" = ${teamId}`;
     if (rows.length === 0) return NextResponse.json({ error: "Priorita nenalezena" }, { status: 404 });
     if (rows[0].isUrgent) return NextResponse.json({ error: "Urgentní prioritu nelze smazat" }, { status: 400 });
-    await prisma.$executeRaw`DELETE FROM "TaskPriorityConfig" WHERE id = ${id}`;
+    await prisma.$executeRaw`DELETE FROM "TaskPriorityConfig" WHERE id = ${id} AND "teamId" = ${teamId}`;
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Chyba serveru" }, { status: 500 });

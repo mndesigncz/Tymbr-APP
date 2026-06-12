@@ -12,7 +12,6 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { formatDate, formatRelative } from "@/lib/utils";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { Task } from "@/types";
 import {
   Calendar, Edit2, Trash2, MessageSquare,
@@ -318,7 +317,7 @@ export default function TaskDetailPage() {
                           <button
                             key={s.key}
                             onClick={() => handleStatusChange(s.key)}
-                            className="w-full flex items-center justify-between px-3 py-2.5 transition-colors text-left hover:bg-black/[0.04]"
+                            className="w-full flex items-center justify-between px-3 py-2.5 transition-colors text-left hover:bg-[var(--hover)]"
                           >
                             <span className="flex items-center gap-2 text-[13.5px] font-medium" style={{ color: s.color }}>
                               <span className="w-2 h-2 rounded-full" style={{ background: s.color }} />

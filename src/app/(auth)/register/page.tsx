@@ -49,9 +49,9 @@ export default function RegisterPage() {
              style={{ background: "rgba(255,255,255,0.06)" }} />
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-7">
-            <Image src="/apple-icon.png" alt="Noisium" width={36} height={36}
+            <Image src="/apple-icon.png" alt="Tymbr" width={36} height={36}
                    className="rounded-[10px]" />
-            <span className="text-white font-bold text-[18px] tracking-tight">Noisium</span>
+            <span className="text-white font-bold text-[18px] tracking-tight">Tymbr</span>
           </div>
           <h2 className="text-[28px] font-bold text-white leading-snug">
             Váš tým<br />začíná zde.
@@ -70,9 +70,9 @@ export default function RegisterPage() {
         <div className="absolute bottom-16 -left-16 w-56 h-56 rounded-full"
              style={{ background: "rgba(255,255,255,0.06)" }} />
         <div className="relative z-10 flex items-center gap-3">
-          <Image src="/apple-icon.png" alt="Noisium" width={36} height={36}
+          <Image src="/apple-icon.png" alt="Tymbr" width={36} height={36}
                  className="rounded-[10px]" />
-          <span className="text-white font-bold text-[19px] tracking-tight">Noisium</span>
+          <span className="text-white font-bold text-[19px] tracking-tight">Tymbr</span>
         </div>
         <div className="relative z-10 space-y-5">
           <div>
@@ -102,7 +102,7 @@ export default function RegisterPage() {
           </div>
         </div>
         <p className="relative z-10 text-[12px]" style={{ color: "rgba(255,255,255,0.4)" }}>
-          © {new Date().getFullYear()} Noisium
+          © {new Date().getFullYear()} Tymbr
         </p>
       </div>
 

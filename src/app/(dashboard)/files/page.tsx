@@ -338,7 +338,7 @@ export default function FilesPage() {
             {/* Folders */}
             {folders.map((folder) => (
               <div key={folder.id}
-                className="flex items-center gap-3 px-5 py-3.5 border-b transition-colors hover:bg-black/[0.02] cursor-pointer group"
+                className="flex items-center gap-3 px-5 py-3.5 border-b transition-colors hover:bg-[var(--hover)] cursor-pointer group"
                 style={{ borderColor: "var(--border)" }}>
                 <button className="flex items-center gap-3 flex-1 min-w-0 text-left" onClick={() => navigate(folder.id)}>
                   <Folder className="w-[18px] h-[18px] flex-shrink-0" style={{ color: "#EAB308" }} />
@@ -363,7 +363,7 @@ export default function FilesPage() {
               const Icon = fileIcon(file);
               return (
                 <div key={file.id}
-                  className="flex items-center gap-3 px-5 py-3.5 border-b last:border-b-0 transition-colors hover:bg-black/[0.02] group"
+                  className="flex items-center gap-3 px-5 py-3.5 border-b last:border-b-0 transition-colors hover:bg-[var(--hover)] group"
                   style={{ borderColor: "var(--border)" }}>
                   <a href={file.url} target="_blank" rel="noopener noreferrer"
                     className="flex items-center gap-3 flex-1 min-w-0">
@@ -474,7 +474,7 @@ function ModalWrap({ onClose, title, children }: { onClose: () => void; title: s
         onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-[16px] font-bold" style={{ color: "var(--text-1)" }}>{title}</h2>
-          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-black/[0.05]" style={{ color: "var(--text-3)" }}>
+          <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-[var(--hover)]" style={{ color: "var(--text-3)" }}>
             <X className="w-4 h-4" />
           </button>
         </div>

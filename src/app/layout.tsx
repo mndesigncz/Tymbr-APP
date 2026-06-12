@@ -5,14 +5,14 @@ import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
-  title: "Noisium – Řiďte tým bez chaosu",
+  title: "Tymbr – Řiďte tým bez chaosu",
   description: "Úkoly, komunikace a soubory pro váš tým na jednom místě. Sledujte projekty, přidělujte práci a udržte tým v synchronu.",
-  applicationName: "Noisium",
+  applicationName: "Tymbr",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Noisium",
+    title: "Tymbr",
   },
   icons: {
     icon: "/icon-192.png",
