@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { useChatUnread } from "@/hooks/useChatUnread";
 import {
   LayoutDashboard, CheckSquare, Calendar, MessageSquare,
-  Grid2X2, FolderOpen, Clock, Settings, Users, Webhook, Megaphone, X,
+  CircleEllipsis, FolderOpen, Clock, Settings, Users, Webhook, Megaphone, X,
 } from "lucide-react";
 
 const navItems = [
@@ -55,7 +55,7 @@ export function BottomNav() {
   return (
     <>
       <nav
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 border-t backdrop-blur-2xl"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 border-t backdrop-blur-2xl backdrop-saturate-150"
         style={{ background: "var(--nav-bg)", borderColor: "var(--border)" }}
       >
         <div className="flex items-end pb-safe">
@@ -107,7 +107,7 @@ export function BottomNav() {
               "w-12 h-8 flex items-center justify-center rounded-full transition-all duration-200",
               moreActive && "bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]"
             )}>
-              <Grid2X2
+              <CircleEllipsis
                 className="transition-all duration-200"
                 style={{ width: 22, height: 22, strokeWidth: moreActive ? 2.3 : 1.9 }}
               />
@@ -131,8 +131,8 @@ export function BottomNav() {
           <div className="absolute inset-0 bg-black/35 backdrop-blur-[3px]" />
 
           <div
-            className="absolute bottom-0 left-0 right-0 rounded-t-[28px] px-4 pt-3 pb-8 animate-sheet-in"
-            style={{ background: "var(--bg-card)", boxShadow: "0 -2px 40px rgba(0,0,0,0.14)" }}
+            className="absolute bottom-0 left-0 right-0 rounded-t-[28px] px-4 pt-3 pb-8 animate-sheet-in glass-strong"
+            style={{ boxShadow: "0 -2px 40px rgba(0,0,0,0.14)" }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Drag handle */}
@@ -147,7 +147,7 @@ export function BottomNav() {
                 type="button"
                 onClick={() => setMoreOpen(false)}
                 className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
-                style={{ background: "var(--bg-subtle)", color: "var(--text-2)" }}
+                style={{ background: "color-mix(in srgb, var(--text-1) 6%, transparent)", color: "var(--text-2)" }}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -172,8 +172,8 @@ export function BottomNav() {
                           className="flex flex-col items-center gap-2 py-3.5 rounded-2xl transition-all active:scale-95"
                           style={{
                             background: active
-                              ? "color-mix(in srgb, var(--accent) 10%, transparent)"
-                              : "var(--bg-subtle)",
+                              ? "color-mix(in srgb, var(--accent) 12%, transparent)"
+                              : "color-mix(in srgb, var(--text-1) 5%, transparent)",
                           }}
                         >
                           <Icon

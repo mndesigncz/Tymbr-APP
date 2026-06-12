@@ -262,7 +262,7 @@ function TasksContent() {
             <StartWorkButton />
             <Link href="/tasks/new">
               <Button icon={<Plus className="w-4 h-4" />}>
-                <span className="hidden sm:inline">Nový úkol</span>
+                <span>Nový úkol</span>
               </Button>
             </Link>
           </div>

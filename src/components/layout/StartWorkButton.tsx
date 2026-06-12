@@ -52,6 +52,7 @@ export function StartWorkButton() {
         style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}
       >
         <Play className="w-3.5 h-3.5 fill-current flex-shrink-0" style={{ color: "var(--success)" }} />
+        <span className="sm:hidden">Zahájit</span>
         <span className="hidden sm:inline">Zahájit práci</span>
         <ChevronDown className="w-3.5 h-3.5 hidden sm:block" style={{ color: "var(--text-3)" }} />
       </button>
@@ -59,8 +60,8 @@ export function StartWorkButton() {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute top-full left-0 sm:left-auto sm:right-0 mt-2 w-72 rounded-2xl border overflow-hidden z-50"
-            style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)" }}>
+          <div className="absolute top-full left-0 sm:left-auto sm:right-0 mt-2 w-72 rounded-2xl border overflow-hidden z-50 glass-strong animate-scale-in"
+            style={{ borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)" }}>
             <div className="p-2 border-b" style={{ borderColor: "var(--border)" }}>
               <input
                 autoFocus

@@ -202,11 +202,10 @@ export function Sidebar() {
         <div ref={profileRef} className="mt-1 relative">
           {/* Dropdown opens upward */}
           {profileOpen && (
-            <div className="absolute bottom-full mb-2 left-0 right-0 rounded-2xl border z-50 overflow-hidden"
+            <div className="absolute bottom-full mb-2 left-0 right-0 rounded-2xl border z-50 overflow-hidden glass-strong animate-scale-in"
               style={{
-                background: "var(--bg-card)",
                 borderColor: "var(--border-md)",
-                boxShadow: "var(--shadow-md, 0 8px 24px rgba(0,0,0,0.12))",
+                boxShadow: "var(--shadow-overlay)",
               }}>
               <div className="py-1.5">
                 <Link href="/settings" onClick={() => setProfileOpen(false)}
@@ -224,8 +223,8 @@ export function Sidebar() {
               </div>
               <div className="border-t pb-1.5" style={{ borderColor: "var(--border)" }}>
                 <button onClick={() => signOut({ callbackUrl: "/login" })}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-[13.5px] transition-colors hover:bg-red-50 text-left"
-                  style={{ color: "#EF4444" }}>
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-[13.5px] transition-colors hover:bg-[var(--danger-soft)] text-left"
+                  style={{ color: "var(--danger)" }}>
                   <LogOut className="w-4 h-4 flex-shrink-0" />
                   Odhlásit se
                 </button>

@@ -39,6 +39,10 @@
   /* Bottom nav frosted glass */
   --nav-bg: rgba(248,248,250,0.82);
 
+  /* Glassmorphism surfaces (iOS-style frosted panels) */
+  --glass-bg:        rgba(255,255,255,0.66);
+  --glass-bg-strong: rgba(255,255,255,0.84);
+
   /* Neutral inverted button (Aktivní tab, "Vše" chip) */
   --btn-invert-bg:   #1a1a1f;
   --btn-invert-text: #ffffff;
@@ -75,6 +79,9 @@
   --hover: rgba(255,255,255,0.06);
 
   --nav-bg: rgba(12,12,16,0.90);
+
+  --glass-bg:        rgba(30,30,40,0.66);
+  --glass-bg-strong: rgba(26,26,34,0.86);
 
   --btn-invert-bg:   #e8e8f0;
   --btn-invert-text: #1a1a1f;
@@ -118,6 +125,20 @@
   border: 1px solid var(--border);
   border-radius: 20px;
   box-shadow: var(--shadow-sm);
+}
+
+/* iOS frosted glass — apply to floating surfaces (sheets, dropdowns, modals) */
+.glass,
+.glass-strong {
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+}
+.glass        { background: var(--glass-bg); }
+.glass-strong { background: var(--glass-bg-strong); }
+
+/* Fallback for browsers without backdrop-filter — keep panels readable */
+@supports not (backdrop-filter: blur(1px)) {
+  .glass, .glass-strong { background: var(--bg-card); }
 }
 
 /* Micro-animations */
