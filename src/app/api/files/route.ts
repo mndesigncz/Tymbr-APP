@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { put, del } from "@vercel/blob";
+import { isManager } from "@/lib/roles";
 
 // GET  /api/files?folderId=...   — list folders + files in a folder (null = root)
 // POST /api/files                — create folder  { type:"folder", name, parentId? }
@@ -141,16 +142,30 @@ export async function DELETE(req: NextRequest) {
   const { id, kind } = await req.json();
   if (!id) return NextResponse.json({ error: "id je povinné" }, { status: 400 });
 
+  // Deleting is restricted to the item's creator or a team manager
+  const userId = (session.user as any).id;
+  const manager = isManager((session.user as any).teamRole);
+
   if (kind === "folder") {
+    const folders = await prisma.$queryRaw<any[]>`
+      SELECT "createdById" FROM "TeamFolder" WHERE id = ${id} AND "teamId" = ${teamId}
+    `;
+    if (folders.length === 0) return NextResponse.json({ error: "Složka nenalezena" }, { status: 404 });
+    if (!manager && folders[0].createdById !== userId) {
+      return NextResponse.json({ error: "Smazat může jen autor nebo správce" }, { status: 403 });
+    }
     await prisma.$executeRaw`DELETE FROM "TeamFolder" WHERE id = ${id} AND "teamId" = ${teamId}`;
     return NextResponse.json({ ok: true });
   }
 
   // file — also delete from blob storage if it was an upload
   const rows = await prisma.$queryRaw<any[]>`
-    SELECT url, type FROM "TeamFile" WHERE id = ${id} AND "teamId" = ${teamId}
+    SELECT url, type, "createdById" FROM "TeamFile" WHERE id = ${id} AND "teamId" = ${teamId}
   `;
   if (rows.length === 0) return NextResponse.json({ error: "Soubor nenalezen" }, { status: 404 });
+  if (!manager && rows[0].createdById !== userId) {
+    return NextResponse.json({ error: "Smazat může jen autor nebo správce" }, { status: 403 });
+  }
   if (rows[0].type === "upload") {
     try { await del(rows[0].url); } catch {}
   }

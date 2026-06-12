@@ -10,7 +10,7 @@ interface StatsCardProps {
 
 export function StatsCard({ title, value, icon: Icon, color, highlight }: StatsCardProps) {
   const iconColor = color ?? "var(--accent)";
-  const iconBg = color ? `${color}15` : "var(--accent-soft)";
+  const iconBg = color ? `color-mix(in srgb, ${color} 10%, transparent)` : "var(--accent-soft)";
 
   if (highlight) {
     return (

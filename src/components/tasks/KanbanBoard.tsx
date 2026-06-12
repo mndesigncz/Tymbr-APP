@@ -68,7 +68,7 @@ export function KanbanBoard({ tasks, onStatusChange }: KanbanBoardProps) {
             </span>
           </div>
           <Link href={`/tasks/new?status=${status.key}`}>
-            <button className="p-1.5 rounded-lg transition-colors hover:bg-black/[0.05]"
+            <button className="p-1.5 rounded-lg transition-colors hover:bg-[var(--hover)]"
               style={{ color: "var(--text-2)" }}>
               <Plus className="w-4 h-4" />
             </button>

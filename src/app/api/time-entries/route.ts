@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { isManager } from "@/lib/roles";
+import { getAccessibleTask } from "@/lib/access";
 
 const entryInclude = {
   task: { include: { category: true } },
@@ -54,6 +55,9 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { taskId, subtaskId } = body;
   if (!taskId) return NextResponse.json({ error: "taskId je povinný" }, { status: 400 });
+  if (!(await getAccessibleTask(taskId, session))) {
+    return NextResponse.json({ error: "Úkol nenalezen" }, { status: 404 });
+  }
 
   // Stop any active entry for this user first
   const active = await prisma.timeEntry.findFirst({

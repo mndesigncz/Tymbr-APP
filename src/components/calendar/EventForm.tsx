@@ -237,7 +237,7 @@ export function EventForm({ event, defaultDate, canUseTeam, onSaved, onDeleted, 
         {event && onDeleted && (
           <button type="button" onClick={handleDelete} disabled={deleting}
             className="p-2.5 rounded-xl transition-colors hover:bg-red-50 disabled:opacity-50"
-            style={{ color: "#ef4444" }} title="Smazat událost">
+            style={{ color: "var(--danger)" }} title="Smazat událost">
             <Trash2 className="w-[18px] h-[18px]" />
           </button>
         )}

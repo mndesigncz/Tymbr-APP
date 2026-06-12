@@ -118,6 +118,27 @@ export interface CalendarEvent {
   createdBy?: User;
 }
 
+export type ContentPlatform = "instagram" | "facebook" | "tiktok" | "linkedin" | "x" | "youtube" | "newsletter" | "other";
+export type ContentStatus = "idea" | "draft" | "scheduled" | "published";
+
+export interface ContentPost {
+  id: string;
+  title: string;
+  content?: string | null;
+  platform: ContentPlatform;
+  status: ContentStatus;
+  scheduledAt?: Date | string | null;
+  publishedAt?: Date | string | null;
+  link?: string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  teamId: string;
+  createdById: string;
+  createdBy?: User;
+  assigneeId?: string | null;
+  assignee?: User | null;
+}
+
 export interface TaskStatusHistory {
   id: string;
   taskId: string;

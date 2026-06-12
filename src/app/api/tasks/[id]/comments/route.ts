@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { sendCommentEmail } from "@/lib/email";
 import { createNotifications } from "@/lib/notify";
+import { getAccessibleTask } from "@/lib/access";
 
 function extractMentionedNames(text: string): string[] {
   const matches = text.match(/@([\w][\w\s]*?)(?=\s|$|[^\w\s])/g) ?? [];
@@ -14,6 +15,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!session) return NextResponse.json({ error: "Neautorizováno" }, { status: 401 });
 
   const { id } = await params;
+  if (!(await getAccessibleTask(id, session))) {
+    return NextResponse.json({ error: "Úkol nenalezen" }, { status: 404 });
+  }
   const { content } = await req.json();
   if (!content?.trim()) return NextResponse.json({ error: "Obsah je povinný" }, { status: 400 });
 

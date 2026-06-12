@@ -50,7 +50,7 @@ export function TeamSwitcher() {
       <button
         onClick={() => setOpen((o) => !o)}
         disabled={switching}
-        className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl transition-all hover:bg-black/[0.035] disabled:opacity-60"
+        className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl transition-all hover:bg-[var(--hover)] disabled:opacity-60"
         style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-sm)" }}
       >
         <div
@@ -87,7 +87,7 @@ export function TeamSwitcher() {
                 <button
                   key={t.id}
                   onClick={() => handleSwitch(t.id)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 transition-colors hover:bg-black/[0.035] text-left"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 transition-colors hover:bg-[var(--hover)] text-left"
                 >
                   <div
                     className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 text-white text-[11px] font-bold"
@@ -106,7 +106,7 @@ export function TeamSwitcher() {
           <div className="border-t py-1.5" style={{ borderColor: "var(--border)" }}>
             <button
               onClick={() => { setOpen(false); router.push("/settings/team?new=1"); }}
-              className="w-full flex items-center gap-3 px-3 py-2 text-[13px] font-medium transition-colors hover:bg-black/[0.035] text-left"
+              className="w-full flex items-center gap-3 px-3 py-2 text-[13px] font-medium transition-colors hover:bg-[var(--hover)] text-left"
               style={{ color: "var(--text-1)" }}
             >
               <div className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "var(--bg-subtle)" }}>

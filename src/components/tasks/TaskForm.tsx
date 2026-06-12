@@ -102,7 +102,7 @@ function Row({
       <button
         type="button"
         onClick={onToggle}
-        className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-black/[0.02]"
+        className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[var(--hover)]"
       >
         <Icon className="w-[18px] h-[18px] flex-shrink-0"
           style={{ color: open ? "var(--accent)" : "var(--text-3)" }} />
@@ -449,7 +449,7 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
                       key={t.id}
                       type="button"
                       onClick={() => applyTemplate(t)}
-                      className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-black/[0.03]">
+                      className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--hover)]">
                       <div className="min-w-0">
                         <p className="text-[13.5px] font-semibold truncate" style={{ color: "var(--text-1)" }}>{t.name}</p>
                         {t.description && (
@@ -522,7 +522,7 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
                     key={key}
                     type="button"
                     onClick={() => { setForm((f) => ({ ...f, icon: f.icon === key ? "" : key })); setIconPickerOpen(false); }}
-                    className="w-9 h-9 flex items-center justify-center rounded-xl transition-all hover:bg-black/[0.07]"
+                    className="w-9 h-9 flex items-center justify-center rounded-xl transition-all hover:bg-[var(--hover)]"
                     style={{
                       background: form.icon === key ? `color-mix(in srgb, ${priorityColor} 14%, transparent)` : "transparent",
                       color: form.icon === key ? priorityColor : "var(--text-2)",
@@ -827,7 +827,7 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
           type="button"
           onClick={handleStartWork}
           disabled={startingWork || loading}
-          className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-[13.5px] font-semibold border transition-all hover:bg-black/[0.03] disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-[13.5px] font-semibold border transition-all hover:bg-[var(--hover)] disabled:opacity-50"
           style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}
         >
           <Play className="w-3.5 h-3.5 fill-current" style={{ color: "#16a34a" }} />

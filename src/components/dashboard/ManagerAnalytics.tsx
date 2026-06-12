@@ -68,12 +68,12 @@ function StatCell({ value, color, label }: { value: number | string; color: stri
 }
 
 function MemberRow({ m }: { m: MemberStat }) {
-  const overdueColor = m.overdueTasks > 0 ? "#ef4444" : "var(--text-3)";
+  const overdueColor = m.overdueTasks > 0 ? "var(--danger)" : "var(--text-3)";
 
   return (
     <Link
       href={`/tasks?assigneeId=${m.userId}`}
-      className="flex flex-col sm:grid gap-4 sm:gap-2 px-5 py-4 rounded-2xl border transition-colors hover:bg-black/[0.025]"
+      className="flex flex-col sm:grid gap-4 sm:gap-2 px-5 py-4 rounded-2xl border transition-colors hover:bg-[var(--hover)]"
       style={{ gridTemplateColumns: "1fr repeat(4, minmax(0, 1fr))", borderColor: "var(--border)", background: "var(--bg-subtle)" }}>
 
       {/* Member info */}
@@ -107,12 +107,12 @@ function MemberRow({ m }: { m: MemberStat }) {
 
         {/* Completed this month */}
         <div className="sm:flex sm:justify-center sm:items-center">
-          <StatCell value={m.completedThisMonth} color="#22c55e" label="Hotovo" />
+          <StatCell value={m.completedThisMonth} color="var(--success)" label="Hotovo" />
         </div>
 
         {/* Hours this month */}
         <div className="sm:flex sm:justify-center sm:items-center">
-          <StatCell value={m.hoursThisMonth} color="#0ea5e9" label="Hodiny" />
+          <StatCell value={m.hoursThisMonth} color="var(--info)" label="Hodiny" />
         </div>
       </div>
     </Link>

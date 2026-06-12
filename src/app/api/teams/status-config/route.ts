@@ -92,7 +92,7 @@ export async function PATCH(req: NextRequest) {
     if (showInFocus !== undefined) await prisma.$executeRaw`UPDATE "TaskStatusConfig" SET "showInFocus" = ${showInFocus} WHERE id = ${id} AND "teamId" = ${teamId}`;
     if (order !== undefined) await prisma.$executeRaw`UPDATE "TaskStatusConfig" SET "order" = ${order} WHERE id = ${id} AND "teamId" = ${teamId}`;
 
-    const rows = await prisma.$queryRaw<any[]>`SELECT * FROM "TaskStatusConfig" WHERE id = ${id}`;
+    const rows = await prisma.$queryRaw<any[]>`SELECT * FROM "TaskStatusConfig" WHERE id = ${id} AND "teamId" = ${teamId}`;
     return NextResponse.json(rows[0] ?? {});
   } catch {
     return NextResponse.json({ error: "Chyba serveru" }, { status: 500 });
@@ -113,7 +113,7 @@ export async function DELETE(req: NextRequest) {
     const rows = await prisma.$queryRaw<any[]>`SELECT * FROM "TaskStatusConfig" WHERE id = ${id} AND "teamId" = ${teamId}`;
     if (rows.length === 0) return NextResponse.json({ error: "Stav nenalezen" }, { status: 404 });
     if (rows[0].isBuiltin) return NextResponse.json({ error: "Vestavěné stavy nelze smazat" }, { status: 400 });
-    await prisma.$executeRaw`DELETE FROM "TaskStatusConfig" WHERE id = ${id}`;
+    await prisma.$executeRaw`DELETE FROM "TaskStatusConfig" WHERE id = ${id} AND "teamId" = ${teamId}`;
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Chyba serveru" }, { status: 500 });

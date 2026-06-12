@@ -318,7 +318,7 @@ function TasksContent() {
                     style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", boxShadow: "var(--shadow-md, 0 8px 24px rgba(0,0,0,0.1))" }}>
                     {members.map((m) => (
                       <label key={m.id}
-                        className="flex items-center gap-2.5 px-3.5 py-2 cursor-pointer hover:bg-black/[0.03] transition-colors">
+                        className="flex items-center gap-2.5 px-3.5 py-2 cursor-pointer hover:bg-[var(--hover)] transition-colors">
                         <input
                           type="checkbox"
                           checked={selectedMembers.has(m.id)}
@@ -353,7 +353,7 @@ function TasksContent() {
             <div className="flex items-center justify-between gap-2 lg:justify-start lg:flex-shrink-0">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[13px] font-medium border transition-all hover:bg-black/[0.03]"
+                className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[13px] font-medium border transition-all hover:bg-[var(--hover)]"
                 style={showFilters || activeFiltersCount > 0
                   ? { background: "var(--accent-soft)", borderColor: "var(--accent)", color: "var(--accent)" }
                   : { background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-2)" }}>
@@ -541,7 +541,7 @@ function TasksContent() {
           <span className="text-[13px] font-semibold mr-1" style={{ color: "var(--text-1)" }}>
             {selected.size} vybráno
           </span>
-          <button onClick={clearSelect} className="p-1.5 rounded-lg transition-colors hover:bg-black/[0.06]"
+          <button onClick={clearSelect} className="p-1.5 rounded-lg transition-colors hover:bg-[var(--hover)]"
             style={{ color: "var(--text-3)" }}>
             <X className="w-4 h-4" />
           </button>

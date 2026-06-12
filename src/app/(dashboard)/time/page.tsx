@@ -444,7 +444,7 @@ export default function TimePage() {
                     <div className="flex items-center gap-3">
                       <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: statusColor(statuses, row.status) }} />
                       <span className="text-[13.5px] font-semibold flex-1" style={{ color: "var(--text-1)" }}>{statusLabel(statuses, row.status)}</span>
-                      <span className="text-[12px]" style={{ color: "var(--text-3)" }}>{row.count} relací</span>
+                      <span className="text-[12px]" style={{ color: "var(--text-3)" }}>{row.count} záznamů</span>
                       <span className="text-[13.5px] font-semibold" style={{ color: "var(--text-1)" }}>{formatMinutes(row.minutes)}</span>
                     </div>
                     <BarRow pct={pct} color={statusColor(statuses, row.status)} />

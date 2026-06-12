@@ -37,31 +37,38 @@ export function UrgentTasks({ allUrgent, myUrgent, isManager = true }: UrgentTas
 
   return (
     <div className="rounded-3xl border"
-      style={{ background: "#EF44440A", borderColor: "rgba(239,68,68,0.22)", boxShadow: "var(--shadow-sm)" }}>
+      style={{
+        background: "var(--danger-soft)",
+        borderColor: "color-mix(in srgb, var(--danger) 25%, transparent)",
+        boxShadow: "var(--shadow-sm)",
+      }}>
       <div className="flex items-center justify-between px-6 pt-6 pb-5">
         <div className="flex items-center gap-2">
-          <AlertCircle className="w-[18px] h-[18px] text-red-500" />
+          <AlertCircle className="w-[18px] h-[18px]" style={{ color: "var(--danger)" }} />
           <h2 className="text-[16px] font-bold tracking-tight" style={{ color: "var(--text-1)" }}>Urgentní</h2>
-          <span className="text-[11.5px] font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded-md">
+          <span className="text-[11.5px] font-semibold px-2 py-0.5 rounded-md"
+            style={{ color: "var(--danger)", background: "color-mix(in srgb, var(--danger) 12%, transparent)" }}>
             {visible.length}
           </span>
         </div>
         {isManager && (
-          <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: "rgba(255,255,255,0.6)" }}>
+          <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: "var(--bg-subtle)" }}>
             <button
+              type="button"
               onClick={() => setView("all")}
               className="px-3 py-1.5 rounded-lg text-[12.5px] font-semibold transition-all"
               style={view === "all"
-                ? { background: "#fff", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
+                ? { background: "var(--bg-card)", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
                 : { color: "var(--text-3)" }}
             >
               Všechny
             </button>
             <button
+              type="button"
               onClick={() => setView("mine")}
               className="px-3 py-1.5 rounded-lg text-[12.5px] font-semibold transition-all"
               style={view === "mine"
-                ? { background: "#fff", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
+                ? { background: "var(--bg-card)", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
                 : { color: "var(--text-3)" }}
             >
               Moje

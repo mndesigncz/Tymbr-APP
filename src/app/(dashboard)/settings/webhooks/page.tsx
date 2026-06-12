@@ -133,7 +133,7 @@ export default function WebhooksPage() {
     <div>
       <Header
         title="Integrace"
-        subtitle="Propojte Noisium s dalšími nástroji a automatizujte svůj tým."
+        subtitle="Propojte Tymbr s dalšími nástroji a automatizujte svůj tým."
       />
 
       <div className="px-4 sm:px-6 lg:px-8 pt-2 pb-12 max-w-2xl mx-auto space-y-6">
@@ -146,8 +146,8 @@ export default function WebhooksPage() {
               Co to je a k čemu to slouží?
             </h2>
             <p className="text-[13.5px] leading-relaxed" style={{ color: "var(--text-2)" }}>
-              Integrace propojí Noisium s nástroji, které už používáte — Slack, Gmail, Google Sheets, Notion
-              a stovkami dalších. Kdykoli nastane akce v Noisium (třeba dokončení úkolu), automaticky se spustí
+              Integrace propojí Tymbr s nástroji, které už používáte — Slack, Gmail, Google Sheets, Notion
+              a stovkami dalších. Kdykoli nastane akce v Tymbr (třeba dokončení úkolu), automaticky se spustí
               akce ve druhé appce. Bez jediného kliknutí.
             </p>
           </div>
@@ -160,7 +160,7 @@ export default function WebhooksPage() {
                 style={{ background: "var(--accent)" }}>
                 <Check className="w-3 h-3 text-white" />
               </div>
-              <span className="text-[13px] font-semibold" style={{ color: "var(--accent)" }}>Noisium</span>
+              <span className="text-[13px] font-semibold" style={{ color: "var(--accent)" }}>Tymbr</span>
             </div>
             <ArrowRight className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-3)" }} />
             <div className="flex items-center gap-2 px-3.5 py-2 rounded-2xl flex-shrink-0"
@@ -385,18 +385,18 @@ export default function WebhooksPage() {
                     </div>
                     <div className="flex items-center gap-1 mt-2 justify-end">
                       <button onClick={() => copyUrl(hook.url)}
-                        className="p-2 rounded-xl transition-colors hover:bg-black/[0.04]"
+                        className="p-2 rounded-xl transition-colors hover:bg-[var(--hover)]"
                         style={{ color: "var(--text-3)" }} title="Kopírovat URL">
                         {copied === hook.url ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
                       </button>
                       <button onClick={() => handleToggle(hook)}
-                        className="p-2 rounded-xl transition-colors hover:bg-black/[0.04]"
+                        className="p-2 rounded-xl transition-colors hover:bg-[var(--hover)]"
                         style={{ color: hook.active ? "var(--accent)" : "var(--text-3)" }}
                         title={hook.active ? "Deaktivovat" : "Aktivovat"}>
                         {hook.active ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
                       </button>
                       <button onClick={() => setExpandedId(expanded ? null : hook.id)}
-                        className="p-2 rounded-xl transition-colors hover:bg-black/[0.04]"
+                        className="p-2 rounded-xl transition-colors hover:bg-[var(--hover)]"
                         style={{ color: "var(--text-3)" }}>
                         {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                       </button>
@@ -432,7 +432,7 @@ export default function WebhooksPage() {
         <div className="rounded-2xl border overflow-hidden" style={{ borderColor: "var(--border)" }}>
           <button
             onClick={() => setShowDevDocs((v) => !v)}
-            className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-black/[0.02]"
+            className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[var(--hover)]"
             style={{ background: "var(--bg-card)" }}>
             <Code2 className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-3)" }} />
             <span className="flex-1 text-[13.5px] font-semibold" style={{ color: "var(--text-1)" }}>
@@ -472,7 +472,7 @@ export default function WebhooksPage() {
                     Pokud nastavíte Secret, každý request obsahuje hlavičku{" "}
                     <code className="font-mono text-[11px] px-1.5 py-0.5 rounded-md"
                       style={{ background: "var(--bg-subtle)" }}>
-                      X-Noisium-Signature
+                      X-Tymbr-Signature
                     </code>{" "}
                     s HMAC-SHA256 podpisem těla požadavku.
                   </span>

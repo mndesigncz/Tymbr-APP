@@ -59,7 +59,7 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusChange
     window.dispatchEvent(new Event("tymbr:task-updated"));
   };
 
-  const compactBg = isDone ? "#22C55E0E" : (urgent || isUrgent) ? "#EF44440F" : "var(--bg-subtle)";
+  const compactBg = isDone ? "var(--success-soft)" : (urgent || isUrgent) ? "var(--danger-soft)" : "var(--bg-subtle)";
   const assignees = task.assignees ?? (task.assignee ? [task.assignee] : []);
   const subtasks = task.subtasks ?? [];
   const subTotal = subtasks.length;
@@ -67,12 +67,12 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusChange
 
   const StatusDropdown = () => (
     <div className="absolute top-full left-0 mt-1 w-40 rounded-xl overflow-hidden z-50"
-      style={{ background: "var(--bg-card)", border: "1px solid var(--border-md)", boxShadow: "0 8px 24px rgba(0,0,0,0.13)" }}>
+      style={{ background: "var(--bg-card)", border: "1px solid var(--border-md)", boxShadow: "var(--shadow-overlay)" }}>
       {statuses.map((s) => (
         <button
           key={s.key}
           onMouseDown={(e) => handleStatusSelect(e, s.key)}
-          className="w-full flex items-center gap-2 px-3 py-2 text-[12.5px] transition-colors hover:bg-black/[0.04]"
+          className="w-full flex items-center gap-2 px-3 py-2 text-[12.5px] transition-colors hover:bg-[var(--hover)]"
           style={{ color: s.key === currentStatus ? s.color : "var(--text-1)", fontWeight: s.key === currentStatus ? 700 : 500 }}
         >
           <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
@@ -94,7 +94,7 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusChange
             <p className="text-[13.5px] font-semibold leading-snug line-clamp-1 mb-2 flex items-center gap-1.5"
               style={{ color: "var(--text-1)" }}>
               {showUrgentMark && isUrgent && (
-                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 fill-red-500/15" style={{ color: "#ef4444" }} />
+                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--danger)" }} />
               )}
               {task.title}
             </p>
@@ -108,14 +108,14 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusChange
               )}
               {task.dueDate && (
                 <span className="flex items-center gap-1 text-[11px] whitespace-nowrap"
-                  style={{ color: overdue ? "#ef4444" : "var(--text-3)" }}>
+                  style={{ color: overdue ? "var(--danger)" : "var(--text-3)" }}>
                   <Calendar className="w-3 h-3 flex-shrink-0" />
                   {formatDate(task.dueDate)}
                 </span>
               )}
               {subTotal > 0 && (
                 <span className="flex items-center gap-1 text-[11px] font-medium whitespace-nowrap px-1.5 py-0.5 rounded-md"
-                  style={{ color: subDone === subTotal ? "#22C55E" : "var(--text-2)", background: "var(--bg-card)" }}>
+                  style={{ color: subDone === subTotal ? "var(--success)" : "var(--text-2)", background: "var(--bg-card)" }}>
                   <ListChecks className="w-3 h-3 flex-shrink-0" />
                   {subDone}/{subTotal}
                 </span>
@@ -126,9 +126,9 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusChange
             {currentStatus !== "done" && (
               <button onClick={handleStartWork} title={isCurrentlyActive ? "Právě probíhá" : "Zahájit práci"}
                 className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 transition-all hover:opacity-80"
-                style={isCurrentlyActive ? { background: "#22C55E20", color: "#22C55E" } : { background: "var(--accent-soft)", color: "var(--accent)" }}>
+                style={isCurrentlyActive ? { background: "color-mix(in srgb, var(--success) 14%, transparent)", color: "var(--success)" } : { background: "var(--accent-soft)", color: "var(--accent)" }}>
                 {isCurrentlyActive
-                  ? <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#22C55E" }} />
+                  ? <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--success)" }} />
                   : <Play className="w-3 h-3 fill-current" />}
               </button>
             )}
@@ -160,15 +160,23 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusChange
         <div
           className="rounded-2xl border p-5 transition-all duration-150 cursor-pointer group hover:-translate-y-0.5"
           style={{
-            background: isDone ? "#22C55E08" : isUrgent ? "#EF444408" : "var(--bg-card)",
-            borderColor: isDone ? "#22C55E30" : isUrgent ? "rgba(239,68,68,0.22)" : "var(--border)",
+            background: isDone
+              ? "color-mix(in srgb, var(--success) 4%, var(--bg-card))"
+              : isUrgent
+                ? "color-mix(in srgb, var(--danger) 3%, var(--bg-card))"
+                : "var(--bg-card)",
+            borderColor: isDone
+              ? "color-mix(in srgb, var(--success) 22%, transparent)"
+              : isUrgent
+                ? "color-mix(in srgb, var(--danger) 22%, transparent)"
+                : "var(--border)",
             boxShadow: "var(--shadow-sm)",
           }}
         >
           {isUrgent && !isDone && (
             <div className="flex items-center gap-1.5 mb-2.5">
-              <AlertTriangle className="w-3.5 h-3.5" style={{ color: "#ef4444" }} />
-              <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#ef4444" }}>Urgentní</span>
+              <AlertTriangle className="w-3.5 h-3.5" style={{ color: "var(--danger)" }} />
+              <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "var(--danger)" }}>Urgentní</span>
             </div>
           )}
 
@@ -205,14 +213,14 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusChange
             )}
             {task.recurring && task.recurring !== "none" && (
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-1.5 py-0.5 rounded-md"
-                style={{ color: "#0ea5e9", background: "#0ea5e915" }}>
+                style={{ color: "var(--info)", background: "var(--info-soft)" }}>
                 <RefreshCw className="w-3 h-3" />
                 {task.recurring === "daily" ? "Denně" : task.recurring === "weekly" ? "Týdně" : "Měsíčně"}
               </span>
             )}
             {(task.blockedByCount ?? 0) > 0 && (
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-1.5 py-0.5 rounded-md"
-                style={{ color: "#ef4444", background: "#ef444415" }}>
+                style={{ color: "var(--danger)", background: "var(--danger-soft)" }}>
                 <Lock className="w-3 h-3" />
                 Blokováno
               </span>
@@ -221,19 +229,19 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusChange
 
           {subTotal > 0 && (
             <div className="flex items-center gap-2 mb-4">
-              <ListChecks className="w-3.5 h-3.5 flex-shrink-0" style={{ color: subDone === subTotal ? "#22C55E" : "var(--text-3)" }} />
+              <ListChecks className="w-3.5 h-3.5 flex-shrink-0" style={{ color: subDone === subTotal ? "var(--success)" : "var(--text-3)" }} />
               <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-subtle)" }}>
-                <div className="h-full rounded-full transition-all" style={{ width: `${(subDone / subTotal) * 100}%`, background: "#22C55E" }} />
+                <div className="h-full rounded-full transition-all" style={{ width: `${(subDone / subTotal) * 100}%`, background: "var(--success)" }} />
               </div>
               <span className="text-[11.5px] font-semibold flex-shrink-0" style={{ color: "var(--text-3)" }}>{subDone}/{subTotal}</span>
             </div>
           )}
 
-          <div className="flex items-center justify-between gap-2 pt-4 border-t" style={{ borderColor: isUrgent ? "rgba(239,68,68,0.15)" : "var(--border)" }}>
+          <div className="flex items-center justify-between gap-2 pt-4 border-t" style={{ borderColor: isUrgent ? "color-mix(in srgb, var(--danger) 15%, transparent)" : "var(--border)" }}>
             <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden">
               {task.dueDate && (
                 <span className="flex items-center gap-1 text-[11.5px] font-medium flex-shrink-0 whitespace-nowrap"
-                  style={{ color: overdue ? "#ef4444" : "var(--text-3)" }}>
+                  style={{ color: overdue ? "var(--danger)" : "var(--text-3)" }}>
                   <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
                   {formatDate(task.dueDate)}
                 </span>
@@ -249,9 +257,9 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusChange
               {currentStatus !== "done" && (
                 <button onClick={handleStartWork} title={isCurrentlyActive ? "Právě probíhá" : "Zahájit práci"}
                   className="w-7 h-7 rounded-xl flex items-center justify-center transition-all hover:opacity-80"
-                  style={isCurrentlyActive ? { background: "#22C55E20", color: "#22C55E" } : { background: "var(--accent-soft)", color: "var(--accent)" }}>
+                  style={isCurrentlyActive ? { background: "color-mix(in srgb, var(--success) 14%, transparent)", color: "var(--success)" } : { background: "var(--accent-soft)", color: "var(--accent)" }}>
                   {isCurrentlyActive
-                    ? <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#22C55E" }} />
+                    ? <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "var(--success)" }} />
                     : <Play className="w-3.5 h-3.5 fill-current" />}
                 </button>
               )}

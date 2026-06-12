@@ -187,7 +187,7 @@ export default async function DashboardPage() {
           <div className="flex items-center gap-2">
             <StartWorkButton />
             <Link href="/calendar?new=event">
-              <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13.5px] font-semibold border transition-all hover:bg-black/[0.03]"
+              <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13.5px] font-semibold border transition-all hover:bg-[var(--hover)]"
                 style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}>
                 <CalendarPlus className="w-4 h-4" />
                 <span>Událost</span>

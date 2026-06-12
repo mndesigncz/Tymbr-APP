@@ -27,10 +27,10 @@ export function Button({
 
   const variants: Record<string, string> = {
     primary:   "text-white shadow-sm hover:opacity-90",
-    secondary: "border hover:bg-black/[0.03]",
-    ghost:     "hover:bg-black/[0.04]",
+    secondary: "border hover:bg-[var(--hover)]",
+    ghost:     "hover:bg-[var(--hover)]",
     danger:    "text-red-500 hover:bg-red-50",
-    outline:   "border hover:bg-black/[0.03]",
+    outline:   "border hover:bg-[var(--hover)]",
   };
 
   const variantStyles: Record<string, React.CSSProperties> = {

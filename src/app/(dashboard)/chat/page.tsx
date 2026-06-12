@@ -87,7 +87,7 @@ export default function ChatPage() {
 
   // Update document.title with unread count
   useEffect(() => {
-    const base = "Noisium";
+    const base = "Tymbr";
     document.title = bgUnread > 0 ? `(${bgUnread}) Chat – ${base}` : `Chat – ${base}`;
     return () => { document.title = base; };
   }, [bgUnread]);

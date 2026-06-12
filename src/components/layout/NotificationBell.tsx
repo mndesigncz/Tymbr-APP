@@ -71,10 +71,12 @@ export function NotificationBell() {
   return (
     <div ref={ref} className="relative">
       <button
+        type="button"
         onClick={() => { setOpen((o) => !o); if (!open) load(); }}
-        className="relative w-9 h-9 rounded-xl flex items-center justify-center transition-all hover:bg-black/[0.05]"
+        className="relative w-9 h-9 rounded-xl flex items-center justify-center transition-all hover:bg-[var(--bg-subtle)]"
         style={{ color: "var(--text-2)" }}
         title="Notifikace"
+        aria-label="Notifikace"
       >
         <Bell className="w-5 h-5" />
         {unread > 0 && (
@@ -87,7 +89,7 @@ export function NotificationBell() {
 
       {open && (
         <div className="absolute top-full right-0 mt-2 w-80 rounded-2xl border overflow-hidden z-50"
-          style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", boxShadow: "0 12px 40px rgba(0,0,0,0.15)" }}>
+          style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)" }}>
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
             <span className="text-[14px] font-bold" style={{ color: "var(--text-1)" }}>Notifikace</span>
@@ -111,7 +113,7 @@ export function NotificationBell() {
                 <button
                   key={n.id}
                   onClick={() => handleClick(n)}
-                  className="w-full flex items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-black/[0.03] border-b"
+                  className="w-full flex items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[var(--hover)] border-b"
                   style={{ borderColor: "var(--border)", background: n.isRead ? "transparent" : "color-mix(in srgb, var(--accent) 4%, transparent)" }}
                 >
                   <span className="text-[18px] flex-shrink-0 mt-0.5">{TYPE_ICONS[n.type] ?? "🔔"}</span>

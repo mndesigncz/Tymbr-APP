@@ -13,7 +13,7 @@ import { useChatUnread } from "@/hooks/useChatUnread";
 import {
   LayoutDashboard, CheckSquare, Tag, LogOut, Settings,
   Clock, Users, MessageSquare, ChevronDown, Settings2, FolderOpen, Webhook,
-  Calendar,
+  Calendar, Megaphone,
 } from "lucide-react";
 
 const topItems = [
@@ -25,8 +25,9 @@ const topItems = [
 ];
 
 const teamItems = [
-  { href: "/chat",          icon: MessageSquare, label: "Chat"    },
-  { href: "/files",         icon: FolderOpen,    label: "Soubory" },
+  { href: "/chat",          icon: MessageSquare, label: "Chat"        },
+  { href: "/files",         icon: FolderOpen,    label: "Soubory"     },
+  { href: "/content",       icon: Megaphone,     label: "Content plán" },
 ];
 
 const settingsItems = [
@@ -77,7 +78,7 @@ export function Sidebar() {
         className={cn(
           "flex items-center gap-3 py-2.5 rounded-xl text-[14px] font-medium transition-all",
           indent ? "px-6" : "px-3.5",
-          !active && "hover:bg-black/[0.035]"
+          !active && "hover:bg-[var(--hover)]"
         )}
         style={active
           ? { background: "var(--bg-card)", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
@@ -105,14 +106,14 @@ export function Sidebar() {
         <div className="flex items-center gap-2.5 min-w-0">
           <Image
             src="/icon-192.png"
-            alt="Noisium"
+            alt="Tymbr"
             width={32}
             height={32}
             className="w-8 h-8 rounded-xl shadow-sm flex-shrink-0"
             priority
           />
           <span className="text-[17px] font-bold tracking-tight truncate" style={{ color: "var(--text-1)" }}>
-            Noisium
+            Tymbr
           </span>
         </div>
       </div>
@@ -130,7 +131,7 @@ export function Sidebar() {
             onClick={() => setTeamOpen((o) => !o)}
             className={cn(
               "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[14px] font-medium transition-all",
-              !teamActive && "hover:bg-black/[0.035]"
+              !teamActive && "hover:bg-[var(--hover)]"
             )}
             style={teamActive
               ? { background: "var(--bg-card)", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
@@ -164,7 +165,7 @@ export function Sidebar() {
             onClick={() => setSettingsOpen((o) => !o)}
             className={cn(
               "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[14px] font-medium transition-all",
-              !settingsActive && "hover:bg-black/[0.035]"
+              !settingsActive && "hover:bg-[var(--hover)]"
             )}
             style={settingsActive
               ? { background: "var(--bg-card)", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
@@ -209,13 +210,13 @@ export function Sidebar() {
               }}>
               <div className="py-1.5">
                 <Link href="/settings" onClick={() => setProfileOpen(false)}
-                  className="flex items-center gap-3 px-4 py-2.5 text-[13.5px] transition-colors hover:bg-black/[0.035]"
+                  className="flex items-center gap-3 px-4 py-2.5 text-[13.5px] transition-colors hover:bg-[var(--hover)]"
                   style={{ color: "var(--text-1)" }}>
                   <Settings className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-3)" }} />
                   Nastavení účtu
                 </Link>
                 <Link href="/settings/team" onClick={() => setProfileOpen(false)}
-                  className="flex items-center gap-3 px-4 py-2.5 text-[13.5px] transition-colors hover:bg-black/[0.035]"
+                  className="flex items-center gap-3 px-4 py-2.5 text-[13.5px] transition-colors hover:bg-[var(--hover)]"
                   style={{ color: "var(--text-1)" }}>
                   <Users className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-3)" }} />
                   Správa týmu
