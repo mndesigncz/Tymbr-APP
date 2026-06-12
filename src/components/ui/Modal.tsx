@@ -25,10 +25,10 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px] animate-fade-in" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/35 backdrop-blur-[6px] animate-fade-in" onClick={onClose} />
       <div
-        className={cn("relative w-full rounded-3xl z-10 flex flex-col max-h-[90vh] sm:max-h-[88vh] animate-scale-in", sizes[size])}
-        style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-overlay)" }}
+        className={cn("relative w-full rounded-3xl z-10 flex flex-col max-h-[90vh] sm:max-h-[88vh] animate-scale-in glass-strong", sizes[size])}
+        style={{ boxShadow: "var(--shadow-overlay)" }}
       >
         {title && (
           <div className="flex items-center justify-between px-6 pt-6 pb-2 flex-shrink-0">

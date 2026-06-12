@@ -32,12 +32,12 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
         </div>
       </div>
 
-      {/* Mobile/tablet: compact scrollable action strip below the title */}
+      {/* Mobile/tablet: actions distributed evenly across the full width below
+          the title. whitespace-nowrap keeps labels intact — if everything still
+          doesn't fit, the row scrolls instead of squishing. */}
       {actions && (
-        <div className="lg:hidden mt-3 overflow-x-auto no-scrollbar">
-          <div className="flex items-center gap-2 w-max">
-            {actions}
-          </div>
+        <div className="lg:hidden mt-3 flex items-stretch gap-2 overflow-x-auto no-scrollbar [&>*]:flex-1 [&>div]:flex [&>div]:items-stretch [&>div]:gap-2 [&>div>*]:flex-1 [&_button]:w-full [&_button]:justify-center [&_button]:whitespace-nowrap">
+          {actions}
         </div>
       )}
     </header>

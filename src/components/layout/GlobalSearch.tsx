@@ -96,10 +96,10 @@ export function GlobalSearch() {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh]"
+    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] bg-black/20 backdrop-blur-[3px] animate-fade-in"
       onClick={() => setOpen(false)}>
-      <div className="w-full max-w-xl mx-4 rounded-3xl overflow-hidden shadow-2xl"
-        style={{ background: "var(--bg-card)", border: "1px solid var(--border-md)" }}
+      <div className="w-full max-w-xl mx-4 rounded-3xl overflow-hidden shadow-2xl glass-strong animate-scale-in"
+        style={{ border: "1px solid var(--border-md)" }}
         onClick={(e) => e.stopPropagation()}>
 
         {/* Input */}

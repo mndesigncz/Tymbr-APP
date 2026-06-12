@@ -72,8 +72,8 @@ export function TeamSwitcher() {
 
       {open && (
         <div
-          className="absolute top-full left-3 right-3 mt-1.5 rounded-2xl border z-50 overflow-hidden"
-          style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", boxShadow: "var(--shadow-md, 0 8px 24px rgba(0,0,0,0.12))" }}
+          className="absolute top-full left-3 right-3 mt-1.5 rounded-2xl border z-50 overflow-hidden glass-strong animate-scale-in"
+          style={{ borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)" }}
         >
           <div className="py-1.5 max-h-[260px] overflow-y-auto no-scrollbar">
             {teams.length > 0 && (

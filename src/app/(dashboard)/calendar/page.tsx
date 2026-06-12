@@ -28,18 +28,18 @@ function CalendarPageContent() {
         actions={
           <div className="flex items-center gap-2">
             <StartWorkButton />
-            <Link href="/calendar?new=event" className="flex-shrink-0">
+            <Link href="/calendar?new=event">
               <button className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[13.5px] font-semibold border transition-all hover:bg-[var(--hover)]"
                 style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}>
                 <CalendarPlus className="w-4 h-4 flex-shrink-0" />
-                <span className="hidden sm:inline">Událost</span>
+                <span>Událost</span>
               </button>
             </Link>
-            <Link href="/tasks/new" className="flex-shrink-0">
+            <Link href="/tasks/new">
               <button className="flex items-center gap-2 text-white px-3.5 py-2.5 rounded-xl text-[13.5px] font-semibold transition-all hover:opacity-90"
                 style={{ background: "var(--accent)", boxShadow: "0 4px 12px rgba(247,89,47,0.25)" }}>
                 <Plus className="w-4 h-4 flex-shrink-0" />
-                <span className="hidden sm:inline">Nový úkol</span>
+                <span>Nový úkol</span>
               </button>
             </Link>
           </div>

@@ -88,8 +88,8 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute top-full right-0 mt-2 w-80 rounded-2xl border overflow-hidden z-50"
-          style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)" }}>
+        <div className="absolute top-full right-0 mt-2 w-80 rounded-2xl border overflow-hidden z-50 glass-strong animate-scale-in"
+          style={{ borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)" }}>
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
             <span className="text-[14px] font-bold" style={{ color: "var(--text-1)" }}>Notifikace</span>
