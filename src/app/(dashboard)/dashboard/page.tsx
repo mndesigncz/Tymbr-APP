@@ -4,7 +4,7 @@ import { isManager } from "@/lib/roles";
 import { Header } from "@/components/layout/Header";
 import { DashboardBody } from "@/components/dashboard/DashboardBody";
 import { StartWorkButton } from "@/components/layout/StartWorkButton";
-import { Plus } from "lucide-react";
+import { Plus, CalendarPlus } from "lucide-react";
 import Link from "next/link";
 import type { Task } from "@/types";
 import type { MemberStat } from "@/components/dashboard/ManagerAnalytics";
@@ -186,6 +186,13 @@ export default async function DashboardPage() {
         actions={
           <div className="flex items-center gap-2">
             <StartWorkButton />
+            <Link href="/calendar?new=event">
+              <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13.5px] font-semibold border transition-all hover:bg-black/[0.03]"
+                style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}>
+                <CalendarPlus className="w-4 h-4" />
+                <span>Událost</span>
+              </button>
+            </Link>
             <Link href="/tasks/new">
               <button className="flex items-center gap-2 text-white px-4 py-2.5 rounded-xl text-[13.5px] font-semibold transition-all hover:opacity-90 shadow-sm"
                 style={{ background: "var(--accent)", boxShadow: "0 4px 12px rgba(247,89,47,0.25)" }}>

@@ -12,8 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import type { Task } from "@/types";
-import { Plus, LayoutGrid, List, Calendar, Search, SlidersHorizontal, X, CheckCheck, ChevronDown, Trash2, Square, CheckSquare2 } from "lucide-react";
-import { CalendarView } from "@/components/tasks/CalendarView";
+import { Plus, LayoutGrid, List, Search, SlidersHorizontal, X, CheckCheck, ChevronDown, Trash2, Square, CheckSquare2 } from "lucide-react";
 import { useStatusConfig } from "@/hooks/useStatusConfig";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -76,7 +75,7 @@ function TasksContent() {
   const [tab, setTab] = useState<"active" | "done">(initialTab);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<"kanban" | "list" | "calendar">("kanban");
+  const [view, setView] = useState<"kanban" | "list">("kanban");
   const [scope, setScope] = useState<Scope>("all");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
@@ -378,10 +377,6 @@ function TasksContent() {
                   style={view === "list" ? { background: "var(--accent)", color: "#fff" } : { color: "var(--text-3)" }}>
                   <List className="w-4 h-4" />
                 </button>
-                <button onClick={() => setView("calendar")} className="p-2 rounded-lg transition-all"
-                  style={view === "calendar" ? { background: "var(--accent)", color: "#fff" } : { color: "var(--text-3)" }}>
-                  <Calendar className="w-4 h-4" />
-                </button>
               </div>
             </div>
           )}
@@ -489,8 +484,6 @@ function TasksContent() {
           </div>
         ) : view === "kanban" ? (
           <KanbanBoard tasks={tasks} onStatusChange={handleStatusChange} />
-        ) : view === "calendar" ? (
-          <CalendarView tasks={tasks} />
         ) : (
           <>
             {tasks.length > 0 && (

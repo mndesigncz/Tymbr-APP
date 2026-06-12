@@ -7,17 +7,18 @@ import { cn } from "@/lib/utils";
 import { useChatUnread } from "@/hooks/useChatUnread";
 import {
   LayoutDashboard, CheckSquare, Clock, MessageSquare,
-  MoreHorizontal, FolderOpen, Tag, Settings, Users, X, Webhook,
+  MoreHorizontal, FolderOpen, Tag, Settings, Users, X, Webhook, Calendar,
 } from "lucide-react";
 
 const navItems = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Přehled", chat: false },
-  { href: "/tasks",     icon: CheckSquare,     label: "Úkoly",   chat: false },
-  { href: "/chat",      icon: MessageSquare,   label: "Chat",    chat: true  },
-  { href: "/time",      icon: Clock,           label: "Výkazy",  chat: false },
+  { href: "/dashboard", icon: LayoutDashboard, label: "Přehled",  chat: false },
+  { href: "/tasks",     icon: CheckSquare,     label: "Úkoly",    chat: false },
+  { href: "/calendar",  icon: Calendar,        label: "Kalendář", chat: false },
+  { href: "/chat",      icon: MessageSquare,   label: "Chat",     chat: true  },
 ];
 
 const moreItems = [
+  { href: "/time",               icon: Clock,      label: "Výkazy"          },
   { href: "/categories",         icon: Tag,        label: "Funkce"          },
   { href: "/files",              icon: FolderOpen, label: "Soubory"         },
   { href: "/settings/team",      icon: Users,      label: "Nastavení týmu"  },
