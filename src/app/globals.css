@@ -37,7 +37,7 @@
   --hover: rgba(0,0,0,0.04);
 
   /* Bottom nav frosted glass */
-  --nav-bg: rgba(246,246,247,0.88);
+  --nav-bg: rgba(248,248,250,0.82);
 
   /* Neutral inverted button (Aktivní tab, "Vše" chip) */
   --btn-invert-bg:   #1a1a1f;
@@ -74,7 +74,7 @@
 
   --hover: rgba(255,255,255,0.06);
 
-  --nav-bg: rgba(15,15,19,0.90);
+  --nav-bg: rgba(12,12,16,0.90);
 
   --btn-invert-bg:   #e8e8f0;
   --btn-invert-text: #1a1a1f;
@@ -116,7 +116,7 @@
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: 20px;
   box-shadow: var(--shadow-sm);
 }
 
@@ -142,6 +142,22 @@
 .animate-fade-in  { animation: fade-in  0.15s ease both; }
 .animate-slide-up { animation: slide-up 0.2s ease both; }
 .animate-scale-in { animation: scale-in 0.15s ease both; }
+
+/* iOS-style spring sheet animation — Apple's standard modal curve */
+@keyframes sheet-in {
+  from { opacity: 0.85; transform: translateY(36%) scale(0.97); }
+  to   { opacity: 1;    transform: translateY(0)   scale(1);    }
+}
+.animate-sheet-in {
+  animation: sheet-in 0.38s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+/* Overlay fade for sheet backdrop */
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-overlay-in { animation: overlay-in 0.25s ease both; }
 
 /* Press feedback on interactive elements */
 button, a[role="button"] {

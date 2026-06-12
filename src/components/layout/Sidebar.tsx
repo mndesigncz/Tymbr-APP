@@ -76,7 +76,7 @@ export function Sidebar() {
         key={href}
         href={href}
         className={cn(
-          "flex items-center gap-3 py-2.5 rounded-xl text-[14px] font-medium transition-all",
+          "flex items-center gap-3 py-2.5 rounded-2xl text-[14px] font-medium transition-all",
           indent ? "px-6" : "px-3.5",
           !active && "hover:bg-[var(--hover)]"
         )}
@@ -87,7 +87,7 @@ export function Sidebar() {
       >
         <div className="relative flex-shrink-0">
           <Icon className="w-[18px] h-[18px]"
-            style={{ color: active ? "var(--accent)" : "var(--text-2)" }} />
+            style={{ color: active ? "var(--accent)" : "var(--text-2)", strokeWidth: active ? 2.2 : 1.9 }} />
           {badge && !active && (
             <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500" />
           )}
@@ -130,7 +130,7 @@ export function Sidebar() {
           <button
             onClick={() => setTeamOpen((o) => !o)}
             className={cn(
-              "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[14px] font-medium transition-all",
+              "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-[14px] font-medium transition-all",
               !teamActive && "hover:bg-[var(--hover)]"
             )}
             style={teamActive
@@ -164,7 +164,7 @@ export function Sidebar() {
           <button
             onClick={() => setSettingsOpen((o) => !o)}
             className={cn(
-              "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[14px] font-medium transition-all",
+              "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-[14px] font-medium transition-all",
               !settingsActive && "hover:bg-[var(--hover)]"
             )}
             style={settingsActive

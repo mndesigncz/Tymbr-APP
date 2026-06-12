@@ -34,26 +34,26 @@ export function StartWorkButton() {
     return (
       <button
         onClick={openFocus}
-        className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[13.5px] font-semibold text-white transition-all hover:opacity-90"
+        className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[13.5px] font-semibold text-white transition-all hover:opacity-90 flex-shrink-0"
         style={{ background: "var(--success-strong)", boxShadow: "0 4px 12px color-mix(in srgb, var(--success-strong) 30%, transparent)" }}
       >
-        <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+        <span className="w-2 h-2 rounded-full bg-white animate-pulse flex-shrink-0" />
         <span className="tabular-nums">{formatElapsed(elapsed)}</span>
-        <span className="opacity-90">Pracovní mód</span>
+        <span className="opacity-90 hidden sm:inline">Pracovní mód</span>
       </button>
     );
   }
 
   return (
-    <div className="relative">
+    <div className="relative flex-shrink-0">
       <button
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[13.5px] font-semibold border transition-all hover:bg-[var(--hover)]"
         style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}
       >
-        <Play className="w-3.5 h-3.5 fill-current" style={{ color: "var(--success)" }} />
-        <span>Zahájit práci</span>
-        <ChevronDown className="w-3.5 h-3.5" style={{ color: "var(--text-3)" }} />
+        <Play className="w-3.5 h-3.5 fill-current flex-shrink-0" style={{ color: "var(--success)" }} />
+        <span className="hidden sm:inline">Zahájit práci</span>
+        <ChevronDown className="w-3.5 h-3.5 hidden sm:block" style={{ color: "var(--text-3)" }} />
       </button>
 
       {open && (
