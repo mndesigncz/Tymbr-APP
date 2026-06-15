@@ -101,6 +101,14 @@ export interface SubTask {
 
 export type EventVisibility = "personal" | "team";
 
+export interface EventTaskRef {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  dueDate?: Date | string | null;
+}
+
 export interface CalendarEvent {
   id: string;
   title: string;
@@ -116,6 +124,9 @@ export interface CalendarEvent {
   teamId?: string | null;
   createdById: string;
   createdBy?: User;
+  taskId?: string | null;
+  task?: EventTaskRef | null;
+  assignees?: User[];
 }
 
 export type ContentPlatform = "instagram" | "facebook" | "tiktok" | "linkedin" | "x" | "youtube" | "newsletter" | "other";

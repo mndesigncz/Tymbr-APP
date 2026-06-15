@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
+import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
-import { MapPin, Lock, Users, Trash2 } from "lucide-react";
-import type { CalendarEvent } from "@/types";
+import { Avatar } from "@/components/ui/Avatar";
+import { MapPin, Lock, Users, Trash2, Check } from "lucide-react";
+import type { CalendarEvent, Task, User } from "@/types";
 
 export const EVENT_COLORS = [
   "#f7592f", // orange (accent)
@@ -50,10 +52,31 @@ export function EventForm({ event, defaultDate, canUseTeam, onSaved, onDeleted, 
   const [visibility, setVisibility] = useState<"personal" | "team">(
     event?.visibility || (canUseTeam ? "team" : "personal")
   );
+  const [taskId, setTaskId] = useState(event?.taskId || "");
+  const [assigneeIds, setAssigneeIds] = useState<string[]>(event?.assignees?.map((a) => a.id) ?? []);
+  const [assigneeSearch, setAssigneeSearch] = useState("");
+
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [members, setMembers] = useState<User[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch("/api/tasks").then((r) => r.json()).then((d) => Array.isArray(d) && setTasks(d)).catch(() => {});
+    fetch("/api/users").then((r) => r.json()).then((d) => Array.isArray(d) && setMembers(d)).catch(() => {});
+  }, []);
+
+  const toggleAssignee = (id: string) =>
+    setAssigneeIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const filteredMembers = assigneeSearch.trim()
+    ? members.filter((m) =>
+        m.name.toLowerCase().includes(assigneeSearch.toLowerCase()) ||
+        m.email.toLowerCase().includes(assigneeSearch.toLowerCase()))
+    : members;
+  const selectedCount = assigneeIds.length;
 
   const buildPayload = () => {
     const startAt = allDay
@@ -72,6 +95,8 @@ export function EventForm({ event, defaultDate, canUseTeam, onSaved, onDeleted, 
       location: location || null,
       color,
       visibility,
+      taskId: taskId || null,
+      assigneeIds,
     };
   };
 
@@ -214,6 +239,73 @@ export function EventForm({ event, defaultDate, canUseTeam, onSaved, onDeleted, 
         </div>
       </div>
 
+      {/* Linked task */}
+      <div>
+        <label className="text-[12px] font-semibold mb-1.5 block" style={{ color: "var(--text-3)" }}>
+          Propojený úkol
+        </label>
+        <Select
+          value={taskId}
+          onChange={(e) => setTaskId(e.target.value)}
+          placeholder="Žádný úkol"
+          options={tasks.map((t) => ({ value: t.id, label: t.title }))}
+        />
+        <p className="text-[11.5px] mt-1.5 px-1" style={{ color: "var(--text-3)" }}>
+          Provázat událost s úkolem — usnadní přechod mezi kalendářem a úkoly.
+        </p>
+      </div>
+
+      {/* Participants */}
+      <div>
+        <label className="text-[12px] font-semibold mb-1.5 block" style={{ color: "var(--text-3)" }}>
+          Účastníci{selectedCount > 0 && <span style={{ color: "var(--accent)" }}> · {selectedCount}</span>}
+        </label>
+        {members.length > 0 ? (
+          <div className="rounded-xl border p-2 space-y-2" style={{ background: "var(--bg-subtle)", borderColor: "var(--border-md)" }}>
+            <input
+              type="text"
+              value={assigneeSearch}
+              onChange={(e) => setAssigneeSearch(e.target.value)}
+              placeholder="Hledat člena týmu..."
+              className="w-full text-[13px] rounded-lg px-3 py-2 outline-none border"
+              style={{ background: "var(--bg-card)", color: "var(--text-1)", borderColor: "var(--border-md)" }}
+            />
+            <div className="space-y-1 max-h-40 overflow-y-auto">
+              {filteredMembers.length === 0 ? (
+                <p className="text-[12.5px] text-center py-3" style={{ color: "var(--text-3)" }}>Nikdo nenalezen</p>
+              ) : (
+                filteredMembers.map((u) => {
+                  const selected = assigneeIds.includes(u.id);
+                  return (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => toggleAssignee(u.id)}
+                      className="w-full flex items-center gap-3 px-2.5 py-2 rounded-lg transition-all text-left"
+                      style={{ background: selected ? "color-mix(in srgb, var(--accent) 9%, transparent)" : "var(--bg-card)" }}
+                    >
+                      <Avatar name={u.name} src={u.avatar} size="sm" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-semibold truncate" style={{ color: "var(--text-1)" }}>{u.name}</p>
+                        <p className="text-[11.5px] truncate" style={{ color: "var(--text-3)" }}>{u.email}</p>
+                      </div>
+                      {selected && (
+                        <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                          style={{ background: "var(--accent)" }}>
+                          <Check className="w-3 h-3 text-white" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        ) : (
+          <p className="text-[13px]" style={{ color: "var(--text-3)" }}>Žádní členové týmu</p>
+        )}
+      </div>
+
       {/* Location */}
       <Input
         icon={<MapPin className="w-4 h-4" />}
@@ -230,14 +322,14 @@ export function EventForm({ event, defaultDate, canUseTeam, onSaved, onDeleted, 
         rows={3}
       />
 
-      {error && <p className="text-sm text-red-500 px-1">{error}</p>}
+      {error && <p className="text-sm px-1" style={{ color: "var(--danger)" }}>{error}</p>}
 
       {/* Actions */}
       <div className="flex items-center gap-2 pt-1">
         {event && onDeleted && (
           <button type="button" onClick={handleDelete} disabled={deleting}
-            className="p-2.5 rounded-xl transition-colors hover:bg-red-50 disabled:opacity-50"
-            style={{ color: "var(--danger)" }} title="Smazat událost">
+            className="p-2.5 rounded-xl transition-colors hover:bg-[var(--danger-soft)] disabled:opacity-50"
+            style={{ color: "var(--danger)" }} title="Smazat událost" aria-label="Smazat událost">
             <Trash2 className="w-[18px] h-[18px]" />
           </button>
         )}
