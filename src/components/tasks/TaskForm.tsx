@@ -4,11 +4,12 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 import {
-  Plus, X, Check, LayoutTemplate, Save, Trash2, ChevronDown,
-  Circle, Flag, CalendarRange, Tag, Users, Banknote, Repeat, Play,
+  Plus, X, Check, LayoutTemplate, Save, Trash2, Play,
+  Circle, Flag, CalendarRange, Tag, Users, Repeat,
   CheckSquare, Star, Target, Zap, AlertTriangle, FileText, Package,
   FolderOpen, Globe, Home, MessageSquare, Settings2, Wrench, Heart,
   Briefcase, BookOpen, Bell, PenLine,
@@ -17,7 +18,6 @@ import type { Task, Category, User } from "@/types";
 import { useStatusConfig } from "@/hooks/useStatusConfig";
 import { usePriorityConfig } from "@/hooks/usePriorityConfig";
 import { useTimeTracker } from "@/context/TimeTrackerContext";
-import { formatDate } from "@/lib/utils";
 
 interface TaskTemplate {
   id: string;
@@ -40,14 +40,8 @@ interface TaskFormProps {
   task?: Task;
   defaultStatus?: string;
   onSuccess?: (task: Task) => void;
+  onCancel?: () => void;
 }
-
-const RECURRING_LABELS: Record<string, string> = {
-  none: "Žádné",
-  daily: "Denně",
-  weekly: "Týdně",
-  monthly: "Měsíčně",
-};
 
 // Lucide icons available for task icon picker
 const ICON_OPTIONS: { key: string; Icon: React.ElementType }[] = [
@@ -81,55 +75,19 @@ const ICON_MAP: Record<string, React.ElementType> = Object.fromEntries(
   ICON_OPTIONS.map(({ key, Icon }) => [key, Icon])
 );
 
-function Row({
-  icon: Icon,
-  label,
-  value,
-  open,
-  onToggle,
-  children,
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: React.ReactNode;
-  open: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-}) {
+/** Section label — matches the rest of the app's form sections (ContentPostForm). */
+function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border overflow-hidden"
-      style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
-      <button
-        type="button"
-        onClick={onToggle}
-        className="w-full flex items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[var(--hover)]"
-      >
-        <Icon className="w-[18px] h-[18px] flex-shrink-0"
-          style={{ color: open ? "var(--accent)" : "var(--text-3)" }} />
-        <span className="text-[14px] font-medium flex-shrink-0" style={{ color: "var(--text-1)" }}>
-          {label}
-        </span>
-        <div className="flex-1 flex items-center justify-end gap-2 min-w-0">
-          {!open && (
-            <span className="text-[13.5px] truncate flex items-center gap-1.5" style={{ color: "var(--text-3)" }}>
-              {value}
-            </span>
-          )}
-          <ChevronDown className="w-4 h-4 flex-shrink-0 transition-transform"
-            style={{ color: "var(--text-3)", transform: open ? "rotate(180deg)" : "none" }} />
-        </div>
-      </button>
-      {open && <div className="px-4 pb-4 pt-0.5">{children}</div>}
-    </div>
+    <label className="text-[12px] font-semibold mb-1.5 block" style={{ color: "var(--text-3)" }}>
+      {children}
+    </label>
   );
 }
 
-export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
+export function TaskForm({ task, defaultStatus, onSuccess, onCancel }: TaskFormProps) {
   const router = useRouter();
   const statuses = useStatusConfig();
-  const STATUS_OPTIONS = statuses.map((s) => ({ value: s.key, label: s.label }));
   const priorities = usePriorityConfig();
-  const PRIORITY_OPTIONS = priorities.map((p) => ({ value: p.key, label: p.label }));
   const { start, openFocus } = useTimeTracker();
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -140,9 +98,6 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
   const [draftSubtasks, setDraftSubtasks] = useState<DraftSubtask[]>([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [expandedSubtask, setExpandedSubtask] = useState<number | null>(null);
-
-  const [openRow, setOpenRow] = useState<string | null>(null);
-  const toggleRow = (key: string) => setOpenRow((cur) => (cur === key ? null : key));
 
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
   const iconPickerRef = useRef<HTMLDivElement>(null);
@@ -213,7 +168,7 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
       title: t.name,
       description: t.description || "",
       status: t.status,
-      priority: t.priority as any,
+      priority: t.priority as Task["priority"],
       dueDate: "",
       startDate: "",
       categoryId: t.categoryId || "",
@@ -378,16 +333,7 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
   };
 
   const catOptions = categories.map((c) => ({ value: c.id, label: c.name }));
-
-  const curStatus = statuses.find((s) => s.key === form.status);
-  const curPriority = priorities.find((p) => p.key === form.priority);
-  const curCategory = categories.find((c) => c.id === form.categoryId);
   const selectedUsers = users.filter((u) => selectedAssigneeIds.includes(u.id));
-
-  // Priority color for the header tint (fallback to neutral if not loaded yet)
-  const priorityColor = curPriority?.color ?? "#6366f1";
-
-  // Current task icon component (if one is selected)
   const TaskIcon = form.icon ? ICON_MAP[form.icon] : null;
 
   const filteredUsers = assigneeSearch.trim()
@@ -397,33 +343,17 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
       )
     : users;
 
-  const termínValue = (() => {
-    if (form.startDate && form.dueDate) return `${formatDate(form.startDate)} → ${formatDate(form.dueDate)}`;
-    if (form.dueDate) return formatDate(form.dueDate);
-    if (form.startDate) return `Od ${formatDate(form.startDate)}`;
-    return <span style={{ color: "var(--text-3)" }}>Nenastaveno</span>;
-  })();
-
-  const dot = (color: string) => (
-    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
-  );
-  const placeholder = (text: string) => <span style={{ color: "var(--text-3)" }}>{text}</span>;
-
-  const cardStyle = {
-    background: "var(--bg-card)",
-    borderColor: "var(--border)",
-    boxShadow: "var(--shadow-sm)",
-  } as const;
+  const handleCancel = onCancel ?? (() => router.back());
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-2xl mx-auto">
+    <form onSubmit={handleSubmit} className="space-y-5 max-w-2xl mx-auto">
       {/* Template picker — new tasks only */}
       {!task && (
         <div className="relative" ref={templateRef}>
           <button
             type="button"
             onClick={() => setTemplateOpen((o) => !o)}
-            className="flex items-center gap-2 text-[13px] font-semibold px-3.5 py-2 rounded-xl border transition-all hover:opacity-80 w-full justify-center"
+            className="flex items-center justify-center gap-2 text-[13px] font-semibold px-3.5 py-2.5 rounded-xl border transition-all hover:bg-[var(--hover)] w-full"
             style={{ background: "var(--bg-subtle)", borderColor: "var(--border-md)", color: "var(--text-2)" }}>
             <LayoutTemplate className="w-4 h-4" />
             Použít šablonu
@@ -436,20 +366,22 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
           </button>
 
           {templateOpen && (
-            <div className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-2xl border overflow-hidden shadow-lg"
-              style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
+            <div className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-2xl border overflow-hidden glass-strong animate-scale-in"
+              style={{ borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)" }}>
               {templates.length === 0 ? (
                 <p className="text-[13px] px-4 py-5 text-center" style={{ color: "var(--text-3)" }}>
-                  Žádné šablony. Vyplňte formulář a uložte jako šablonu.
+                  Žádné šablony. Vyplň formulář a ulož ho jako šablonu.
                 </p>
               ) : (
                 <div className="max-h-56 overflow-y-auto divide-y" style={{ borderColor: "var(--border)" }}>
                   {templates.map((t) => (
-                    <button
+                    <div
                       key={t.id}
-                      type="button"
+                      role="button"
+                      tabIndex={0}
                       onClick={() => applyTemplate(t)}
-                      className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--hover)]">
+                      onKeyDown={(e) => { if (e.key === "Enter") applyTemplate(t); }}
+                      className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--hover)] cursor-pointer">
                       <div className="min-w-0">
                         <p className="text-[13.5px] font-semibold truncate" style={{ color: "var(--text-1)" }}>{t.name}</p>
                         {t.description && (
@@ -459,11 +391,12 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
                       <button
                         type="button"
                         onClick={(e) => deleteTemplate(e, t.id)}
-                        className="flex-shrink-0 p-1.5 rounded-lg transition-colors hover:text-red-500"
-                        style={{ color: "var(--text-3)" }}>
+                        className="flex-shrink-0 p-1.5 rounded-lg transition-colors hover:bg-[var(--danger-soft)]"
+                        style={{ color: "var(--text-3)" }}
+                        aria-label="Smazat šablonu">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
-                    </button>
+                    </div>
                   ))}
                 </div>
               )}
@@ -472,221 +405,220 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
         </div>
       )}
 
-      {/* Title card — colored header + title + icon picker */}
-      {/* No overflow-hidden on card so the icon picker dropdown isn't clipped */}
-      <div className="rounded-3xl border" style={cardStyle}>
-        {/* Priority-tinted header — rounded-t-3xl clips its own background */}
-        <div
-          className="rounded-t-3xl px-4 pt-3.5 pb-3 relative"
-          style={{ background: `color-mix(in srgb, ${priorityColor} 13%, var(--bg-card))` }}
-          ref={iconPickerRef}
-        >
-          <div className="flex items-center gap-3">
-            {/* Icon picker button */}
-            <button
-              type="button"
-              onClick={() => setIconPickerOpen((o) => !o)}
-              className="w-11 h-11 rounded-2xl flex-shrink-0 flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-              style={{
-                background: `color-mix(in srgb, ${priorityColor} 22%, var(--bg-card))`,
-                color: priorityColor,
-                boxShadow: `0 2px 8px color-mix(in srgb, ${priorityColor} 20%, transparent)`,
-              }}
-            >
-              {TaskIcon
-                ? <TaskIcon className="w-5 h-5" />
-                : <PenLine className="w-4 h-4" style={{ color: `color-mix(in srgb, ${priorityColor} 70%, var(--text-3))` }} />
-              }
-            </button>
+      {/* Title + icon picker */}
+      <div className="relative" ref={iconPickerRef}>
+        <FieldLabel>Název</FieldLabel>
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setIconPickerOpen((o) => !o)}
+            className="w-[46px] h-[46px] rounded-xl flex-shrink-0 flex items-center justify-center border transition-all hover:bg-[var(--hover)]"
+            style={{ background: "var(--bg-subtle)", borderColor: "var(--border-md)", color: form.icon ? "var(--accent)" : "var(--text-3)" }}
+            title="Vybrat ikonu" aria-label="Vybrat ikonu">
+            {TaskIcon ? <TaskIcon className="w-5 h-5" /> : <PenLine className="w-[18px] h-[18px]" />}
+          </button>
+          <input
+            value={form.title}
+            onChange={set("title")}
+            required
+            placeholder="Co je potřeba udělat?"
+            className="flex-1 min-w-0 border rounded-xl px-3.5 py-2.5 text-[15px] font-semibold transition-all placeholder:font-medium placeholder:text-[var(--text-3)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
+            style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}
+          />
+        </div>
 
-            {/* Title input */}
-            <input
-              value={form.title}
-              onChange={set("title")}
-              required
-              placeholder="Co je potřeba udělat?"
-              className="flex-1 bg-transparent outline-none text-[18px] font-bold tracking-tight placeholder:font-semibold"
-              style={{ color: "var(--text-1)" }}
-            />
-          </div>
-
-          {/* Icon picker dropdown */}
-          {iconPickerOpen && (
-            <div
-              className="absolute top-full left-0 mt-1.5 z-50 rounded-2xl border p-3 shadow-lg"
-              style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", minWidth: "252px" }}
-            >
-              <div className="grid grid-cols-6 gap-1.5">
-                {ICON_OPTIONS.map(({ key, Icon: Opt }) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => { setForm((f) => ({ ...f, icon: f.icon === key ? "" : key })); setIconPickerOpen(false); }}
-                    className="w-9 h-9 flex items-center justify-center rounded-xl transition-all hover:bg-[var(--hover)]"
-                    style={{
-                      background: form.icon === key ? `color-mix(in srgb, ${priorityColor} 14%, transparent)` : "transparent",
-                      color: form.icon === key ? priorityColor : "var(--text-2)",
-                    }}
-                  >
-                    <Opt className="w-[18px] h-[18px]" />
-                  </button>
-                ))}
-              </div>
-              {form.icon && (
+        {/* Icon picker dropdown */}
+        {iconPickerOpen && (
+          <div
+            className="absolute top-full left-0 mt-1.5 z-50 rounded-2xl border p-3 glass-strong animate-scale-in"
+            style={{ borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)", minWidth: "252px" }}
+          >
+            <div className="grid grid-cols-6 gap-1.5">
+              {ICON_OPTIONS.map(({ key, Icon: Opt }) => (
                 <button
+                  key={key}
                   type="button"
-                  onClick={() => { setForm((f) => ({ ...f, icon: "" })); setIconPickerOpen(false); }}
-                  className="mt-2 w-full text-[12px] py-1.5 rounded-xl text-center transition-colors hover:text-red-500"
-                  style={{ color: "var(--text-3)" }}
+                  onClick={() => { setForm((f) => ({ ...f, icon: f.icon === key ? "" : key })); setIconPickerOpen(false); }}
+                  className="w-9 h-9 flex items-center justify-center rounded-xl transition-all hover:bg-[var(--hover)]"
+                  style={{
+                    background: form.icon === key ? "color-mix(in srgb, var(--accent) 14%, transparent)" : "transparent",
+                    color: form.icon === key ? "var(--accent)" : "var(--text-2)",
+                  }}
                 >
-                  Odebrat ikonu
+                  <Opt className="w-[18px] h-[18px]" />
                 </button>
-              )}
+              ))}
             </div>
-          )}
+            {form.icon && (
+              <button
+                type="button"
+                onClick={() => { setForm((f) => ({ ...f, icon: "" })); setIconPickerOpen(false); }}
+                className="mt-2 w-full text-[12px] py-1.5 rounded-xl text-center transition-colors hover:bg-[var(--danger-soft)]"
+                style={{ color: "var(--text-3)" }}
+              >
+                Odebrat ikonu
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Status */}
+      <div>
+        <FieldLabel>Stav</FieldLabel>
+        <div className="flex flex-wrap gap-1.5">
+          {statuses.map((s) => {
+            const active = form.status === s.key;
+            return (
+              <button
+                key={s.key}
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, status: s.key }))}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[12.5px] font-semibold transition-all"
+                style={active
+                  ? { borderColor: s.color, background: `color-mix(in srgb, ${s.color} 12%, transparent)`, color: s.color }
+                  : { borderColor: "var(--border)", background: "var(--bg-subtle)", color: "var(--text-2)" }}
+              >
+                <span className="w-2 h-2 rounded-full" style={{ background: s.color }} />
+                {s.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Settings rows */}
-      <div className="space-y-2">
-        <Row icon={Circle} label="Status" open={openRow === "status"} onToggle={() => toggleRow("status")}
-          value={curStatus ? <>{dot(curStatus.color)}{curStatus.label}</> : placeholder("Vybrat")}>
-          <Select options={STATUS_OPTIONS} value={form.status} onChange={set("status")} />
-        </Row>
-
-        <Row icon={Flag} label="Priorita" open={openRow === "priority"} onToggle={() => toggleRow("priority")}
-          value={curPriority ? <>{dot(curPriority.color)}{curPriority.label}</> : placeholder("Vybrat")}>
-          <Select options={PRIORITY_OPTIONS} value={form.priority} onChange={set("priority")} />
-        </Row>
-
-        {/* Merged start date + due date */}
-        <Row icon={CalendarRange} label="Termín" open={openRow === "termin"} onToggle={() => toggleRow("termin")}
-          value={termínValue}>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-[11.5px] font-semibold mb-1.5 block" style={{ color: "var(--text-3)" }}>
-                Začátek
-              </label>
-              <div className="flex items-center gap-1">
-                <Input type="date" value={form.startDate} onChange={set("startDate")} className="flex-1 min-w-0" />
-                {form.startDate && (
-                  <button type="button" onClick={() => setForm((f) => ({ ...f, startDate: "" }))}
-                    className="p-1.5 rounded-lg transition-colors hover:text-red-500 flex-shrink-0"
-                    style={{ color: "var(--text-3)" }}>
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-            </div>
-            <div>
-              <label className="text-[11.5px] font-semibold mb-1.5 block" style={{ color: "var(--text-3)" }}>
-                Splnění
-              </label>
-              <div className="flex items-center gap-1">
-                <Input type="date" value={form.dueDate} onChange={set("dueDate")} className="flex-1 min-w-0" />
-                {form.dueDate && (
-                  <button type="button" onClick={() => setForm((f) => ({ ...f, dueDate: "" }))}
-                    className="p-1.5 rounded-lg transition-colors hover:text-red-500 flex-shrink-0"
-                    style={{ color: "var(--text-3)" }}>
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </Row>
-
-        <Row icon={Tag} label="Kategorie" open={openRow === "category"} onToggle={() => toggleRow("category")}
-          value={curCategory ? <>{dot(curCategory.color)}{curCategory.name}</> : placeholder("Žádná")}>
-          <Select options={catOptions} value={form.categoryId} onChange={set("categoryId")} placeholder="Vybrat kategorii" />
-        </Row>
-
-        {/* Assignees — search-based list */}
-        <Row icon={Users} label="Přiřazeno" open={openRow === "assignees"} onToggle={() => toggleRow("assignees")}
-          value={selectedUsers.length > 0
-            ? <span className="flex items-center gap-1.5">
-                <span className="flex -space-x-1.5">
-                  {selectedUsers.slice(0, 3).map((u) => (
-                    <span key={u.id} className="ring-2 rounded-full" style={{ ["--tw-ring-color" as any]: "var(--bg-card)" }}>
-                      <Avatar name={u.name} src={u.avatar} size="xs" />
-                    </span>
-                  ))}
-                </span>
-                {selectedUsers.length > 3 && <span>+{selectedUsers.length - 3}</span>}
-              </span>
-            : placeholder("Nikdo")}>
-          {users.length > 0 ? (
-            <div className="space-y-2">
-              <input
-                type="text"
-                value={assigneeSearch}
-                onChange={(e) => setAssigneeSearch(e.target.value)}
-                placeholder="Hledat člena týmu..."
-                className="w-full text-[13px] rounded-xl px-3 py-2 outline-none"
-                style={{ background: "var(--bg-subtle)", color: "var(--text-1)", border: "1px solid var(--border-md)" }}
-              />
-              <div className="space-y-1 max-h-48 overflow-y-auto">
-                {filteredUsers.length === 0 ? (
-                  <p className="text-[12.5px] text-center py-3" style={{ color: "var(--text-3)" }}>Nikdo nenalezen</p>
-                ) : (
-                  filteredUsers.map((u) => {
-                    const selected = selectedAssigneeIds.includes(u.id);
-                    return (
-                      <button
-                        key={u.id}
-                        type="button"
-                        onClick={() => toggleAssignee(u.id)}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left"
-                        style={{
-                          background: selected ? "color-mix(in srgb, var(--accent) 8%, transparent)" : "var(--bg-subtle)",
-                        }}
-                      >
-                        <Avatar name={u.name} src={u.avatar} size="sm" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-semibold truncate" style={{ color: "var(--text-1)" }}>{u.name}</p>
-                          <p className="text-[11.5px] truncate" style={{ color: "var(--text-3)" }}>{u.email}</p>
-                        </div>
-                        {selected && (
-                          <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-                            style={{ background: "var(--accent)" }}>
-                            <Check className="w-3 h-3 text-white" />
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          ) : (
-            <p className="text-[13px]" style={{ color: "var(--text-3)" }}>Žádní členové týmu</p>
-          )}
-        </Row>
-
-        <Row icon={Banknote} label="Hodinová sazba" open={openRow === "rate"} onToggle={() => toggleRow("rate")}
-          value={form.hourlyRate ? `${form.hourlyRate} Kč/h` : placeholder("Nenastaveno")}>
-          <Input type="number" placeholder="Např. 500" value={form.hourlyRate} onChange={set("hourlyRate")} min="0" step="10" />
-        </Row>
-
-        <Row icon={Repeat} label="Opakování" open={openRow === "recurring"} onToggle={() => toggleRow("recurring")}
-          value={form.recurring && form.recurring !== "none" ? RECURRING_LABELS[form.recurring] : placeholder("Žádné")}>
-          <Select
-            options={[
-              { value: "none", label: "Žádné" },
-              { value: "daily", label: "Denně" },
-              { value: "weekly", label: "Týdně" },
-              { value: "monthly", label: "Měsíčně" },
-            ]}
-            value={form.recurring}
-            onChange={set("recurring")}
-          />
-        </Row>
+      {/* Priority */}
+      <div>
+        <FieldLabel>Priorita</FieldLabel>
+        <div className="flex flex-wrap gap-1.5">
+          {priorities.map((p) => {
+            const active = form.priority === p.key;
+            return (
+              <button
+                key={p.key}
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, priority: p.key as Task["priority"] }))}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[12.5px] font-semibold transition-all"
+                style={active
+                  ? { borderColor: p.color, background: `color-mix(in srgb, ${p.color} 12%, transparent)`, color: p.color }
+                  : { borderColor: "var(--border)", background: "var(--bg-subtle)", color: "var(--text-2)" }}
+              >
+                <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Subtasks (only for new tasks) */}
+      {/* Dates */}
+      <div>
+        <FieldLabel>Termín</FieldLabel>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <span className="text-[11.5px] mb-1 block" style={{ color: "var(--text-3)" }}>Začátek</span>
+            <div className="flex items-center gap-1">
+              <Input type="date" value={form.startDate} onChange={set("startDate")} className="flex-1 min-w-0" />
+              {form.startDate && (
+                <button type="button" onClick={() => setForm((f) => ({ ...f, startDate: "" }))}
+                  className="p-1.5 rounded-lg transition-colors hover:bg-[var(--danger-soft)] flex-shrink-0"
+                  style={{ color: "var(--text-3)" }} aria-label="Vymazat datum začátku">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+          <div>
+            <span className="text-[11.5px] mb-1 block" style={{ color: "var(--text-3)" }}>Splnění</span>
+            <div className="flex items-center gap-1">
+              <Input type="date" value={form.dueDate} onChange={set("dueDate")} className="flex-1 min-w-0" />
+              {form.dueDate && (
+                <button type="button" onClick={() => setForm((f) => ({ ...f, dueDate: "" }))}
+                  className="p-1.5 rounded-lg transition-colors hover:bg-[var(--danger-soft)] flex-shrink-0"
+                  style={{ color: "var(--text-3)" }} aria-label="Vymazat datum splnění">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Category + Recurring */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Select label="Kategorie" options={catOptions} value={form.categoryId} onChange={set("categoryId")} placeholder="Žádná" />
+        <Select
+          label="Opakování"
+          value={form.recurring}
+          onChange={set("recurring")}
+          options={[
+            { value: "none", label: "Žádné" },
+            { value: "daily", label: "Denně" },
+            { value: "weekly", label: "Týdně" },
+            { value: "monthly", label: "Měsíčně" },
+          ]}
+        />
+      </div>
+
+      {/* Hourly rate */}
+      <Input label="Hodinová sazba (Kč/h)" type="number" placeholder="Např. 500"
+        value={form.hourlyRate} onChange={set("hourlyRate")} min="0" step="10" />
+
+      {/* Assignees */}
+      <div>
+        <FieldLabel>
+          Přiřazeno{selectedUsers.length > 0 && <span style={{ color: "var(--accent)" }}> · {selectedUsers.length}</span>}
+        </FieldLabel>
+        {users.length > 0 ? (
+          <div className="rounded-xl border p-2 space-y-2" style={{ background: "var(--bg-subtle)", borderColor: "var(--border-md)" }}>
+            <input
+              type="text"
+              value={assigneeSearch}
+              onChange={(e) => setAssigneeSearch(e.target.value)}
+              placeholder="Hledat člena týmu..."
+              className="w-full text-[13px] rounded-lg px-3 py-2 outline-none border"
+              style={{ background: "var(--bg-card)", color: "var(--text-1)", borderColor: "var(--border-md)" }}
+            />
+            <div className="space-y-1 max-h-44 overflow-y-auto">
+              {filteredUsers.length === 0 ? (
+                <p className="text-[12.5px] text-center py-3" style={{ color: "var(--text-3)" }}>Nikdo nenalezen</p>
+              ) : (
+                filteredUsers.map((u) => {
+                  const selected = selectedAssigneeIds.includes(u.id);
+                  return (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => toggleAssignee(u.id)}
+                      className="w-full flex items-center gap-3 px-2.5 py-2 rounded-lg transition-all text-left"
+                      style={{ background: selected ? "color-mix(in srgb, var(--accent) 9%, transparent)" : "var(--bg-card)" }}
+                    >
+                      <Avatar name={u.name} src={u.avatar} size="sm" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-semibold truncate" style={{ color: "var(--text-1)" }}>{u.name}</p>
+                        <p className="text-[11.5px] truncate" style={{ color: "var(--text-3)" }}>{u.email}</p>
+                      </div>
+                      {selected && (
+                        <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                          style={{ background: "var(--accent)" }}>
+                          <Check className="w-3 h-3 text-white" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        ) : (
+          <p className="text-[13px]" style={{ color: "var(--text-3)" }}>Žádní členové týmu</p>
+        )}
+      </div>
+
+      {/* Subtasks — new tasks only */}
       {!task && (
-        <div className="rounded-3xl border p-4 space-y-2.5" style={cardStyle}>
-          <label className="text-[13px] font-semibold px-1" style={{ color: "var(--text-2)" }}>Podúkoly</label>
+        <div>
+          <FieldLabel>Podúkoly</FieldLabel>
           <div className="space-y-1.5">
             {draftSubtasks.map((st, i) => (
               <div key={i} className="rounded-xl border overflow-hidden"
@@ -696,13 +628,13 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
                     {st.title}
                   </span>
                   <button type="button" onClick={() => setExpandedSubtask(expandedSubtask === i ? null : i)}
-                    className="text-[11px] px-2 py-0.5 rounded-lg transition-colors"
+                    className="text-[11px] px-2 py-0.5 rounded-lg transition-colors hover:bg-[var(--hover)]"
                     style={{ color: "var(--text-3)" }}>
                     {expandedSubtask === i ? "Skrýt" : "Upravit"}
                   </button>
                   <button type="button" onClick={() => removeDraftSubtask(i)}
-                    className="p-1 rounded-lg transition-colors hover:text-red-500"
-                    style={{ color: "var(--text-3)" }}>
+                    className="p-1 rounded-lg transition-colors hover:bg-[var(--danger-soft)]"
+                    style={{ color: "var(--text-3)" }} aria-label="Odebrat podúkol">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -713,8 +645,8 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
                       onChange={(e) => updateDraftSubtask(i, "description", e.target.value)}
                       placeholder="Popis podúkolu..."
                       rows={2}
-                      className="w-full text-[12.5px] rounded-lg px-2.5 py-2 resize-none outline-none mt-2"
-                      style={{ background: "var(--bg-card)", color: "var(--text-1)", border: "1px solid var(--border-md)" }}
+                      className="w-full text-[12.5px] rounded-lg px-2.5 py-2 resize-none outline-none mt-2 border"
+                      style={{ background: "var(--bg-card)", color: "var(--text-1)", borderColor: "var(--border-md)" }}
                     />
                     <div className="flex items-center gap-2">
                       <label className="text-[11.5px]" style={{ color: "var(--text-3)" }}>Sazba (Kč/h):</label>
@@ -725,8 +657,8 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
                         placeholder="Výchozí"
                         min="0"
                         step="10"
-                        className="w-24 text-[12.5px] rounded-lg px-2 py-1 outline-none"
-                        style={{ background: "var(--bg-card)", color: "var(--text-1)", border: "1px solid var(--border-md)" }}
+                        className="w-24 text-[12.5px] rounded-lg px-2 py-1 outline-none border"
+                        style={{ background: "var(--bg-card)", color: "var(--text-1)", borderColor: "var(--border-md)" }}
                       />
                     </div>
                   </div>
@@ -734,21 +666,22 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
               </div>
             ))}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 mt-1.5">
             <input
               type="text"
               value={newSubtaskTitle}
               onChange={(e) => setNewSubtaskTitle(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addDraftSubtask(); } }}
               placeholder="Přidat podúkol..."
-              className="flex-1 text-[13px] rounded-xl px-3 py-2 outline-none"
-              style={{ background: "var(--bg-subtle)", color: "var(--text-1)", border: "1px solid var(--border-md)" }}
+              className="flex-1 text-[13px] rounded-xl px-3 py-2 outline-none border"
+              style={{ background: "var(--bg-card)", color: "var(--text-1)", borderColor: "var(--border-md)" }}
             />
             <button
               type="button"
               onClick={addDraftSubtask}
-              className="p-2.5 rounded-xl transition-all hover:opacity-80"
-              style={{ background: "var(--bg-subtle)", color: "var(--text-2)", border: "1px solid var(--border-md)" }}
+              className="p-2.5 rounded-xl transition-all hover:bg-[var(--hover)] border"
+              style={{ background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}
+              aria-label="Přidat podúkol"
             >
               <Plus className="w-4 h-4" />
             </button>
@@ -756,19 +689,16 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
         </div>
       )}
 
-      {/* Notes / description */}
-      <div className="rounded-3xl border p-4" style={cardStyle}>
-        <textarea
-          value={form.description}
-          onChange={set("description")}
-          placeholder="Přidej poznámky, odkazy nebo podrobnější popis…"
-          rows={4}
-          className="w-full bg-transparent outline-none text-[14px] resize-none placeholder:text-[var(--text-3)]"
-          style={{ color: "var(--text-1)" }}
-        />
-      </div>
+      {/* Description */}
+      <Textarea
+        label="Popis"
+        value={form.description}
+        onChange={set("description")}
+        placeholder="Přidej poznámky, odkazy nebo podrobnější popis…"
+        rows={4}
+      />
 
-      {error && <p className="text-sm text-red-400 px-1">{error}</p>}
+      {error && <p className="text-sm px-1" style={{ color: "var(--danger)" }}>{error}</p>}
 
       {/* Save as template — new tasks only */}
       {!task && (
@@ -782,19 +712,20 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveAsTemplate(); } if (e.key === "Escape") setSaveTemplateOpen(false); }}
                 placeholder="Název šablony..."
                 autoFocus
-                className="flex-1 text-[13px] rounded-xl px-3 py-2 outline-none"
-                style={{ background: "var(--bg-subtle)", color: "var(--text-1)", border: "1px solid var(--border-md)" }}
+                className="flex-1 text-[13px] rounded-xl px-3 py-2 outline-none border"
+                style={{ background: "var(--bg-card)", color: "var(--text-1)", borderColor: "var(--border-md)" }}
               />
               <button
                 type="button"
                 onClick={saveAsTemplate}
                 disabled={savingTemplate || !templateName.trim()}
-                className="px-3 py-2 rounded-xl text-[13px] font-semibold transition-all hover:opacity-80 disabled:opacity-50"
-                style={{ background: "var(--accent)", color: "#fff" }}>
+                className="px-3 py-2 rounded-xl text-[13px] font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
+                style={{ background: "var(--accent)" }}>
                 {savingTemplate ? "…" : "Uložit"}
               </button>
               <button type="button" onClick={() => { setSaveTemplateOpen(false); setTemplateName(""); }}
-                className="p-2 rounded-xl transition-colors" style={{ color: "var(--text-3)" }}>
+                className="p-2 rounded-xl transition-colors hover:bg-[var(--hover)]" style={{ color: "var(--text-3)" }}
+                aria-label="Zrušit">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -814,7 +745,7 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
       {/* Action buttons */}
       <div className="space-y-2.5 pt-1">
         <div className="flex gap-3">
-          <Button type="button" variant="secondary" onClick={() => router.back()} className="flex-1">
+          <Button type="button" variant="secondary" onClick={handleCancel} className="flex-1">
             Zrušit
           </Button>
           <Button type="submit" loading={loading} className="flex-1">
@@ -822,7 +753,6 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
           </Button>
         </div>
 
-        {/* Matches the "Zahájit práci" button style from dashboard header */}
         <button
           type="button"
           onClick={handleStartWork}
@@ -830,7 +760,7 @@ export function TaskForm({ task, defaultStatus, onSuccess }: TaskFormProps) {
           className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl text-[13.5px] font-semibold border transition-all hover:bg-[var(--hover)] disabled:opacity-50"
           style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}
         >
-          <Play className="w-3.5 h-3.5 fill-current" style={{ color: "#16a34a" }} />
+          <Play className="w-3.5 h-3.5 fill-current" style={{ color: "var(--success)" }} />
           {startingWork ? "Spouštím…" : "Začít pracovat"}
         </button>
       </div>

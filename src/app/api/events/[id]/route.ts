@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { getAccessibleTask } from "@/lib/access";
+import { eventInclude, serializeEvent, syncEventAssignees } from "@/lib/events";
 
 export const dynamic = "force-dynamic";
-
-const eventInclude = {
-  createdBy: { select: { id: true, name: true, email: true, avatar: true } },
-};
 
 /** Whether the given session may see/edit this event. */
 function canAccess(event: { visibility: string; createdById: string; teamId: string | null }, userId: string, teamId: string | null) {
@@ -27,7 +25,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (!event) return NextResponse.json({ error: "Událost nenalezena" }, { status: 404 });
     if (!canAccess(event, userId, teamId)) return NextResponse.json({ error: "Přístup odepřen" }, { status: 403 });
 
-    return NextResponse.json(event);
+    return NextResponse.json(serializeEvent(event));
   } catch (e: any) {
     console.error("[GET /api/events/[id]]", e?.message ?? e);
     return NextResponse.json({ error: e?.message ?? "Chyba serveru" }, { status: 500 });
@@ -60,7 +58,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const start = startAt !== undefined ? new Date(startAt) : undefined;
     const end = endAt !== undefined ? new Date(endAt) : undefined;
 
-    const event = await prisma.event.update({
+    // Resolve the optional task link (null clears it; only accessible tasks allowed).
+    let taskId: string | null | undefined;
+    if ("taskId" in body) {
+      if (body.taskId) {
+        const accessible = await getAccessibleTask(body.taskId, session);
+        if (!accessible) return NextResponse.json({ error: "Propojený úkol nenalezen" }, { status: 400 });
+        taskId = accessible.id;
+      } else {
+        taskId = null;
+      }
+    }
+
+    await prisma.event.update({
       where: { id },
       data: {
         ...(title !== undefined && { title: String(title).trim() }),
@@ -70,15 +80,20 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         ...(allDay !== undefined && { allDay: !!allDay }),
         ...(location !== undefined && { location: location || null }),
         ...(color !== undefined && { color: color || null }),
+        ...(taskId !== undefined && { taskId }),
         ...(visibility !== undefined && {
           visibility,
           teamId: visibility === "team" ? teamId : null,
         }),
       },
-      include: eventInclude,
     });
 
-    return NextResponse.json(event);
+    if (Array.isArray(body.assigneeIds)) {
+      await syncEventAssignees(id, body.assigneeIds.filter(Boolean));
+    }
+
+    const event = await prisma.event.findUnique({ where: { id }, include: eventInclude });
+    return NextResponse.json(event ? serializeEvent(event) : { id });
   } catch (e: any) {
     console.error("[PUT /api/events/[id]]", e?.message ?? e);
     return NextResponse.json({ error: e?.message ?? "Chyba serveru" }, { status: 500 });

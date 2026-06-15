@@ -442,6 +442,7 @@ export default function TaskDetailPage() {
             setTask(updated);
             setEditOpen(false);
           }}
+          onCancel={() => setEditOpen(false)}
         />
       </Modal>
 

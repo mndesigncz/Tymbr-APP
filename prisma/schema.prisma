@@ -33,6 +33,7 @@ model User {
   subtasksAssigned  SubTask[]         @relation("SubTaskAssignee")
   notifications     Notification[]
   eventsCreated     Event[]           @relation("EventCreator")
+  eventAssignments  EventAssignee[]
   contentPostsCreated  ContentPost[]  @relation("ContentPostCreator")
   contentPostsAssigned ContentPost[]  @relation("ContentPostAssignee")
 }
@@ -321,6 +322,7 @@ model Task {
   subtasks       SubTask[]
   statusHistory  TaskStatusHistory[]
   assignees      TaskAssignee[]
+  linkedEvents   Event[]             @relation("EventTask")
   blockedBy      TaskDependency[]    @relation("BlockedTask")
   blocking       TaskDependency[]    @relation("BlockerTask")
 
@@ -353,10 +355,31 @@ model Event {
   createdById String
   createdBy   User   @relation("EventCreator", fields: [createdById], references: [id])
 
+  taskId      String?
+  task        Task?   @relation("EventTask", fields: [taskId], references: [id], onDelete: SetNull)
+
+  assignees   EventAssignee[]
+
   @@index([teamId])
   @@index([createdById])
   @@index([startAt])
   @@index([teamId, startAt])
+  @@index([taskId])
+}
+
+model EventAssignee {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
 }
 
 model ContentPost {

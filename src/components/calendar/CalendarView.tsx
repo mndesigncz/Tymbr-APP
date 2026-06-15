@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { Avatar } from "@/components/ui/Avatar";
 import { EventForm } from "./EventForm";
 import { isOverdue } from "@/lib/utils";
 import type { CalendarEvent, Task } from "@/types";
@@ -426,7 +427,28 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
                               style={{ background: "var(--bg-subtle)", color: "var(--text-3)" }}>
                               {it.data.visibility === "team" ? <><Users className="w-2.5 h-2.5" /> Tým</> : <><Lock className="w-2.5 h-2.5" /> Osobní</>}
                             </span>
+                            {it.data.task && (
+                              <span className="inline-flex items-center gap-1 text-[10.5px] font-medium px-1.5 py-0.5 rounded-md max-w-[140px]"
+                                style={{ background: "color-mix(in srgb, var(--accent) 12%, transparent)", color: "var(--accent)" }}>
+                                <CheckSquare className="w-2.5 h-2.5 flex-shrink-0" />
+                                <span className="truncate">{it.data.task.title}</span>
+                              </span>
+                            )}
                           </div>
+                          {it.data.assignees && it.data.assignees.length > 0 && (
+                            <div className="flex items-center -space-x-1.5 mt-2">
+                              {it.data.assignees.slice(0, 5).map((a) => (
+                                <span key={a.id} className="ring-2 rounded-full" style={{ "--tw-ring-color": "var(--bg-card)" } as React.CSSProperties}>
+                                  <Avatar name={a.name} src={a.avatar} size="xs" />
+                                </span>
+                              ))}
+                              {it.data.assignees.length > 5 && (
+                                <span className="text-[10.5px] font-medium pl-2.5" style={{ color: "var(--text-3)" }}>
+                                  +{it.data.assignees.length - 5}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </button>
                     ) : (
