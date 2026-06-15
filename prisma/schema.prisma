@@ -209,9 +209,10 @@ model ChatMessage {
 }
 
 model TeamMember {
-  id       String   @id @default(cuid())
-  role     String   @default("member")
-  joinedAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  role        String   @default("member")
+  permissions String?
+  joinedAt    DateTime @default(now())
 
   teamId String
   team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)

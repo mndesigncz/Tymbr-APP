@@ -8,11 +8,17 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
-import { Users, Mail, Trash2, Crown, Copy, Check, Plus, Hash, UserPlus, X, Palette, Image as ImageIcon, RefreshCw, AlertTriangle } from "lucide-react";
+import { Modal } from "@/components/ui/Modal";
+import {
+  Users, Mail, Trash2, Crown, Copy, Check, Plus, Hash, UserPlus, X,
+  Palette, Image as ImageIcon, RefreshCw, AlertTriangle, ChevronDown, Shield,
+  Eye, EyeOff,
+} from "lucide-react";
 import type { Team, TeamMember, TeamInvitation, TeamRole } from "@/types";
 import { ROLE_LABELS } from "@/types";
 import { switchTeam, refreshTeams } from "@/hooks/useTeams";
 import { setTeamBranding, refreshTeamBranding, applyAccent } from "@/hooks/useTeamBranding";
+import { MEMBER_NAV_TABS, parsePermissions } from "@/lib/roles";
 
 const COLOR_PRESETS = [
   "#f7592f", "#EF4444", "#F97316", "#EAB308",
@@ -20,7 +26,6 @@ const COLOR_PRESETS = [
   "#8B5CF6", "#EC4899", "#64748B", "#0EA5E9",
 ];
 
-// Resize an uploaded logo to a small square data URL so it stays tiny.
 function fileToLogoDataUrl(file: File, size = 128): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -51,6 +56,8 @@ const ROLE_OPTIONS = [
   { value: "admin", label: "Admin" },
   { value: "member", label: "Člen" },
 ];
+
+const ALL_TAB_KEYS = MEMBER_NAV_TABS.map((t) => t.key);
 
 interface JoinRequest {
   id: string;
@@ -223,6 +230,259 @@ function NoTeamView() {
   );
 }
 
+// Permissions editor for a single member
+function MemberPermissionsEditor({
+  member,
+  onSave,
+}: {
+  member: TeamMember;
+  onSave: (userId: string, permissions: string[] | null) => Promise<void>;
+}) {
+  const parsed = parsePermissions(member.permissions);
+  const [perms, setPerms] = useState<string[] | null>(parsed);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const unrestricted = perms === null;
+
+  const toggle = (key: string) => {
+    if (perms === null) {
+      // switching from "all" to specific: start with all minus this one
+      setPerms(ALL_TAB_KEYS.filter((k) => k !== key));
+    } else {
+      setPerms(
+        perms.includes(key)
+          ? perms.filter((k) => k !== key)
+          : [...perms, key]
+      );
+    }
+    setSaved(false);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    await onSave(member.userId, perms);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  return (
+    <div className="px-4 pb-4 pt-1 border-t space-y-3" style={{ borderColor: "var(--border)" }}>
+      <div className="flex items-center justify-between mt-3">
+        <p className="text-[12.5px] font-semibold" style={{ color: "var(--text-2)" }}>Přístup k sekcím</p>
+        <button
+          type="button"
+          onClick={() => { setPerms(unrestricted ? [] : null); setSaved(false); }}
+          className="text-[11.5px] font-medium transition-colors hover:opacity-80"
+          style={{ color: "var(--accent)" }}
+        >
+          {unrestricted ? "Odebrat vše" : "Povolit vše"}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {MEMBER_NAV_TABS.map(({ key, label }) => {
+          const allowed = perms === null || perms.includes(key);
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => toggle(key)}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left transition-all"
+              style={{
+                background: allowed
+                  ? "color-mix(in srgb, var(--accent) 8%, transparent)"
+                  : "var(--bg-subtle)",
+                borderColor: allowed ? "color-mix(in srgb, var(--accent) 30%, transparent)" : "var(--border)",
+                color: allowed ? "var(--accent)" : "var(--text-3)",
+              }}
+            >
+              {allowed
+                ? <Eye className="w-3.5 h-3.5 flex-shrink-0" />
+                : <EyeOff className="w-3.5 h-3.5 flex-shrink-0" />
+              }
+              <span className="text-[12px] font-medium">{label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center gap-3">
+        <Button size="sm" onClick={handleSave} loading={saving} variant="secondary">
+          {saved ? <><Check className="w-3.5 h-3.5" /> Uloženo</> : "Uložit oprávnění"}
+        </Button>
+        <p className="text-[11px]" style={{ color: "var(--text-3)" }}>
+          Změny se projeví při příštím přihlášení člena.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Modal: create a user directly
+function CreateUserModal({
+  open,
+  onClose,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [role, setRole] = useState<"admin" | "member">("member");
+  const [perms, setPerms] = useState<string[]>(ALL_TAB_KEYS);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const reset = () => {
+    setName(""); setEmail(""); setPassword(""); setRole("member");
+    setPerms(ALL_TAB_KEYS); setError(""); setShowPw(false);
+  };
+
+  const handleClose = () => { reset(); onClose(); };
+
+  const togglePerm = (key: string) => {
+    setPerms((p) => p.includes(key) ? p.filter((k) => k !== key) : [...p, key]);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    const res = await fetch("/api/teams/members/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: name.trim(),
+        email: email.trim(),
+        password,
+        role,
+        permissions: role === "member" ? perms : null,
+      }),
+    });
+    setLoading(false);
+    if (!res.ok) {
+      const d = await res.json();
+      setError(d.error || "Chyba");
+      return;
+    }
+    reset();
+    onCreated();
+  };
+
+  return (
+    <Modal open={open} onClose={handleClose} title="Vytvořit uživatele" size="md">
+      <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+        <Input
+          label="Jméno"
+          placeholder="Jan Novák"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
+        <Input
+          label="E-mail"
+          type="email"
+          placeholder="jan@firma.cz"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[13px] font-medium" style={{ color: "var(--text-2)" }}>Heslo</label>
+          <div className="relative">
+            <input
+              type={showPw ? "text" : "password"}
+              placeholder="Dočasné heslo"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              className="w-full border rounded-xl px-3.5 py-2.5 pr-10 text-[14px] transition-all focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent-soft)]"
+              style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPw((p) => !p)}
+              className="absolute right-3 top-1/2 -translate-y-1/2"
+              style={{ color: "var(--text-3)" }}
+            >
+              {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        <Select
+          label="Role"
+          value={role}
+          onChange={(e) => setRole(e.target.value as "admin" | "member")}
+          options={[
+            { value: "admin", label: "Admin" },
+            { value: "member", label: "Člen" },
+          ]}
+        />
+
+        {role === "member" && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-[13px] font-medium" style={{ color: "var(--text-2)" }}>Přístup k sekcím</label>
+              <button
+                type="button"
+                onClick={() => setPerms(perms.length === ALL_TAB_KEYS.length ? [] : ALL_TAB_KEYS)}
+                className="text-[11.5px] font-medium"
+                style={{ color: "var(--accent)" }}
+              >
+                {perms.length === ALL_TAB_KEYS.length ? "Odebrat vše" : "Povolit vše"}
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {MEMBER_NAV_TABS.map(({ key, label }) => {
+                const allowed = perms.includes(key);
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => togglePerm(key)}
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left transition-all"
+                    style={{
+                      background: allowed
+                        ? "color-mix(in srgb, var(--accent) 8%, transparent)"
+                        : "var(--bg-subtle)",
+                      borderColor: allowed ? "color-mix(in srgb, var(--accent) 30%, transparent)" : "var(--border)",
+                      color: allowed ? "var(--accent)" : "var(--text-3)",
+                    }}
+                  >
+                    {allowed
+                      ? <Eye className="w-3.5 h-3.5 flex-shrink-0" />
+                      : <EyeOff className="w-3.5 h-3.5 flex-shrink-0" />
+                    }
+                    <span className="text-[12px] font-medium">{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {error && <p className="text-[12px] text-red-400">{error}</p>}
+
+        <div className="flex gap-3 pt-2">
+          <Button type="button" variant="secondary" onClick={handleClose} className="flex-1">
+            Zrušit
+          </Button>
+          <Button type="submit" loading={loading} className="flex-1">
+            Vytvořit uživatele
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function TeamSettingsContent() {
   const { data: session, update } = useSession();
   const searchParams = useSearchParams();
@@ -230,6 +490,8 @@ function TeamSettingsContent() {
   const [team, setTeam] = useState<(Team & { joinRequests?: JoinRequest[] }) | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [showCreateUser, setShowCreateUser] = useState(false);
+  const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
 
   useEffect(() => {
     if (searchParams.get("new") === "1") setShowAdd(true);
@@ -306,7 +568,7 @@ function TeamSettingsContent() {
 
   const handleColorSelect = (hex: string) => {
     setColor(hex);
-    applyAccent(hex); // instant preview
+    applyAccent(hex);
     setTeamBranding({ color: hex });
     saveBranding({ color: hex });
   };
@@ -386,6 +648,15 @@ function TeamSettingsContent() {
     load();
   };
 
+  const handleSavePermissions = async (userId: string, permissions: string[] | null) => {
+    await fetch("/api/teams/members", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, permissions }),
+    });
+    load();
+  };
+
   const handleDeleteInvitation = async (id: string) => {
     await fetch("/api/teams/invitations", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
     load();
@@ -459,6 +730,12 @@ function TeamSettingsContent() {
           </div>
         </div>
       )}
+
+      <CreateUserModal
+        open={showCreateUser}
+        onClose={() => setShowCreateUser(false)}
+        onCreated={() => { setShowCreateUser(false); load(); }}
+      />
 
       <div className="px-4 sm:px-6 lg:px-8 pt-2 pb-12 space-y-6 max-w-3xl mx-auto">
         {/* Join code */}
@@ -600,7 +877,6 @@ function TeamSettingsContent() {
                   </button>
                 );
               })}
-              {/* Custom color */}
               <label className="w-9 h-9 rounded-full border-2 border-dashed flex items-center justify-center cursor-pointer transition-colors hover:border-[var(--accent)] relative overflow-hidden"
                 style={{ borderColor: "var(--border-md)" }} title="Vlastní barva">
                 <Palette className="w-4 h-4" style={{ color: "var(--text-3)" }} />
@@ -621,38 +897,77 @@ function TeamSettingsContent() {
         )}
 
         {/* Members */}
-        <div className="rounded-3xl border p-4"
+        <div className="rounded-3xl border overflow-hidden"
           style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
-          <h2 className="text-[15px] font-bold px-2 pb-3" style={{ color: "var(--text-1)" }}>
-            Členové ({team.members?.length ?? 0})
-          </h2>
-          <div className="space-y-2">
+          <div className="flex items-center justify-between px-6 py-4">
+            <h2 className="text-[15px] font-bold" style={{ color: "var(--text-1)" }}>
+              Členové ({team.members?.length ?? 0})
+            </h2>
+            {isOwnerOrAdmin && (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<UserPlus className="w-3.5 h-3.5" />}
+                onClick={() => setShowCreateUser(true)}
+              >
+                Vytvořit uživatele
+              </Button>
+            )}
+          </div>
+          <div className="divide-y" style={{ borderColor: "var(--border)" }}>
             {(team.members as TeamMember[])?.map((member) => {
               const isMe = member.userId === session?.user?.id;
               const isMemberOwner = member.role === "owner";
+              const isMemberAdmin = member.role === "admin";
+              const isExpanded = expandedMemberId === member.id;
+              const canEditPerms = isOwnerOrAdmin && !isMemberOwner && !isMemberAdmin && !isMe;
+
               return (
-                <div key={member.id} className="flex items-center gap-4 px-4 py-3.5 rounded-2xl border"
-                  style={{ borderColor: "var(--border)", background: "var(--bg-subtle)" }}>
-                  <Avatar name={member.user?.name ?? "?"} src={member.user?.avatar} size="md" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13.5px] font-semibold flex items-center gap-1.5" style={{ color: "var(--text-1)" }}>
-                      {member.user?.name}
-                      {isMemberOwner && <Crown className="w-3.5 h-3.5" style={{ color: "var(--accent)" }} />}
-                      {isMe && <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-md" style={{ background: "var(--bg-card)", color: "var(--text-3)" }}>Já</span>}
-                    </p>
-                    <p className="text-[12px]" style={{ color: "var(--text-3)" }}>{member.user?.email}</p>
-                  </div>
-                  {isOwnerOrAdmin && !isMemberOwner && !isMe ? (
-                    <div className="flex items-center gap-2">
-                      <Select options={ROLE_OPTIONS.filter((r) => r.value !== "owner")} value={member.role} onChange={(e) => handleChangeRole(member.userId, e.target.value)} />
-                      <button onClick={() => handleRemoveMember(member.userId)} className="p-2 rounded-xl transition-colors hover:bg-red-50 hover:text-red-500" style={{ color: "var(--text-3)" }}>
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                <div key={member.id}>
+                  <div className="flex items-center gap-4 px-6 py-4">
+                    <Avatar name={member.user?.name ?? "?"} src={member.user?.avatar} size="md" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13.5px] font-semibold flex items-center gap-1.5" style={{ color: "var(--text-1)" }}>
+                        {member.user?.name}
+                        {isMemberOwner && <Crown className="w-3.5 h-3.5" style={{ color: "var(--accent)" }} />}
+                        {isMe && <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-md" style={{ background: "var(--bg-subtle)", color: "var(--text-3)" }}>Já</span>}
+                      </p>
+                      <p className="text-[12px]" style={{ color: "var(--text-3)" }}>{member.user?.email}</p>
                     </div>
-                  ) : (
-                    <span className="text-[12.5px] font-semibold px-2.5 py-1 rounded-xl" style={{ background: "var(--bg-card)", color: "var(--text-2)" }}>
-                      {ROLE_LABELS[member.role as TeamRole] ?? member.role}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {isOwnerOrAdmin && !isMemberOwner && !isMe ? (
+                        <>
+                          <Select options={ROLE_OPTIONS.filter((r) => r.value !== "owner")} value={member.role} onChange={(e) => handleChangeRole(member.userId, e.target.value)} />
+                          {canEditPerms && (
+                            <button
+                              onClick={() => setExpandedMemberId(isExpanded ? null : member.id)}
+                              className="p-2 rounded-xl transition-colors hover:bg-[var(--hover)] flex items-center gap-1"
+                              title="Oprávnění"
+                              style={{ color: isExpanded ? "var(--accent)" : "var(--text-3)" }}
+                            >
+                              <Shield className="w-4 h-4" />
+                              <ChevronDown
+                                className="w-3.5 h-3.5 transition-transform"
+                                style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
+                              />
+                            </button>
+                          )}
+                          <button onClick={() => handleRemoveMember(member.userId)} className="p-2 rounded-xl transition-colors hover:bg-red-50 hover:text-red-500" style={{ color: "var(--text-3)" }}>
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-[12.5px] font-semibold px-2.5 py-1 rounded-xl" style={{ background: "var(--bg-subtle)", color: "var(--text-2)" }}>
+                          {ROLE_LABELS[member.role as TeamRole] ?? member.role}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {isExpanded && canEditPerms && (
+                    <MemberPermissionsEditor
+                      member={member}
+                      onSave={handleSavePermissions}
+                    />
                   )}
                 </div>
               );

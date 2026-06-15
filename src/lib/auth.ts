@@ -48,11 +48,12 @@ export const authOptions: NextAuthOptions = {
         if (session.teamId !== undefined && token.id) {
           const member = await prisma.teamMember.findFirst({
             where: { userId: token.id as string, teamId: String(session.teamId) },
-            select: { teamId: true, role: true },
+            select: { teamId: true, role: true, permissions: true },
           });
           if (member) {
             token.teamId = member.teamId;
             token.teamRole = member.role;
+            token.permissions = member.permissions ?? null;
           }
         }
       }
@@ -62,11 +63,12 @@ export const authOptions: NextAuthOptions = {
         try {
           const member = await prisma.teamMember.findFirst({
             where: { userId: token.id as string },
-            select: { teamId: true, role: true },
+            select: { teamId: true, role: true, permissions: true },
             orderBy: { joinedAt: "asc" },
           });
           token.teamId = member?.teamId ?? null;
           token.teamRole = member?.role ?? null;
+          token.permissions = member?.permissions ?? null;
         } catch {}
       }
       return token;
@@ -77,6 +79,7 @@ export const authOptions: NextAuthOptions = {
         session.user.role = token.role as string;
         session.user.teamId = token.teamId as string | null;
         session.user.teamRole = token.teamRole as string | null;
+        session.user.permissions = token.permissions as string | null;
         if (typeof token.name === "string") session.user.name = token.name;
         if (token.picture !== undefined) session.user.image = token.picture as string | null;
       }

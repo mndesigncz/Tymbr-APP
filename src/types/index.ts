@@ -28,6 +28,7 @@ export interface TeamMember {
   teamId: string;
   userId: string;
   role: TeamRole;
+  permissions?: string | null;
   joinedAt: Date;
   user?: User;
   team?: Team;
