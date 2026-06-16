@@ -13,11 +13,9 @@ import {
   CalendarPlus, CheckSquare, Share2, UserPlus, X, Check, BookOpen, Palette,
 } from "lucide-react";
 import { formatRelative } from "@/lib/utils";
-import { hoursToMinutes } from "@/lib/pricing";
-import {
-  STATUS_COLORS, STATUS_LABELS, PRIORITY_COLORS, PRIORITY_LABELS,
-  type TaskStatus, type TaskPriority,
-} from "@/types/index";
+import { TaskForm } from "@/components/tasks/TaskForm";
+import { EventForm } from "@/components/calendar/EventForm";
+import { ShareSheet } from "@/components/share/ShareSheet";
 
 const NOTE_COLORS = [
   { value: null,      label: "Výchozí",  bg: "var(--bg-card)",    border: "var(--border-md)" },
@@ -112,6 +110,7 @@ function NoteEditor({
   onRefresh: () => void;
 }) {
   const { data: session } = useSession();
+  const router = useRouter();
   const [title, setTitle] = useState(note.title);
   const [content, setContent] = useState(note.content);
   const [saving, setSaving] = useState(false);
@@ -121,9 +120,9 @@ function NoteEditor({
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [collabSearch, setCollabSearch] = useState("");
   const [shareOpen, setShareOpen] = useState(false);
-  const [shareSent, setShareSent] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
   const [eventOpen, setEventOpen] = useState(false);
+  const canUseTeam = !!(session?.user as any)?.teamId;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const colorPickerRef = useRef<HTMLDivElement>(null);
 
@@ -193,16 +192,7 @@ function NoteEditor({
     onRefresh();
   };
 
-  const shareInChat = async () => {
-    const text = `📝 **${note.title || "Poznámka"}**\n\n${note.content.slice(0, 300)}${note.content.length > 300 ? "…" : ""}`;
-    await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: text }),
-    });
-    setShareSent(true);
-    setTimeout(() => { setShareSent(false); setShareOpen(false); }, 1500);
-  };
+  const chatMessage = `📝 **${note.title || "Poznámka"}**\n\n${note.content.slice(0, 300)}${note.content.length > 300 ? "…" : ""}`;
 
   const color = NOTE_COLORS.find((c) => c.value === note.color) ?? NOTE_COLORS[0];
   const isOwner = note.createdById === (session?.user as any)?.id;
@@ -462,394 +452,32 @@ function NoteEditor({
         </div>
       </div>
 
-      {/* Share in chat modal */}
-      <Modal open={shareOpen} onClose={() => setShareOpen(false)} title="Sdílet v týmovém chatu">
-        <div className="space-y-4 pt-1">
-          <p className="text-[13.5px]" style={{ color: "var(--text-2)" }}>
-            Odešle obsah poznámky do týmového chatu jako zprávu. Platné i pro soukromé poznámky — sdílíš jen obsah, ne odkaz.
-          </p>
-          <div className="rounded-xl p-3 border text-[12.5px]"
-            style={{ background: "var(--bg-subtle)", borderColor: "var(--border-md)", color: "var(--text-2)" }}>
-            <strong>{note.title || "Bez názvu"}</strong>
-            {note.content && <p className="mt-1 line-clamp-3">{note.content}</p>}
-          </div>
-          <div className="flex gap-3">
-            <Button variant="secondary" onClick={() => setShareOpen(false)} className="flex-1">Zrušit</Button>
-            <Button onClick={shareInChat} className="flex-1">
-              {shareSent ? <><Check className="w-3.5 h-3.5 mr-1" /> Odesláno</> : "Odeslat do chatu"}
-            </Button>
-          </div>
+      {/* Share modal — public link + collaborators + chat */}
+      <Modal open={shareOpen} onClose={() => setShareOpen(false)} title="Sdílet poznámku">
+        <div className="pt-1">
+          <ShareSheet resourceType="note" resourceId={note.id} chatMessage={chatMessage} />
         </div>
       </Modal>
 
-      {/* Create task modal */}
+      {/* Create task modal — real TaskForm pre-filled from the note */}
       <Modal open={taskOpen} onClose={() => setTaskOpen(false)} title="Vytvořit úkol z poznámky">
-        <CreateTaskFromNote note={note} onClose={() => setTaskOpen(false)} />
+        <TaskForm
+          initialValues={{ title: note.title, description: note.content }}
+          onCancel={() => setTaskOpen(false)}
+          onSuccess={(t) => { setTaskOpen(false); router.push(`/tasks/${t.id}`); }}
+        />
       </Modal>
 
-      {/* Create event modal */}
+      {/* Create event modal — real EventForm pre-filled from the note */}
       <Modal open={eventOpen} onClose={() => setEventOpen(false)} title="Vytvořit událost z poznámky">
-        <CreateEventFromNote note={note} onClose={() => setEventOpen(false)} />
+        <EventForm
+          initialValues={{ title: note.title, description: note.content }}
+          canUseTeam={canUseTeam}
+          onClose={() => setEventOpen(false)}
+          onSaved={() => { setEventOpen(false); router.push("/calendar"); }}
+        />
       </Modal>
     </div>
-  );
-}
-
-/* ─── Create Task from Note ──────────────────────────────────────────── */
-
-const STATUSES: TaskStatus[] = ["todo", "in_progress", "review", "done"];
-const PRIORITIES: TaskPriority[] = ["low", "medium", "high", "urgent"];
-
-function CreateTaskFromNote({ note, onClose }: { note: Note; onClose: () => void }) {
-  const router = useRouter();
-  const [title, setTitle] = useState(note.title || "");
-  const [description, setDescription] = useState(note.content || "");
-  const [status, setStatus] = useState<TaskStatus>("todo");
-  const [priority, setPriority] = useState<TaskPriority>("medium");
-  const [dueDate, setDueDate] = useState("");
-  const [estimatedHours, setEstimatedHours] = useState("");
-  const [expenses, setExpenses] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
-  const [categories, setCategories] = useState<{ id: string; name: string; color?: string | null }[]>([]);
-  const [users, setUsers] = useState<{ id: string; name: string; email: string; avatar?: string | null }[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
-
-  useEffect(() => {
-    fetch("/api/categories").then(r => r.json()).then(d => { if (Array.isArray(d)) setCategories(d); });
-    fetch("/api/users").then(r => r.json()).then(d => { if (Array.isArray(d)) setUsers(d); });
-  }, []);
-
-  const toggleAssignee = (id: string) => {
-    setAssigneeIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) return;
-    setLoading(true);
-    const payload: Record<string, any> = {
-      title: title.trim(),
-      description: description || null,
-      status,
-      priority,
-      dueDate: dueDate || null,
-      categoryId: categoryId || null,
-      assigneeIds: assigneeIds.length ? assigneeIds : undefined,
-      estimatedMinutes: hoursToMinutes(estimatedHours),
-      expenses: expenses ? Number(expenses) : null,
-    };
-    const res = await fetch("/api/tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    setLoading(false);
-    if (res.ok) {
-      const task = await res.json();
-      setDone(true);
-      setTimeout(() => { onClose(); router.push(`/tasks/${task.id}`); }, 700);
-    }
-  };
-
-  if (done) {
-    return (
-      <div className="flex flex-col items-center justify-center py-10 gap-3">
-        <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "#22C55E22" }}>
-          <Check className="w-6 h-6" style={{ color: "#22C55E" }} />
-        </div>
-        <p className="text-[14px] font-semibold" style={{ color: "var(--text-1)" }}>Úkol vytvořen</p>
-        <p className="text-[12.5px]" style={{ color: "var(--text-3)" }}>Přesměrování…</p>
-      </div>
-    );
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-      {/* Title */}
-      <div>
-        <label className="text-[11.5px] font-semibold mb-1.5 block uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
-          Název úkolu
-        </label>
-        <input
-          autoFocus
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          required
-          placeholder="Název úkolu…"
-          className="w-full rounded-xl px-3.5 py-2.5 text-[14px] outline-none border transition-colors focus:border-[var(--accent)]"
-          style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}
-        />
-      </div>
-
-      {/* Description */}
-      <div>
-        <label className="text-[11.5px] font-semibold mb-1.5 block uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
-          Popis
-        </label>
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Popis z poznámky…"
-          rows={3}
-          className="w-full rounded-xl px-3.5 py-2.5 text-[13.5px] outline-none border resize-none transition-colors focus:border-[var(--accent)]"
-          style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-2)" }}
-        />
-      </div>
-
-      {/* Status & Priority */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="text-[11.5px] font-semibold mb-1.5 block uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
-            Stav
-          </label>
-          <div className="flex flex-wrap gap-1.5">
-            {STATUSES.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setStatus(s)}
-                className="px-2.5 py-1 rounded-lg text-[12px] font-semibold transition-all"
-                style={status === s
-                  ? { background: STATUS_COLORS[s] + "22", color: STATUS_COLORS[s], border: `1.5px solid ${STATUS_COLORS[s]}` }
-                  : { background: "var(--bg-subtle)", color: "var(--text-3)", border: "1.5px solid var(--border)" }}
-              >
-                {STATUS_LABELS[s]}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div>
-          <label className="text-[11.5px] font-semibold mb-1.5 block uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
-            Priorita
-          </label>
-          <div className="flex flex-wrap gap-1.5">
-            {PRIORITIES.map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setPriority(p)}
-                className="px-2.5 py-1 rounded-lg text-[12px] font-semibold transition-all"
-                style={priority === p
-                  ? { background: PRIORITY_COLORS[p] + "22", color: PRIORITY_COLORS[p], border: `1.5px solid ${PRIORITY_COLORS[p]}` }
-                  : { background: "var(--bg-subtle)", color: "var(--text-3)", border: "1.5px solid var(--border)" }}
-              >
-                {PRIORITY_LABELS[p]}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Due date & Category */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="text-[11.5px] font-semibold mb-1.5 block uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
-            Termín
-          </label>
-          <input
-            type="date"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-            className="w-full rounded-xl px-3.5 py-2.5 text-[13.5px] outline-none border transition-colors focus:border-[var(--accent)]"
-            style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}
-          />
-        </div>
-        <div>
-          <label className="text-[11.5px] font-semibold mb-1.5 block uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
-            Funkce
-          </label>
-          <select
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-            className="w-full rounded-xl px-3.5 py-2.5 text-[13.5px] outline-none border transition-colors focus:border-[var(--accent)]"
-            style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: categoryId ? "var(--text-1)" : "var(--text-3)" }}
-          >
-            <option value="">Bez funkce</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Estimated hours & Expenses */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="text-[11.5px] font-semibold mb-1.5 block uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
-            Čas (h)
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="0.25"
-            value={estimatedHours}
-            onChange={(e) => setEstimatedHours(e.target.value)}
-            placeholder="0"
-            className="w-full rounded-xl px-3.5 py-2.5 text-[13.5px] outline-none border transition-colors focus:border-[var(--accent)]"
-            style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}
-          />
-        </div>
-        <div>
-          <label className="text-[11.5px] font-semibold mb-1.5 block uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
-            Náklady (Kč)
-          </label>
-          <input
-            type="number"
-            min="0"
-            value={expenses}
-            onChange={(e) => setExpenses(e.target.value)}
-            placeholder="0"
-            className="w-full rounded-xl px-3.5 py-2.5 text-[13.5px] outline-none border transition-colors focus:border-[var(--accent)]"
-            style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}
-          />
-        </div>
-      </div>
-
-      {/* Assignees */}
-      {users.length > 0 && (
-        <div>
-          <label className="text-[11.5px] font-semibold mb-2 block uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
-            Přiřazení
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {users.map((u) => {
-              const selected = assigneeIds.includes(u.id);
-              return (
-                <button
-                  key={u.id}
-                  type="button"
-                  onClick={() => toggleAssignee(u.id)}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-full text-[12.5px] font-medium transition-all"
-                  style={selected
-                    ? { background: "color-mix(in srgb, var(--accent) 15%, transparent)", color: "var(--accent)", border: "1.5px solid var(--accent)" }
-                    : { background: "var(--bg-card)", color: "var(--text-2)", border: "1.5px solid var(--border-md)" }}
-                >
-                  <Avatar name={u.name} src={u.avatar} size="sm" />
-                  {u.name}
-                  {selected && <Check className="w-3 h-3 ml-0.5" />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Actions */}
-      <div className="flex gap-3 pt-1">
-        <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
-          Zrušit
-        </Button>
-        <Button type="submit" loading={loading} className="flex-1">
-          Vytvořit úkol
-        </Button>
-      </div>
-    </form>
-  );
-}
-
-/* ─── Create Event from Note ──────────────────────────────────────────── */
-
-function CreateEventFromNote({ note, onClose }: { note: Note; onClose: () => void }) {
-  const router = useRouter();
-  const [title, setTitle] = useState(note.title || "");
-  const [startAt, setStartAt] = useState(() => {
-    const d = new Date();
-    d.setSeconds(0, 0);
-    return d.toISOString().slice(0, 16);
-  });
-  const [endAt, setEndAt] = useState(() => {
-    const d = new Date(Date.now() + 3600000);
-    d.setSeconds(0, 0);
-    return d.toISOString().slice(0, 16);
-  });
-  const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) return;
-    setLoading(true);
-    const res = await fetch("/api/events", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: title.trim(),
-        description: note.content || null,
-        startAt: new Date(startAt).toISOString(),
-        endAt: new Date(endAt).toISOString(),
-        allDay: false,
-      }),
-    });
-    setLoading(false);
-    if (res.ok) {
-      setDone(true);
-      setTimeout(() => { onClose(); router.push("/calendar"); }, 700);
-    }
-  };
-
-  if (done) {
-    return (
-      <div className="flex flex-col items-center justify-center py-10 gap-3">
-        <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "#22C55E22" }}>
-          <Check className="w-6 h-6" style={{ color: "#22C55E" }} />
-        </div>
-        <p className="text-[14px] font-semibold" style={{ color: "var(--text-1)" }}>Událost vytvořena</p>
-      </div>
-    );
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4 pt-1">
-      <div>
-        <label className="text-[11.5px] font-semibold mb-1.5 block uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
-          Název události
-        </label>
-        <input
-          autoFocus
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          required
-          className="w-full rounded-xl px-3.5 py-2.5 text-[14px] outline-none border transition-colors focus:border-[var(--accent)]"
-          style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="text-[11.5px] font-semibold mb-1.5 block uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
-            Začátek
-          </label>
-          <input
-            type="datetime-local"
-            value={startAt}
-            onChange={(e) => setStartAt(e.target.value)}
-            className="w-full rounded-xl px-3 py-2.5 text-[13px] outline-none border transition-colors focus:border-[var(--accent)]"
-            style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}
-          />
-        </div>
-        <div>
-          <label className="text-[11.5px] font-semibold mb-1.5 block uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
-            Konec
-          </label>
-          <input
-            type="datetime-local"
-            value={endAt}
-            onChange={(e) => setEndAt(e.target.value)}
-            className="w-full rounded-xl px-3 py-2.5 text-[13px] outline-none border transition-colors focus:border-[var(--accent)]"
-            style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}
-          />
-        </div>
-      </div>
-      <div className="flex gap-3 pt-1">
-        <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
-          Zrušit
-        </Button>
-        <Button type="submit" loading={loading} className="flex-1">
-          Vytvořit událost
-        </Button>
-      </div>
-    </form>
   );
 }
 

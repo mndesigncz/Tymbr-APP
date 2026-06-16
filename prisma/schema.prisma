@@ -38,6 +38,7 @@ model User {
   contentPostsAssigned ContentPost[]  @relation("ContentPostAssignee")
   notesCreated         Note[]         @relation("NoteCreator")
   noteCollaborations   NoteCollaborator[]
+  shareLinks           ShareLink[]    @relation("ShareLinkCreator")
 }
 
 model Notification {
@@ -123,6 +124,25 @@ model NoteCollaborator {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([noteId, userId])
+}
+
+model ShareLink {
+  id           String    @id @default(cuid())
+  token        String    @unique
+  resourceType String    // 'note' | 'task' | 'event'
+  resourceId   String
+  revoked      Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime?
+
+  teamId String?
+
+  createdById String
+  createdBy   User   @relation("ShareLinkCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([resourceType, resourceId])
+  @@index([createdById])
 }
 
 model TeamJoinRequest {

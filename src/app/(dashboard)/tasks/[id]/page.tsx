@@ -16,8 +16,9 @@ import { computeEstimate, formatCZK, formatDuration } from "@/lib/pricing";
 import type { Task } from "@/types";
 import {
   Calendar, Edit2, Trash2, MessageSquare,
-  ChevronDown, Check, Globe, EyeOff, Send,
+  ChevronDown, Check, Globe, EyeOff, Send, Share2,
 } from "lucide-react";
+import { ShareSheet } from "@/components/share/ShareSheet";
 import { useSession } from "next-auth/react";
 import { useStatusConfig } from "@/hooks/useStatusConfig";
 
@@ -46,6 +47,7 @@ export default function TaskDetailPage() {
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [comment, setComment] = useState("");
   const [commenting, setCommenting] = useState(false);
   const [mention, setMention] = useState<{ query: string; start: number } | null>(null);
@@ -172,6 +174,13 @@ export default function TaskDetailPage() {
         title={task.title}
         actions={
           <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              icon={<Share2 className="w-4 h-4" />}
+              onClick={() => setShareOpen(true)}
+            >
+              <span className="hidden sm:inline">Sdílet</span>
+            </Button>
             <Button
               variant="secondary"
               icon={<Edit2 className="w-4 h-4" />}
@@ -493,6 +502,16 @@ export default function TaskDetailPage() {
           }}
           onCancel={() => setEditOpen(false)}
         />
+      </Modal>
+
+      <Modal open={shareOpen} onClose={() => setShareOpen(false)} title="Sdílet úkol">
+        <div className="pt-1">
+          <ShareSheet
+            resourceType="task"
+            resourceId={task.id}
+            chatMessage={`✅ **${task.title}**${task.description ? `\n\n${task.description.slice(0, 200)}` : ""}`}
+          />
+        </div>
       </Modal>
 
       <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)} title="Smazat úkol">

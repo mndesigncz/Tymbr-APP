@@ -41,6 +41,8 @@ interface DraftSubtask {
 interface TaskFormProps {
   task?: Task;
   defaultStatus?: string;
+  /** Pre-fill a NEW task form (e.g. when creating a task from a note). Ignored when editing. */
+  initialValues?: { title?: string; description?: string };
   onSuccess?: (task: Task) => void;
   onCancel?: () => void;
 }
@@ -86,7 +88,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function TaskForm({ task, defaultStatus, onSuccess, onCancel }: TaskFormProps) {
+export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCancel }: TaskFormProps) {
   const router = useRouter();
   const statuses = useStatusConfig();
   const priorities = usePriorityConfig();
@@ -118,8 +120,8 @@ export function TaskForm({ task, defaultStatus, onSuccess, onCancel }: TaskFormP
   );
 
   const [form, setForm] = useState({
-    title: task?.title || "",
-    description: task?.description || "",
+    title: task?.title || initialValues?.title || "",
+    description: task?.description || initialValues?.description || "",
     status: task?.status || defaultStatus || "todo",
     priority: task?.priority || "medium",
     dueDate: task?.dueDate ? new Date(task.dueDate).toISOString().slice(0, 10) : "",
