@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Suspense } from "react";
 import {
   Plus, Search, Pin, PinOff, Trash2, Globe, Lock, Users,
-  CalendarPlus, CheckSquare, Share2, UserPlus, X, Check, BookOpen,
+  CalendarPlus, CheckSquare, Share2, UserPlus, X, Check, BookOpen, Palette,
 } from "lucide-react";
 import { formatRelative } from "@/lib/utils";
 import { hoursToMinutes } from "@/lib/pricing";
@@ -63,14 +63,16 @@ function NoteListItem({ note, active, onClick }: { note: Note; active: boolean; 
       className="w-full text-left rounded-2xl px-3.5 py-3 transition-all active:scale-[0.98]"
       style={{
         background: active
-          ? "color-mix(in srgb, var(--accent) 12%, var(--bg-card))"
+          ? "color-mix(in srgb, var(--accent) 8%, var(--bg-card))"
           : color?.value
-            ? `${color.bg}dd`
+            ? `color-mix(in srgb, ${color.bg} 18%, var(--bg-card))`
             : "var(--bg-card)",
         boxShadow: "var(--shadow-sm)",
         border: active
           ? "1.5px solid var(--accent)"
-          : `1.5px solid ${color?.border ?? "var(--border)"}`,
+          : color?.value
+            ? `1.5px solid ${color.border}88`
+            : "1.5px solid var(--border)",
       }}
     >
       <div className="flex items-start justify-between gap-2 mb-1">
@@ -116,12 +118,14 @@ function NoteEditor({
   const [saved, setSaved] = useState(false);
   const [users, setUsers] = useState<{ id: string; name: string; email: string; avatar?: string | null }[]>([]);
   const [showCollabPicker, setShowCollabPicker] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
   const [collabSearch, setCollabSearch] = useState("");
   const [shareOpen, setShareOpen] = useState(false);
   const [shareSent, setShareSent] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
   const [eventOpen, setEventOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const colorPickerRef = useRef<HTMLDivElement>(null);
 
   const debouncedTitle = useDebounce(title, 600);
   const debouncedContent = useDebounce(content, 600);
@@ -131,6 +135,17 @@ function NoteEditor({
   useEffect(() => {
     fetch("/api/users").then((r) => r.json()).then((d) => { if (Array.isArray(d)) setUsers(d); });
   }, []);
+
+  // Close color picker on outside click
+  useEffect(() => {
+    if (!showColorPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (colorPickerRef.current && !colorPickerRef.current.contains(e.target as Node))
+        setShowColorPicker(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showColorPicker]);
 
   const save = useCallback(async (patch: Record<string, any>) => {
     setSaving(true);
@@ -144,7 +159,7 @@ function NoteEditor({
       const updated = await res.json();
       onUpdate(updated);
       setSaved(true);
-      setTimeout(() => setSaved(false), 1500);
+      setTimeout(() => setSaved(false), 1800);
     }
   }, [note.id, onUpdate]);
 
@@ -157,7 +172,7 @@ function NoteEditor({
   }, [debouncedContent]);
 
   const togglePin = () => save({ pinned: !note.pinned }).then(() => onUpdate({ pinned: !note.pinned }));
-  const setColor = (color: string | null) => save({ color });
+  const setNoteColor = (c: string | null) => { save({ color: c }); setShowColorPicker(false); };
   const setVisibility = (v: string) => save({ visibility: v });
 
   const addCollaborator = async (userId: string) => {
@@ -195,201 +210,250 @@ function NoteEditor({
   const filteredUsers = users.filter((u) =>
     !collabs.find((c) => c.id === u.id) &&
     u.id !== note.createdById &&
-    (u.name.toLowerCase().includes(collabSearch.toLowerCase()) || u.email.toLowerCase().includes(collabSearch.toLowerCase()))
+    (u.name.toLowerCase().includes(collabSearch.toLowerCase()) ||
+      u.email.toLowerCase().includes(collabSearch.toLowerCase()))
   );
 
-  const toolbarBg = color.value
-    ? `${color.bg}e8`
-    : "color-mix(in srgb, var(--bg-card) 88%, transparent)";
-
   return (
-    <div className="flex flex-col h-full"
-      style={{ background: color.value ? `${color.bg}55` : "var(--bg-page)" }}>
-
-      {/* Frosted glass toolbar */}
+    // Outer container adds padding so the card floats — that's the "no sharp edges" fix
+    <div className="h-full p-3 flex flex-col" style={{ background: "var(--bg-page)" }}>
       <div
-        className="flex items-center gap-1.5 px-4 py-2 border-b flex-shrink-0 backdrop-blur-xl"
-        style={{ borderColor: color.border ?? "var(--border)", background: toolbarBg }}
+        className="glass-strong flex-1 rounded-3xl flex flex-col overflow-hidden"
+        style={{
+          border: `1.5px solid ${color.value ? color.border + "99" : "var(--border-md)"}`,
+          boxShadow: "var(--shadow-overlay)",
+        }}
       >
-        {/* Color swatches */}
-        <div className="flex items-center gap-1 mr-1">
-          {NOTE_COLORS.map((c) => (
+        {/* Toolbar */}
+        <div
+          className="flex items-center gap-1 px-3 py-2 border-b flex-shrink-0"
+          style={{
+            borderColor: "var(--border)",
+            background: color.value ? `${color.bg}28` : undefined,
+          }}
+        >
+          {/* Color picker button */}
+          <div className="relative" ref={colorPickerRef}>
             <button
-              key={c.label}
-              onClick={() => setColor(c.value)}
-              className="w-6 h-6 rounded-full transition-all hover:scale-110 flex-shrink-0"
-              style={{
-                background: c.bg === "var(--bg-card)" ? "var(--bg-subtle)" : c.bg,
-                border: note.color === c.value
-                  ? "2.5px solid var(--text-1)"
-                  : `2px solid ${c.border}`,
-                boxShadow: note.color === c.value ? "0 0 0 1.5px var(--accent)" : undefined,
-              }}
-              title={c.label}
-            />
-          ))}
-        </div>
+              onClick={() => setShowColorPicker((o) => !o)}
+              className="w-8 h-8 rounded-xl flex items-center justify-center transition-all hover:bg-[var(--hover)]"
+              title="Barva poznámky"
+            >
+              {note.color ? (
+                <span
+                  className="w-4 h-4 rounded-full border-[1.5px]"
+                  style={{ background: color.bg, borderColor: color.border }}
+                />
+              ) : (
+                <Palette className="w-4 h-4" style={{ color: "var(--text-3)" }} />
+              )}
+            </button>
 
-        <div className="flex-1" />
+            {showColorPicker && (
+              <div
+                className="absolute top-full left-0 mt-2 p-3 rounded-2xl glass-strong border animate-scale-in z-50"
+                style={{ borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)", minWidth: 230 }}
+              >
+                <p className="text-[10.5px] font-semibold uppercase tracking-widest mb-2.5"
+                  style={{ color: "var(--text-3)" }}>
+                  Barva poznámky
+                </p>
+                <div className="flex items-center gap-2">
+                  {NOTE_COLORS.map((c) => (
+                    <button
+                      key={c.label}
+                      onClick={() => setNoteColor(c.value)}
+                      className="w-8 h-8 rounded-full transition-all hover:scale-110 flex items-center justify-center flex-shrink-0"
+                      style={{
+                        background: c.bg === "var(--bg-card)" ? "var(--bg-subtle)" : c.bg,
+                        border: note.color === c.value
+                          ? `2.5px solid var(--accent)`
+                          : `2px solid ${c.border}`,
+                        boxShadow: note.color === c.value ? `0 0 0 2px var(--accent)44` : undefined,
+                      }}
+                      title={c.label}
+                    >
+                      {note.color === c.value && (
+                        <Check className="w-3.5 h-3.5" style={{ color: c.value ? "#000" : "var(--text-2)" }} />
+                      )}
+                      {!note.color && c.value === null && (
+                        <Check className="w-3.5 h-3.5" style={{ color: "var(--text-2)" }} />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
 
-        {/* Save indicator */}
-        <span className="text-[11px] mr-1" style={{ color: "var(--text-3)" }}>
-          {saving ? "Ukládám…" : saved ? <span style={{ color: "#22C55E" }}>✓ Uloženo</span> : ""}
-        </span>
+          <div className="flex-1" />
 
-        {/* Visibility toggle */}
-        <div className="flex items-center rounded-xl overflow-hidden border"
-          style={{ borderColor: "var(--border-md)" }}>
-          <button
-            onClick={() => setVisibility("private")}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11.5px] font-medium transition-all"
-            style={note.visibility === "private"
-              ? { background: "var(--accent)", color: "#fff" }
-              : { background: "transparent", color: "var(--text-3)" }}
-          >
-            <Lock className="w-3 h-3" /> Soukromá
-          </button>
-          <button
-            onClick={() => setVisibility("team")}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11.5px] font-medium transition-all"
-            style={note.visibility === "team"
-              ? { background: "var(--accent)", color: "#fff" }
-              : { background: "transparent", color: "var(--text-3)" }}
-          >
-            <Globe className="w-3 h-3" /> Tým
-          </button>
-        </div>
+          {/* Save indicator */}
+          {(saving || saved) && (
+            <span className="text-[11px] px-2" style={{ color: saved ? "#22C55E" : "var(--text-3)" }}>
+              {saving ? "Ukládám…" : "✓ Uloženo"}
+            </span>
+          )}
 
-        {/* Action buttons */}
-        <div className="flex items-center gap-0.5 ml-1">
-          <button
-            onClick={togglePin}
-            className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[var(--hover)]"
-            title={note.pinned ? "Odepnout" : "Připnout"}
-            style={{ color: note.pinned ? "var(--accent)" : "var(--text-3)" }}
-          >
-            {note.pinned ? <Pin className="w-4 h-4" /> : <PinOff className="w-4 h-4" />}
-          </button>
-          <button
-            onClick={() => setShareOpen(true)}
-            className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[var(--hover)]"
-            title="Sdílet v chatu"
-            style={{ color: "var(--text-3)" }}
-          >
-            <Share2 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setTaskOpen(true)}
-            className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[var(--hover)]"
-            title="Vytvořit úkol"
-            style={{ color: "var(--text-3)" }}
-          >
-            <CheckSquare className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setEventOpen(true)}
-            className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[var(--hover)]"
-            title="Vytvořit událost"
-            style={{ color: "var(--text-3)" }}
-          >
-            <CalendarPlus className="w-4 h-4" />
-          </button>
-          {isOwner && (
+          {/* Visibility toggle */}
+          <div className="flex items-center rounded-xl overflow-hidden border"
+            style={{ borderColor: "var(--border-md)" }}>
             <button
-              onClick={() => { if (confirm("Smazat tuto poznámku?")) onDelete(); }}
-              className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[var(--danger-soft)]"
+              onClick={() => setVisibility("private")}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11.5px] font-medium transition-all"
+              style={note.visibility === "private"
+                ? { background: "var(--accent)", color: "#fff" }
+                : { background: "transparent", color: "var(--text-3)" }}
+            >
+              <Lock className="w-3 h-3" /> Soukromá
+            </button>
+            <button
+              onClick={() => setVisibility("team")}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11.5px] font-medium transition-all"
+              style={note.visibility === "team"
+                ? { background: "var(--accent)", color: "#fff" }
+                : { background: "transparent", color: "var(--text-3)" }}
+            >
+              <Globe className="w-3 h-3" /> Tým
+            </button>
+          </div>
+
+          {/* Action icon buttons */}
+          <div className="flex items-center gap-0.5 ml-1">
+            <button
+              onClick={togglePin}
+              className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[var(--hover)]"
+              title={note.pinned ? "Odepnout" : "Připnout"}
+              style={{ color: note.pinned ? "var(--accent)" : "var(--text-3)" }}
+            >
+              {note.pinned ? <Pin className="w-4 h-4" /> : <PinOff className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={() => setShareOpen(true)}
+              className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[var(--hover)]"
+              title="Sdílet v chatu"
               style={{ color: "var(--text-3)" }}
             >
-              <Trash2 className="w-4 h-4" />
+              <Share2 className="w-4 h-4" />
             </button>
-          )}
-        </div>
-      </div>
-
-      {/* Editor body */}
-      <div className="flex-1 overflow-y-auto px-8 py-6 space-y-3">
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Název poznámky"
-          className="w-full text-[26px] font-bold bg-transparent outline-none"
-          style={{ color: "var(--text-1)" }}
-        />
-        <textarea
-          ref={textareaRef}
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          placeholder="Začni psát…"
-          className="w-full bg-transparent outline-none resize-none text-[15px] leading-[1.75] min-h-[420px]"
-          style={{ color: "var(--text-2)" }}
-        />
-      </div>
-
-      {/* Collaborators footer */}
-      <div
-        className="flex-shrink-0 border-t px-4 py-3 backdrop-blur-xl"
-        style={{ borderColor: color.border ?? "var(--border)", background: toolbarBg }}
-      >
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[11.5px] font-semibold" style={{ color: "var(--text-3)" }}>
-            Spolupracovníci:
-          </span>
-          {collabs.map((c) => (
-            <div key={c.id}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium"
-              style={{ background: "var(--bg-card)", color: "var(--text-1)", boxShadow: "var(--shadow-sm)", border: "1px solid var(--border)" }}>
-              <Avatar name={c.name} src={c.avatar} size="sm" />
-              <span>{c.name}</span>
-              {isOwner && (
-                <button onClick={() => removeCollaborator(c.id)} className="ml-0.5 hover:opacity-70" style={{ color: "var(--text-3)" }}>
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          ))}
-          {isOwner && (
-            <div className="relative">
+            <button
+              onClick={() => setTaskOpen(true)}
+              className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[var(--hover)]"
+              title="Vytvořit úkol"
+              style={{ color: "var(--text-3)" }}
+            >
+              <CheckSquare className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setEventOpen(true)}
+              className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[var(--hover)]"
+              title="Vytvořit událost"
+              style={{ color: "var(--text-3)" }}
+            >
+              <CalendarPlus className="w-4 h-4" />
+            </button>
+            {isOwner && (
               <button
-                onClick={() => setShowCollabPicker((o) => !o)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium border transition-all hover:border-[var(--accent)]"
-                style={{ borderColor: "var(--border-md)", color: "var(--text-2)", background: "var(--bg-card)" }}
+                onClick={() => { if (confirm("Smazat tuto poznámku?")) onDelete(); }}
+                className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[var(--danger-soft)]"
+                style={{ color: "var(--text-3)" }}
               >
-                <UserPlus className="w-3.5 h-3.5" /> Přizvat
+                <Trash2 className="w-4 h-4" />
               </button>
-              {showCollabPicker && (
-                <div className="absolute bottom-full left-0 mb-2 w-56 rounded-2xl border overflow-hidden z-50 glass-strong animate-scale-in"
-                  style={{ borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)" }}>
-                  <div className="p-2">
-                    <input
-                      autoFocus
-                      value={collabSearch}
-                      onChange={(e) => setCollabSearch(e.target.value)}
-                      placeholder="Hledat člena…"
-                      className="w-full text-[12.5px] px-2.5 py-1.5 rounded-lg outline-none border"
-                      style={{ background: "var(--bg-card)", color: "var(--text-1)", borderColor: "var(--border-md)" }}
-                    />
+            )}
+          </div>
+        </div>
+
+        {/* Editor body — transparent, glass card provides the background */}
+        <div className="flex-1 overflow-y-auto px-8 py-6 space-y-3">
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Název poznámky"
+            className="w-full text-[26px] font-bold bg-transparent outline-none"
+            style={{ color: "var(--text-1)" }}
+          />
+          <textarea
+            ref={textareaRef}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Začni psát…"
+            className="w-full bg-transparent outline-none resize-none text-[15px] leading-[1.75] min-h-[400px]"
+            style={{ color: "var(--text-2)" }}
+          />
+        </div>
+
+        {/* Collaborators footer */}
+        <div
+          className="flex-shrink-0 border-t px-4 py-3"
+          style={{ borderColor: "var(--border)" }}
+        >
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11.5px] font-semibold" style={{ color: "var(--text-3)" }}>
+              Spolupracovníci:
+            </span>
+            {collabs.map((c) => (
+              <div key={c.id}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium border"
+                style={{ background: "var(--bg-subtle)", color: "var(--text-1)", borderColor: "var(--border)" }}>
+                <Avatar name={c.name} src={c.avatar} size="sm" />
+                <span>{c.name}</span>
+                {isOwner && (
+                  <button onClick={() => removeCollaborator(c.id)} className="ml-0.5 hover:opacity-70"
+                    style={{ color: "var(--text-3)" }}>
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            ))}
+            {isOwner && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowCollabPicker((o) => !o)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium border transition-all hover:border-[var(--accent)]"
+                  style={{ borderColor: "var(--border-md)", color: "var(--text-2)" }}
+                >
+                  <UserPlus className="w-3.5 h-3.5" /> Přizvat
+                </button>
+                {showCollabPicker && (
+                  <div className="absolute bottom-full left-0 mb-2 w-56 rounded-2xl border overflow-hidden z-50 glass-strong animate-scale-in"
+                    style={{ borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)" }}>
+                    <div className="p-2">
+                      <input
+                        autoFocus
+                        value={collabSearch}
+                        onChange={(e) => setCollabSearch(e.target.value)}
+                        placeholder="Hledat člena…"
+                        className="w-full text-[12.5px] px-2.5 py-1.5 rounded-lg outline-none border"
+                        style={{ background: "var(--bg-card)", color: "var(--text-1)", borderColor: "var(--border-md)" }}
+                      />
+                    </div>
+                    <div className="max-h-40 overflow-y-auto">
+                      {filteredUsers.length === 0 ? (
+                        <p className="text-[12px] px-3 py-2 text-center" style={{ color: "var(--text-3)" }}>
+                          Nikdo nenalezen
+                        </p>
+                      ) : filteredUsers.map((u) => (
+                        <button
+                          key={u.id}
+                          onClick={() => addCollaborator(u.id)}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 transition-colors hover:bg-[var(--hover)] text-left"
+                        >
+                          <Avatar name={u.name} src={u.avatar} size="sm" />
+                          <div className="min-w-0">
+                            <p className="text-[12.5px] font-medium truncate" style={{ color: "var(--text-1)" }}>
+                              {u.name}
+                            </p>
+                            <p className="text-[11px] truncate" style={{ color: "var(--text-3)" }}>{u.email}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="max-h-40 overflow-y-auto">
-                    {filteredUsers.length === 0 ? (
-                      <p className="text-[12px] px-3 py-2 text-center" style={{ color: "var(--text-3)" }}>Nikdo nenalezen</p>
-                    ) : filteredUsers.map((u) => (
-                      <button
-                        key={u.id}
-                        onClick={() => addCollaborator(u.id)}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 transition-colors hover:bg-[var(--hover)] text-left"
-                      >
-                        <Avatar name={u.name} src={u.avatar} size="sm" />
-                        <div className="min-w-0">
-                          <p className="text-[12.5px] font-medium truncate" style={{ color: "var(--text-1)" }}>{u.name}</p>
-                          <p className="text-[11px] truncate" style={{ color: "var(--text-3)" }}>{u.email}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
