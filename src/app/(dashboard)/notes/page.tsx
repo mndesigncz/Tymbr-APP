@@ -214,14 +214,19 @@ function NoteEditor({
       u.email.toLowerCase().includes(collabSearch.toLowerCase()))
   );
 
+  // Floating-card shadow tinted with the note's colour when one is set
+  const cardShadow = color.value
+    ? `0 18px 44px ${color.border}55, 0 6px 16px ${color.border}33, 0 2px 6px rgba(0,0,0,0.06)`
+    : "var(--shadow-overlay)";
+
   return (
-    // Outer container adds padding so the card floats — that's the "no sharp edges" fix
-    <div className="h-full p-3 flex flex-col" style={{ background: "var(--bg-page)" }}>
+    // Outer container adds padding so the card floats with room for its shadow
+    <div className="h-full p-5 flex flex-col min-h-0" style={{ background: "var(--bg-page)" }}>
       <div
-        className="glass-strong flex-1 rounded-3xl flex flex-col overflow-hidden"
+        className="glass-strong flex-1 min-h-0 rounded-3xl flex flex-col overflow-hidden transition-shadow duration-300"
         style={{
           border: `1.5px solid ${color.value ? color.border + "99" : "var(--border-md)"}`,
-          boxShadow: "var(--shadow-overlay)",
+          boxShadow: cardShadow,
         }}
       >
         {/* Toolbar */}
@@ -995,8 +1000,8 @@ function NotesContent() {
           </div>
         </div>
 
-        {/* Editor pane */}
-        <div className="flex-1 overflow-hidden">
+        {/* Editor pane — no overflow-hidden so the card shadow can breathe */}
+        <div className="flex-1 min-h-0">
           {activeNote ? (
             <NoteEditor
               key={activeNote.id}
