@@ -7,6 +7,8 @@ export interface TeamSummary {
   name: string;
   role: string;
   memberCount: number;
+  parentId?: string | null;
+  parentName?: string | null;
 }
 
 // Module-level cache so the team list is fetched once and shared across the

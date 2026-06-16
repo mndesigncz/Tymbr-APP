@@ -61,9 +61,12 @@ model Team {
   logo      String?
   joinCode  String?  @unique
   createdAt DateTime @default(now())
+  parentId  String?
 
   ownerId String
   owner   User   @relation("TeamOwner", fields: [ownerId], references: [id])
+  parent  Team?  @relation("SubTeams", fields: [parentId], references: [id])
+  subteams Team[] @relation("SubTeams")
 
   members        TeamMember[]
   invitations    TeamInvitation[]
@@ -81,6 +84,7 @@ model Team {
   contentPosts   ContentPost[]
 
   @@index([ownerId])
+  @@index([parentId])
 }
 
 model TeamJoinRequest {

@@ -12,7 +12,7 @@ import { Modal } from "@/components/ui/Modal";
 import {
   Users, Mail, Trash2, Crown, Copy, Check, Plus, Hash, UserPlus, X,
   Palette, Image as ImageIcon, RefreshCw, AlertTriangle, ChevronDown, Shield,
-  Eye, EyeOff,
+  Eye, EyeOff, Network,
 } from "lucide-react";
 import type { Team, TeamMember, TeamInvitation, TeamRole } from "@/types";
 import { ROLE_LABELS } from "@/types";
@@ -483,6 +483,72 @@ function CreateUserModal({
   );
 }
 
+function CreateSubteamModal({
+  open,
+  onClose,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreated: (sub: { id: string; name: string }) => void;
+}) {
+  const [name, setName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleClose = () => { setName(""); setError(""); onClose(); };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setLoading(true);
+    setError("");
+    const res = await fetch("/api/teams/subteams", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name.trim() }),
+    });
+    setLoading(false);
+    if (!res.ok) {
+      const d = await res.json();
+      setError(d.error || "Chyba");
+      return;
+    }
+    const sub = await res.json();
+    setName("");
+    onCreated(sub);
+  };
+
+  return (
+    <Modal open={open} onClose={handleClose} title="Vytvořit podtým" size="sm">
+      <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+        <Input
+          label="Název podtymu"
+          placeholder="Např. Marketingový tým"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
+        <p className="text-[12.5px]" style={{ color: "var(--text-3)" }}>
+          Podtým funguje jako samostatný tým. Ty a všichni admini rodičovského týmu budete automaticky přidáni jako admini podtymu.
+        </p>
+        {error && <p className="text-[12px] text-red-400">{error}</p>}
+        <div className="flex gap-3 pt-1">
+          <Button type="button" variant="secondary" onClick={handleClose} className="flex-1">Zrušit</Button>
+          <Button type="submit" loading={loading} className="flex-1">Vytvořit</Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+interface Subteam {
+  id: string;
+  name: string;
+  memberCount: number;
+  createdAt: string;
+}
+
 function TeamSettingsContent() {
   const { data: session, update } = useSession();
   const searchParams = useSearchParams();
@@ -491,6 +557,8 @@ function TeamSettingsContent() {
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [showCreateUser, setShowCreateUser] = useState(false);
+  const [showCreateSubteam, setShowCreateSubteam] = useState(false);
+  const [subteams, setSubteams] = useState<Subteam[]>([]);
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -522,11 +590,15 @@ function TeamSettingsContent() {
   const logoRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/teams");
-    const data = await res.json();
+    const [teamRes, subtRes] = await Promise.all([
+      fetch("/api/teams"),
+      fetch("/api/teams/subteams"),
+    ]);
+    const data = await teamRes.json();
     setTeam(data);
     setTeamName(data?.name ?? "");
     if (data?.color) setColor(data.color);
+    if (subtRes.ok) setSubteams(await subtRes.json());
     setLoading(false);
   }, []);
 
@@ -737,6 +809,17 @@ function TeamSettingsContent() {
         onCreated={() => { setShowCreateUser(false); load(); }}
       />
 
+      <CreateSubteamModal
+        open={showCreateSubteam}
+        onClose={() => setShowCreateSubteam(false)}
+        onCreated={async (sub) => {
+          setShowCreateSubteam(false);
+          await refreshTeams();
+          load();
+          await switchTeam(sub.id, session?.user?.teamId ?? null, update);
+        }}
+      />
+
       <div className="px-4 sm:px-6 lg:px-8 pt-2 pb-12 space-y-6 max-w-3xl mx-auto">
         {/* Join code */}
         {(team as any).joinCode && (
@@ -893,6 +976,63 @@ function TeamSettingsContent() {
               style={{ color: "var(--text-3)" }}>
               Obnovit výchozí barvu
             </button>
+          </div>
+        )}
+
+        {/* Subteams — managers only */}
+        {isOwnerOrAdmin && (
+          <div className="rounded-3xl border overflow-hidden"
+            style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
+            <div className="flex items-center justify-between px-6 py-4">
+              <div className="flex items-center gap-2">
+                <Network className="w-[18px] h-[18px]" style={{ color: "var(--accent)" }} />
+                <h2 className="text-[15px] font-bold" style={{ color: "var(--text-1)" }}>
+                  Podtymy {subteams.length > 0 && <span style={{ color: "var(--text-3)" }}>({subteams.length})</span>}
+                </h2>
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Plus className="w-3.5 h-3.5" />}
+                onClick={() => setShowCreateSubteam(true)}
+              >
+                Vytvořit podtým
+              </Button>
+            </div>
+            {subteams.length === 0 ? (
+              <div className="px-6 pb-6 text-center">
+                <p className="text-[13px]" style={{ color: "var(--text-3)" }}>
+                  Zatím žádné podtymy. Podtymy fungují jako samostatné týmy s vlastními úkoly a členy — a ty k nim máš automaticky přístup jako ředitel.
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y" style={{ borderColor: "var(--border)" }}>
+                {subteams.map((sub) => (
+                  <div key={sub.id} className="flex items-center gap-4 px-6 py-4">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-white text-[13px] font-bold"
+                      style={{ background: "var(--accent)" }}>
+                      {sub.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[14px] font-semibold" style={{ color: "var(--text-1)" }}>{sub.name}</p>
+                      <p className="text-[12px]" style={{ color: "var(--text-3)" }}>
+                        {sub.memberCount} {sub.memberCount === 1 ? "člen" : sub.memberCount < 5 ? "členové" : "členů"}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={async () => {
+                        await refreshTeams();
+                        await switchTeam(sub.id, session?.user?.teamId ?? null, update);
+                      }}
+                    >
+                      Přepnout
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
