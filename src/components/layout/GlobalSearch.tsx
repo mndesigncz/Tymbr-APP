@@ -42,7 +42,7 @@ export function GlobalSearch() {
     setTimeout(() => inputRef.current?.focus(), 50);
   }, []);
 
-  // Global keyboard shortcut: Cmd/Ctrl+K or K (from useKeyboardShortcuts dispatches tymbr:search-open)
+  // Global keyboard shortcut: Cmd/Ctrl+K or K (from useKeyboardShortcuts dispatches noisium:search-open)
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); openSearch(); }
@@ -50,8 +50,8 @@ export function GlobalSearch() {
     };
     const handleCustom = () => openSearch();
     window.addEventListener("keydown", handleKey);
-    window.addEventListener("tymbr:search-open", handleCustom);
-    return () => { window.removeEventListener("keydown", handleKey); window.removeEventListener("tymbr:search-open", handleCustom); };
+    window.addEventListener("noisium:search-open", handleCustom);
+    return () => { window.removeEventListener("keydown", handleKey); window.removeEventListener("noisium:search-open", handleCustom); };
   }, [open, openSearch]);
 
   // Debounced search

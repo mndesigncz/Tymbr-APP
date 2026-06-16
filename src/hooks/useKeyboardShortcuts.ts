@@ -23,7 +23,7 @@ export function useKeyboardShortcuts() {
         case "k":
         case "K":
           e.preventDefault();
-          window.dispatchEvent(new CustomEvent("tymbr:search-open"));
+          window.dispatchEvent(new CustomEvent("noisium:search-open"));
           break;
         case "d":
         case "D":
@@ -42,10 +42,10 @@ export function useKeyboardShortcuts() {
           break;
         case "?":
           e.preventDefault();
-          window.dispatchEvent(new CustomEvent("tymbr:shortcuts-help"));
+          window.dispatchEvent(new CustomEvent("noisium:shortcuts-help"));
           break;
         case "Escape":
-          window.dispatchEvent(new CustomEvent("tymbr:escape"));
+          window.dispatchEvent(new CustomEvent("noisium:escape"));
           break;
       }
     };

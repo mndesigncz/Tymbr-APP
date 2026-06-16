@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 
-const KEY = "tymbr:theme";
+const KEY = "noisium:theme";
 
 export function applyTheme(dark: boolean) {
   if (dark) {

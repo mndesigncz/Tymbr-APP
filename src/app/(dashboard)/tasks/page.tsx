@@ -194,8 +194,8 @@ function TasksContent() {
 
   useEffect(() => {
     const handler = () => { if (tab === "active") fetchActive(); };
-    window.addEventListener("tymbr:task-updated", handler);
-    return () => window.removeEventListener("tymbr:task-updated", handler);
+    window.addEventListener("noisium:task-updated", handler);
+    return () => window.removeEventListener("noisium:task-updated", handler);
   }, [tab, fetchActive]);
 
   useEffect(() => {

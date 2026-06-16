@@ -117,14 +117,14 @@ export function Sidebar() {
         <div className="flex items-center gap-2.5 min-w-0">
           <Image
             src="/icon-192.png"
-            alt="Tymbr"
+            alt="Noisium"
             width={32}
             height={32}
             className="w-8 h-8 rounded-xl shadow-sm flex-shrink-0"
             priority
           />
           <span className="text-[17px] font-bold tracking-tight truncate" style={{ color: "var(--text-1)" }}>
-            Tymbr
+            Noisium
           </span>
         </div>
       </div>

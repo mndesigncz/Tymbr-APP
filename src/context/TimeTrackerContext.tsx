@@ -101,7 +101,7 @@ export function TimeTrackerProvider({ children }: { children: React.ReactNode })
       await fetch(`/api/time-entries/${cur.id}`, { method: "PATCH" });
       setActive(null);
       setFocusOpen(false);
-      window.dispatchEvent(new CustomEvent("tymbr:task-updated"));
+      window.dispatchEvent(new CustomEvent("noisium:task-updated"));
     } finally {
       setIsLoading(false);
     }

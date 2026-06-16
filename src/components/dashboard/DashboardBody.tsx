@@ -40,7 +40,7 @@ interface DashboardBodyProps {
   completionData?: { date: string; count: number }[];
 }
 
-const STORAGE_KEY = "tymbr:dashboardWidgets";
+const STORAGE_KEY = "noisium:dashboardWidgets";
 
 const WIDGET_LABELS: { id: WidgetId; label: string; group: "stat" | "panel" }[] = [
   { id: "stat_active", label: "Aktivní / moje úkoly", group: "stat" },
