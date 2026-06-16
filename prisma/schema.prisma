@@ -36,6 +36,8 @@ model User {
   eventAssignments  EventAssignee[]
   contentPostsCreated  ContentPost[]  @relation("ContentPostCreator")
   contentPostsAssigned ContentPost[]  @relation("ContentPostAssignee")
+  notesCreated         Note[]         @relation("NoteCreator")
+  noteCollaborations   NoteCollaborator[]
 }
 
 model Notification {
@@ -82,9 +84,45 @@ model Team {
   webhooks       Webhook[]
   events         Event[]
   contentPosts   ContentPost[]
+  notes          Note[]
 
   @@index([ownerId])
   @@index([parentId])
+}
+
+model Note {
+  id         String   @id @default(cuid())
+  title      String   @default("")
+  content    String   @default("")
+  color      String?
+  pinned     Boolean  @default(false)
+  visibility String   @default("private")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  teamId      String?
+  team        Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  createdById String
+  createdBy   User     @relation("NoteCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  collaborators NoteCollaborator[]
+
+  @@index([teamId])
+  @@index([createdById])
+}
+
+model NoteCollaborator {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  noteId String
+  note   Note   @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([noteId, userId])
 }
 
 model TeamJoinRequest {
