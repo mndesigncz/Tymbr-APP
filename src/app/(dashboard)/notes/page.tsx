@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Header } from "@/components/layout/Header";
 import { Avatar } from "@/components/ui/Avatar";
@@ -10,9 +10,14 @@ import { Button } from "@/components/ui/Button";
 import { Suspense } from "react";
 import {
   Plus, Search, Pin, PinOff, Trash2, Globe, Lock, Users,
-  CalendarPlus, CheckSquare, Share2, UserPlus, X, Check,
+  CalendarPlus, CheckSquare, Share2, UserPlus, X, Check, BookOpen,
 } from "lucide-react";
 import { formatRelative } from "@/lib/utils";
+import { hoursToMinutes } from "@/lib/pricing";
+import {
+  STATUS_COLORS, STATUS_LABELS, PRIORITY_COLORS, PRIORITY_LABELS,
+  type TaskStatus, type TaskPriority,
+} from "@/types/index";
 
 const NOTE_COLORS = [
   { value: null,      label: "Výchozí",  bg: "var(--bg-card)",    border: "var(--border-md)" },
@@ -55,22 +60,24 @@ function NoteListItem({ note, active, onClick }: { note: Note; active: boolean; 
   return (
     <button
       onClick={onClick}
-      className="w-full text-left px-4 py-3.5 border-b transition-colors hover:bg-[var(--hover)]"
+      className="w-full text-left rounded-2xl px-3.5 py-3 transition-all active:scale-[0.98]"
       style={{
-        borderColor: "var(--border)",
         background: active
-          ? "color-mix(in srgb, var(--accent) 6%, transparent)"
+          ? "color-mix(in srgb, var(--accent) 12%, var(--bg-card))"
           : color?.value
-            ? `${color.bg}50`
-            : "transparent",
-        borderLeft: active ? "3px solid var(--accent)" : "3px solid transparent",
+            ? `${color.bg}dd`
+            : "var(--bg-card)",
+        boxShadow: "var(--shadow-sm)",
+        border: active
+          ? "1.5px solid var(--accent)"
+          : `1.5px solid ${color?.border ?? "var(--border)"}`,
       }}
     >
       <div className="flex items-start justify-between gap-2 mb-1">
         <span className="text-[13.5px] font-semibold truncate flex-1" style={{ color: "var(--text-1)" }}>
           {note.title || "Bez názvu"}
         </span>
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
           {note.pinned && <Pin className="w-3 h-3" style={{ color: "var(--accent)" }} />}
           {note.visibility === "team" ? (
             <Globe className="w-3 h-3" style={{ color: "var(--text-3)" }} />
@@ -81,10 +88,10 @@ function NoteListItem({ note, active, onClick }: { note: Note; active: boolean; 
           )}
         </div>
       </div>
-      <p className="text-[12px] truncate" style={{ color: "var(--text-3)" }}>
+      <p className="text-[12px] truncate leading-relaxed" style={{ color: "var(--text-3)" }}>
         {preview || <span className="italic">Prázdná poznámka</span>}
       </p>
-      <p className="text-[11px] mt-1" style={{ color: "var(--text-3)" }}>
+      <p className="text-[11px] mt-1.5" style={{ color: "var(--text-3)" }}>
         {formatRelative(note.updatedAt)}
       </p>
     </button>
@@ -150,9 +157,7 @@ function NoteEditor({
   }, [debouncedContent]);
 
   const togglePin = () => save({ pinned: !note.pinned }).then(() => onUpdate({ pinned: !note.pinned }));
-
   const setColor = (color: string | null) => save({ color });
-
   const setVisibility = (v: string) => save({ visibility: v });
 
   const addCollaborator = async (userId: string) => {
@@ -193,28 +198,48 @@ function NoteEditor({
     (u.name.toLowerCase().includes(collabSearch.toLowerCase()) || u.email.toLowerCase().includes(collabSearch.toLowerCase()))
   );
 
+  const toolbarBg = color.value
+    ? `${color.bg}e8`
+    : "color-mix(in srgb, var(--bg-card) 88%, transparent)";
+
   return (
-    <div className="flex flex-col h-full" style={{ background: color.bg }}>
-      {/* Toolbar */}
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b flex-shrink-0" style={{ borderColor: color.border ?? "var(--border)" }}>
-        {/* Color picker */}
-        <div className="flex items-center gap-1">
+    <div className="flex flex-col h-full"
+      style={{ background: color.value ? `${color.bg}55` : "var(--bg-page)" }}>
+
+      {/* Frosted glass toolbar */}
+      <div
+        className="flex items-center gap-1.5 px-4 py-2 border-b flex-shrink-0 backdrop-blur-xl"
+        style={{ borderColor: color.border ?? "var(--border)", background: toolbarBg }}
+      >
+        {/* Color swatches */}
+        <div className="flex items-center gap-1 mr-1">
           {NOTE_COLORS.map((c) => (
             <button
               key={c.label}
               onClick={() => setColor(c.value)}
-              className="w-5 h-5 rounded-full border-2 transition-transform hover:scale-110"
+              className="w-6 h-6 rounded-full transition-all hover:scale-110 flex-shrink-0"
               style={{
-                background: c.bg === "var(--bg-card)" ? "var(--bg-card)" : c.bg,
-                borderColor: note.color === c.value ? "var(--text-1)" : c.border,
+                background: c.bg === "var(--bg-card)" ? "var(--bg-subtle)" : c.bg,
+                border: note.color === c.value
+                  ? "2.5px solid var(--text-1)"
+                  : `2px solid ${c.border}`,
+                boxShadow: note.color === c.value ? "0 0 0 1.5px var(--accent)" : undefined,
               }}
               title={c.label}
             />
           ))}
         </div>
+
         <div className="flex-1" />
-        {/* Visibility */}
-        <div className="flex items-center rounded-xl overflow-hidden border" style={{ borderColor: "var(--border-md)" }}>
+
+        {/* Save indicator */}
+        <span className="text-[11px] mr-1" style={{ color: "var(--text-3)" }}>
+          {saving ? "Ukládám…" : saved ? <span style={{ color: "#22C55E" }}>✓ Uloženo</span> : ""}
+        </span>
+
+        {/* Visibility toggle */}
+        <div className="flex items-center rounded-xl overflow-hidden border"
+          style={{ borderColor: "var(--border-md)" }}>
           <button
             onClick={() => setVisibility("private")}
             className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11.5px] font-medium transition-all"
@@ -234,67 +259,60 @@ function NoteEditor({
             <Globe className="w-3 h-3" /> Tým
           </button>
         </div>
-        {/* Pin */}
-        <button
-          onClick={togglePin}
-          className="p-1.5 rounded-lg transition-colors hover:bg-[var(--hover)]"
-          title={note.pinned ? "Odepnout" : "Připnout"}
-          style={{ color: note.pinned ? "var(--accent)" : "var(--text-3)" }}
-        >
-          {note.pinned ? <Pin className="w-4 h-4" /> : <PinOff className="w-4 h-4" />}
-        </button>
-        {/* Share in chat */}
-        <button
-          onClick={() => setShareOpen(true)}
-          className="p-1.5 rounded-lg transition-colors hover:bg-[var(--hover)]"
-          title="Sdílet v chatu"
-          style={{ color: "var(--text-3)" }}
-        >
-          <Share2 className="w-4 h-4" />
-        </button>
-        {/* Create task */}
-        <button
-          onClick={() => setTaskOpen(true)}
-          className="p-1.5 rounded-lg transition-colors hover:bg-[var(--hover)]"
-          title="Vytvořit úkol"
-          style={{ color: "var(--text-3)" }}
-        >
-          <CheckSquare className="w-4 h-4" />
-        </button>
-        {/* Create calendar event */}
-        <button
-          onClick={() => setEventOpen(true)}
-          className="p-1.5 rounded-lg transition-colors hover:bg-[var(--hover)]"
-          title="Vytvořit událost"
-          style={{ color: "var(--text-3)" }}
-        >
-          <CalendarPlus className="w-4 h-4" />
-        </button>
-        {/* Save indicator */}
-        <span className="text-[11px] ml-1" style={{ color: "var(--text-3)" }}>
-          {saving ? "Ukládám…" : saved ? "✓" : ""}
-        </span>
-        {/* Delete */}
-        {isOwner && (
+
+        {/* Action buttons */}
+        <div className="flex items-center gap-0.5 ml-1">
           <button
-            onClick={() => {
-              if (confirm("Smazat tuto poznámku?")) onDelete();
-            }}
-            className="p-1.5 rounded-lg transition-colors hover:bg-[var(--danger-soft)]"
+            onClick={togglePin}
+            className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[var(--hover)]"
+            title={note.pinned ? "Odepnout" : "Připnout"}
+            style={{ color: note.pinned ? "var(--accent)" : "var(--text-3)" }}
+          >
+            {note.pinned ? <Pin className="w-4 h-4" /> : <PinOff className="w-4 h-4" />}
+          </button>
+          <button
+            onClick={() => setShareOpen(true)}
+            className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[var(--hover)]"
+            title="Sdílet v chatu"
             style={{ color: "var(--text-3)" }}
           >
-            <Trash2 className="w-4 h-4" />
+            <Share2 className="w-4 h-4" />
           </button>
-        )}
+          <button
+            onClick={() => setTaskOpen(true)}
+            className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[var(--hover)]"
+            title="Vytvořit úkol"
+            style={{ color: "var(--text-3)" }}
+          >
+            <CheckSquare className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setEventOpen(true)}
+            className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[var(--hover)]"
+            title="Vytvořit událost"
+            style={{ color: "var(--text-3)" }}
+          >
+            <CalendarPlus className="w-4 h-4" />
+          </button>
+          {isOwner && (
+            <button
+              onClick={() => { if (confirm("Smazat tuto poznámku?")) onDelete(); }}
+              className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[var(--danger-soft)]"
+              style={{ color: "var(--text-3)" }}
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Editor */}
-      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3">
+      {/* Editor body */}
+      <div className="flex-1 overflow-y-auto px-8 py-6 space-y-3">
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Název poznámky"
-          className="w-full text-[24px] font-bold bg-transparent outline-none placeholder:font-semibold"
+          className="w-full text-[26px] font-bold bg-transparent outline-none"
           style={{ color: "var(--text-1)" }}
         />
         <textarea
@@ -302,18 +320,24 @@ function NoteEditor({
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="Začni psát…"
-          className="w-full flex-1 bg-transparent outline-none resize-none text-[15px] leading-relaxed min-h-[400px]"
+          className="w-full bg-transparent outline-none resize-none text-[15px] leading-[1.75] min-h-[420px]"
           style={{ color: "var(--text-2)" }}
         />
       </div>
 
       {/* Collaborators footer */}
-      <div className="flex-shrink-0 border-t px-4 py-3" style={{ borderColor: color.border ?? "var(--border)" }}>
+      <div
+        className="flex-shrink-0 border-t px-4 py-3 backdrop-blur-xl"
+        style={{ borderColor: color.border ?? "var(--border)", background: toolbarBg }}
+      >
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[11.5px] font-semibold" style={{ color: "var(--text-3)" }}>Spolupracovníci:</span>
+          <span className="text-[11.5px] font-semibold" style={{ color: "var(--text-3)" }}>
+            Spolupracovníci:
+          </span>
           {collabs.map((c) => (
-            <div key={c.id} className="flex items-center gap-1.5 px-2 py-1 rounded-full text-[12px] font-medium"
-              style={{ background: "var(--bg-subtle)", color: "var(--text-1)" }}>
+            <div key={c.id}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium"
+              style={{ background: "var(--bg-card)", color: "var(--text-1)", boxShadow: "var(--shadow-sm)", border: "1px solid var(--border)" }}>
               <Avatar name={c.name} src={c.avatar} size="sm" />
               <span>{c.name}</span>
               {isOwner && (
@@ -328,7 +352,7 @@ function NoteEditor({
               <button
                 onClick={() => setShowCollabPicker((o) => !o)}
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium border transition-all hover:border-[var(--accent)]"
-                style={{ borderColor: "var(--border-md)", color: "var(--text-2)", background: "var(--bg-subtle)" }}
+                style={{ borderColor: "var(--border-md)", color: "var(--text-2)", background: "var(--bg-card)" }}
               >
                 <UserPlus className="w-3.5 h-3.5" /> Přizvat
               </button>
@@ -375,14 +399,15 @@ function NoteEditor({
           <p className="text-[13.5px]" style={{ color: "var(--text-2)" }}>
             Odešle obsah poznámky do týmového chatu jako zprávu. Platné i pro soukromé poznámky — sdílíš jen obsah, ne odkaz.
           </p>
-          <div className="rounded-xl p-3 border text-[12.5px]" style={{ background: "var(--bg-subtle)", borderColor: "var(--border-md)", color: "var(--text-2)" }}>
+          <div className="rounded-xl p-3 border text-[12.5px]"
+            style={{ background: "var(--bg-subtle)", borderColor: "var(--border-md)", color: "var(--text-2)" }}>
             <strong>{note.title || "Bez názvu"}</strong>
             {note.content && <p className="mt-1 line-clamp-3">{note.content}</p>}
           </div>
           <div className="flex gap-3">
             <Button variant="secondary" onClick={() => setShareOpen(false)} className="flex-1">Zrušit</Button>
             <Button onClick={shareInChat} className="flex-1">
-              {shareSent ? <><Check className="w-3.5 h-3.5" /> Odesláno</> : "Odeslat do chatu"}
+              {shareSent ? <><Check className="w-3.5 h-3.5 mr-1" /> Odesláno</> : "Odeslat do chatu"}
             </Button>
           </div>
         </div>
@@ -390,40 +415,286 @@ function NoteEditor({
 
       {/* Create task modal */}
       <Modal open={taskOpen} onClose={() => setTaskOpen(false)} title="Vytvořit úkol z poznámky">
-        <CreateFromNoteForm
-          type="task"
-          title={note.title}
-          content={note.content}
-          onClose={() => setTaskOpen(false)}
-        />
+        <CreateTaskFromNote note={note} onClose={() => setTaskOpen(false)} />
       </Modal>
 
       {/* Create event modal */}
       <Modal open={eventOpen} onClose={() => setEventOpen(false)} title="Vytvořit událost z poznámky">
-        <CreateFromNoteForm
-          type="event"
-          title={note.title}
-          content={note.content}
-          onClose={() => setEventOpen(false)}
-        />
+        <CreateEventFromNote note={note} onClose={() => setEventOpen(false)} />
       </Modal>
     </div>
   );
 }
 
-function CreateFromNoteForm({
-  type,
-  title: initTitle,
-  content: initContent,
-  onClose,
-}: {
-  type: "task" | "event";
-  title: string;
-  content: string;
-  onClose: () => void;
-}) {
+/* ─── Create Task from Note ──────────────────────────────────────────── */
+
+const STATUSES: TaskStatus[] = ["todo", "in_progress", "review", "done"];
+const PRIORITIES: TaskPriority[] = ["low", "medium", "high", "urgent"];
+
+function CreateTaskFromNote({ note, onClose }: { note: Note; onClose: () => void }) {
   const router = useRouter();
-  const [title, setTitle] = useState(initTitle || "");
+  const [title, setTitle] = useState(note.title || "");
+  const [description, setDescription] = useState(note.content || "");
+  const [status, setStatus] = useState<TaskStatus>("todo");
+  const [priority, setPriority] = useState<TaskPriority>("medium");
+  const [dueDate, setDueDate] = useState("");
+  const [estimatedHours, setEstimatedHours] = useState("");
+  const [expenses, setExpenses] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string; color?: string | null }[]>([]);
+  const [users, setUsers] = useState<{ id: string; name: string; email: string; avatar?: string | null }[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/categories").then(r => r.json()).then(d => { if (Array.isArray(d)) setCategories(d); });
+    fetch("/api/users").then(r => r.json()).then(d => { if (Array.isArray(d)) setUsers(d); });
+  }, []);
+
+  const toggleAssignee = (id: string) => {
+    setAssigneeIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+    setLoading(true);
+    const payload: Record<string, any> = {
+      title: title.trim(),
+      description: description || null,
+      status,
+      priority,
+      dueDate: dueDate || null,
+      categoryId: categoryId || null,
+      assigneeIds: assigneeIds.length ? assigneeIds : undefined,
+      estimatedMinutes: hoursToMinutes(estimatedHours),
+      expenses: expenses ? Number(expenses) : null,
+    };
+    const res = await fetch("/api/tasks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    setLoading(false);
+    if (res.ok) {
+      const task = await res.json();
+      setDone(true);
+      setTimeout(() => { onClose(); router.push(`/tasks/${task.id}`); }, 700);
+    }
+  };
+
+  if (done) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 gap-3">
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "#22C55E22" }}>
+          <Check className="w-6 h-6" style={{ color: "#22C55E" }} />
+        </div>
+        <p className="text-[14px] font-semibold" style={{ color: "var(--text-1)" }}>Úkol vytvořen</p>
+        <p className="text-[12.5px]" style={{ color: "var(--text-3)" }}>Přesměrování…</p>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+      {/* Title */}
+      <div>
+        <label className="text-[11.5px] font-semibold mb-1.5 block uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
+          Název úkolu
+        </label>
+        <input
+          autoFocus
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          required
+          placeholder="Název úkolu…"
+          className="w-full rounded-xl px-3.5 py-2.5 text-[14px] outline-none border transition-colors focus:border-[var(--accent)]"
+          style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}
+        />
+      </div>
+
+      {/* Description */}
+      <div>
+        <label className="text-[11.5px] font-semibold mb-1.5 block uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
+          Popis
+        </label>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Popis z poznámky…"
+          rows={3}
+          className="w-full rounded-xl px-3.5 py-2.5 text-[13.5px] outline-none border resize-none transition-colors focus:border-[var(--accent)]"
+          style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-2)" }}
+        />
+      </div>
+
+      {/* Status & Priority */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="text-[11.5px] font-semibold mb-1.5 block uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
+            Stav
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {STATUSES.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setStatus(s)}
+                className="px-2.5 py-1 rounded-lg text-[12px] font-semibold transition-all"
+                style={status === s
+                  ? { background: STATUS_COLORS[s] + "22", color: STATUS_COLORS[s], border: `1.5px solid ${STATUS_COLORS[s]}` }
+                  : { background: "var(--bg-subtle)", color: "var(--text-3)", border: "1.5px solid var(--border)" }}
+              >
+                {STATUS_LABELS[s]}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="text-[11.5px] font-semibold mb-1.5 block uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
+            Priorita
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {PRIORITIES.map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPriority(p)}
+                className="px-2.5 py-1 rounded-lg text-[12px] font-semibold transition-all"
+                style={priority === p
+                  ? { background: PRIORITY_COLORS[p] + "22", color: PRIORITY_COLORS[p], border: `1.5px solid ${PRIORITY_COLORS[p]}` }
+                  : { background: "var(--bg-subtle)", color: "var(--text-3)", border: "1.5px solid var(--border)" }}
+              >
+                {PRIORITY_LABELS[p]}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Due date & Category */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="text-[11.5px] font-semibold mb-1.5 block uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
+            Termín
+          </label>
+          <input
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            className="w-full rounded-xl px-3.5 py-2.5 text-[13.5px] outline-none border transition-colors focus:border-[var(--accent)]"
+            style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}
+          />
+        </div>
+        <div>
+          <label className="text-[11.5px] font-semibold mb-1.5 block uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
+            Funkce
+          </label>
+          <select
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            className="w-full rounded-xl px-3.5 py-2.5 text-[13.5px] outline-none border transition-colors focus:border-[var(--accent)]"
+            style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: categoryId ? "var(--text-1)" : "var(--text-3)" }}
+          >
+            <option value="">Bez funkce</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Estimated hours & Expenses */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="text-[11.5px] font-semibold mb-1.5 block uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
+            Čas (h)
+          </label>
+          <input
+            type="number"
+            min="0"
+            step="0.25"
+            value={estimatedHours}
+            onChange={(e) => setEstimatedHours(e.target.value)}
+            placeholder="0"
+            className="w-full rounded-xl px-3.5 py-2.5 text-[13.5px] outline-none border transition-colors focus:border-[var(--accent)]"
+            style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}
+          />
+        </div>
+        <div>
+          <label className="text-[11.5px] font-semibold mb-1.5 block uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
+            Náklady (Kč)
+          </label>
+          <input
+            type="number"
+            min="0"
+            value={expenses}
+            onChange={(e) => setExpenses(e.target.value)}
+            placeholder="0"
+            className="w-full rounded-xl px-3.5 py-2.5 text-[13.5px] outline-none border transition-colors focus:border-[var(--accent)]"
+            style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}
+          />
+        </div>
+      </div>
+
+      {/* Assignees */}
+      {users.length > 0 && (
+        <div>
+          <label className="text-[11.5px] font-semibold mb-2 block uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
+            Přiřazení
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {users.map((u) => {
+              const selected = assigneeIds.includes(u.id);
+              return (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => toggleAssignee(u.id)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full text-[12.5px] font-medium transition-all"
+                  style={selected
+                    ? { background: "color-mix(in srgb, var(--accent) 15%, transparent)", color: "var(--accent)", border: "1.5px solid var(--accent)" }
+                    : { background: "var(--bg-card)", color: "var(--text-2)", border: "1.5px solid var(--border-md)" }}
+                >
+                  <Avatar name={u.name} src={u.avatar} size="sm" />
+                  {u.name}
+                  {selected && <Check className="w-3 h-3 ml-0.5" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex gap-3 pt-1">
+        <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
+          Zrušit
+        </Button>
+        <Button type="submit" loading={loading} className="flex-1">
+          Vytvořit úkol
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/* ─── Create Event from Note ──────────────────────────────────────────── */
+
+function CreateEventFromNote({ note, onClose }: { note: Note; onClose: () => void }) {
+  const router = useRouter();
+  const [title, setTitle] = useState(note.title || "");
+  const [startAt, setStartAt] = useState(() => {
+    const d = new Date();
+    d.setSeconds(0, 0);
+    return d.toISOString().slice(0, 16);
+  });
+  const [endAt, setEndAt] = useState(() => {
+    const d = new Date(Date.now() + 3600000);
+    d.setSeconds(0, 0);
+    return d.toISOString().slice(0, 16);
+  });
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
@@ -431,69 +702,89 @@ function CreateFromNoteForm({
     e.preventDefault();
     if (!title.trim()) return;
     setLoading(true);
-    if (type === "task") {
-      const res = await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), description: initContent || null }),
-      });
-      setLoading(false);
-      if (res.ok) {
-        const task = await res.json();
-        setDone(true);
-        setTimeout(() => { onClose(); router.push(`/tasks/${task.id}`); }, 800);
-      }
-    } else {
-      const res = await fetch("/api/events", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: title.trim(),
-          description: initContent || null,
-          startAt: new Date().toISOString(),
-          endAt: new Date(Date.now() + 3600000).toISOString(),
-          allDay: false,
-        }),
-      });
-      setLoading(false);
-      if (res.ok) {
-        setDone(true);
-        setTimeout(() => { onClose(); router.push("/calendar"); }, 800);
-      }
+    const res = await fetch("/api/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: title.trim(),
+        description: note.content || null,
+        startAt: new Date(startAt).toISOString(),
+        endAt: new Date(endAt).toISOString(),
+        allDay: false,
+      }),
+    });
+    setLoading(false);
+    if (res.ok) {
+      setDone(true);
+      setTimeout(() => { onClose(); router.push("/calendar"); }, 700);
     }
   };
 
+  if (done) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 gap-3">
+        <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "#22C55E22" }}>
+          <Check className="w-6 h-6" style={{ color: "#22C55E" }} />
+        </div>
+        <p className="text-[14px] font-semibold" style={{ color: "var(--text-1)" }}>Událost vytvořena</p>
+      </div>
+    );
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+    <form onSubmit={handleSubmit} className="space-y-4 pt-1">
       <div>
-        <label className="text-[12px] font-semibold mb-1.5 block" style={{ color: "var(--text-3)" }}>
-          {type === "task" ? "Název úkolu" : "Název události"}
+        <label className="text-[11.5px] font-semibold mb-1.5 block uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
+          Název události
         </label>
         <input
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
-          className="w-full border rounded-xl px-3.5 py-2.5 text-[14px] outline-none focus:border-[var(--accent)]"
+          className="w-full rounded-xl px-3.5 py-2.5 text-[14px] outline-none border transition-colors focus:border-[var(--accent)]"
           style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}
         />
       </div>
-      {done ? (
-        <div className="flex items-center justify-center gap-2 py-2" style={{ color: "#22C55E" }}>
-          <Check className="w-4 h-4" />
-          <span className="text-[13.5px] font-semibold">{type === "task" ? "Úkol vytvořen" : "Událost vytvořena"}</span>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="text-[11.5px] font-semibold mb-1.5 block uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
+            Začátek
+          </label>
+          <input
+            type="datetime-local"
+            value={startAt}
+            onChange={(e) => setStartAt(e.target.value)}
+            className="w-full rounded-xl px-3 py-2.5 text-[13px] outline-none border transition-colors focus:border-[var(--accent)]"
+            style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}
+          />
         </div>
-      ) : (
-        <div className="flex gap-3">
-          <Button type="button" variant="secondary" onClick={onClose} className="flex-1">Zrušit</Button>
-          <Button type="submit" loading={loading} className="flex-1">
-            {type === "task" ? "Vytvořit úkol" : "Vytvořit událost"}
-          </Button>
+        <div>
+          <label className="text-[11.5px] font-semibold mb-1.5 block uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
+            Konec
+          </label>
+          <input
+            type="datetime-local"
+            value={endAt}
+            onChange={(e) => setEndAt(e.target.value)}
+            className="w-full rounded-xl px-3 py-2.5 text-[13px] outline-none border transition-colors focus:border-[var(--accent)]"
+            style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}
+          />
         </div>
-      )}
+      </div>
+      <div className="flex gap-3 pt-1">
+        <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
+          Zrušit
+        </Button>
+        <Button type="submit" loading={loading} className="flex-1">
+          Vytvořit událost
+        </Button>
+      </div>
     </form>
   );
 }
+
+/* ─── Notes content ──────────────────────────────────────────────────── */
 
 function NotesContent() {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -565,12 +856,13 @@ function NotesContent() {
 
       <div className="flex flex-1 overflow-hidden">
         {/* Note list sidebar */}
-        <div className="w-72 flex-shrink-0 border-r flex flex-col overflow-hidden"
+        <div className="w-[272px] flex-shrink-0 border-r flex flex-col overflow-hidden"
           style={{ borderColor: "var(--border)", background: "var(--bg-page)" }}>
+
           {/* Search */}
-          <div className="p-3 border-b" style={{ borderColor: "var(--border)" }}>
+          <div className="px-3 pt-3 pb-2">
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl border"
-              style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
+              style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", boxShadow: "var(--shadow-sm)" }}>
               <Search className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--text-3)" }} />
               <input
                 value={search}
@@ -587,7 +879,7 @@ function NotesContent() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto no-scrollbar px-2 pb-2">
             {loading ? (
               <div className="flex items-center justify-center py-16">
                 <div className="w-5 h-5 border-2 rounded-full animate-spin"
@@ -609,10 +901,10 @@ function NotesContent() {
                 )}
               </div>
             ) : (
-              <>
+              <div className="space-y-1.5 pt-1">
                 {pinned.length > 0 && (
                   <>
-                    <p className="px-4 pt-3 pb-1 text-[10.5px] font-semibold uppercase tracking-wider"
+                    <p className="px-1 pt-1 pb-0.5 text-[10.5px] font-semibold uppercase tracking-wider"
                       style={{ color: "var(--text-3)" }}>
                       Připnuté
                     </p>
@@ -624,7 +916,7 @@ function NotesContent() {
                 {rest.length > 0 && (
                   <>
                     {pinned.length > 0 && (
-                      <p className="px-4 pt-3 pb-1 text-[10.5px] font-semibold uppercase tracking-wider"
+                      <p className="px-1 pt-2 pb-0.5 text-[10.5px] font-semibold uppercase tracking-wider"
                         style={{ color: "var(--text-3)" }}>
                         Ostatní
                       </p>
@@ -634,7 +926,7 @@ function NotesContent() {
                     ))}
                   </>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>
@@ -650,13 +942,19 @@ function NotesContent() {
               onRefresh={() => loadNote(activeId!)}
             />
           ) : (
-            <div className="flex flex-col items-center justify-center h-full gap-4"
-              style={{ color: "var(--text-3)" }}>
+            <div className="flex flex-col items-center justify-center h-full gap-4">
               <div className="w-16 h-16 rounded-3xl flex items-center justify-center"
-                style={{ background: "var(--bg-subtle)" }}>
-                <Pin className="w-7 h-7" style={{ color: "var(--text-3)" }} />
+                style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-sm)" }}>
+                <BookOpen className="w-7 h-7" style={{ color: "var(--text-3)" }} />
               </div>
-              <p className="text-[15px] font-semibold" style={{ color: "var(--text-2)" }}>Vyber nebo vytvoř poznámku</p>
+              <div className="text-center">
+                <p className="text-[15px] font-semibold" style={{ color: "var(--text-2)" }}>
+                  Vyber nebo vytvoř poznámku
+                </p>
+                <p className="text-[13px] mt-1" style={{ color: "var(--text-3)" }}>
+                  Tvoje myšlenky, nápady a plány na jednom místě
+                </p>
+              </div>
               <Button icon={<Plus className="w-4 h-4" />} onClick={createNote}>
                 Nová poznámka
               </Button>
