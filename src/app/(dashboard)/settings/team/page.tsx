@@ -924,44 +924,44 @@ function TeamSettingsContent() {
 
               return (
                 <div key={member.id}>
-                  <div className="flex items-center gap-4 px-6 py-4">
+                  <div className="flex flex-wrap items-center gap-3 px-4 sm:px-6 py-4">
                     <Avatar name={member.user?.name ?? "?"} src={member.user?.avatar} size="md" />
                     <div className="flex-1 min-w-0">
                       <p className="text-[13.5px] font-semibold flex items-center gap-1.5" style={{ color: "var(--text-1)" }}>
-                        {member.user?.name}
-                        {isMemberOwner && <Crown className="w-3.5 h-3.5" style={{ color: "var(--accent)" }} />}
-                        {isMe && <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-md" style={{ background: "var(--bg-subtle)", color: "var(--text-3)" }}>Já</span>}
+                        <span className="truncate">{member.user?.name}</span>
+                        {isMemberOwner && <Crown className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--accent)" }} />}
+                        {isMe && <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-md flex-shrink-0" style={{ background: "var(--bg-subtle)", color: "var(--text-3)" }}>Já</span>}
                       </p>
-                      <p className="text-[12px]" style={{ color: "var(--text-3)" }}>{member.user?.email}</p>
+                      <p className="text-[12px] truncate" style={{ color: "var(--text-3)" }}>{member.user?.email}</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {isOwnerOrAdmin && !isMemberOwner && !isMe ? (
-                        <>
+                    {isOwnerOrAdmin && !isMemberOwner && !isMe ? (
+                      <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                        <div className="flex-1 sm:flex-none min-w-0">
                           <Select options={ROLE_OPTIONS.filter((r) => r.value !== "owner")} value={member.role} onChange={(e) => handleChangeRole(member.userId, e.target.value)} />
-                          {canEditPerms && (
-                            <button
-                              onClick={() => setExpandedMemberId(isExpanded ? null : member.id)}
-                              className="p-2 rounded-xl transition-colors hover:bg-[var(--hover)] flex items-center gap-1"
-                              title="Oprávnění"
-                              style={{ color: isExpanded ? "var(--accent)" : "var(--text-3)" }}
-                            >
-                              <Shield className="w-4 h-4" />
-                              <ChevronDown
-                                className="w-3.5 h-3.5 transition-transform"
-                                style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
-                              />
-                            </button>
-                          )}
-                          <button onClick={() => handleRemoveMember(member.userId)} className="p-2 rounded-xl transition-colors hover:bg-red-50 hover:text-red-500" style={{ color: "var(--text-3)" }}>
-                            <Trash2 className="w-4 h-4" />
+                        </div>
+                        {canEditPerms && (
+                          <button
+                            onClick={() => setExpandedMemberId(isExpanded ? null : member.id)}
+                            className="p-2 rounded-xl transition-colors hover:bg-[var(--hover)] flex items-center gap-1 flex-shrink-0"
+                            title="Oprávnění"
+                            style={{ color: isExpanded ? "var(--accent)" : "var(--text-3)" }}
+                          >
+                            <Shield className="w-4 h-4" />
+                            <ChevronDown
+                              className="w-3.5 h-3.5 transition-transform"
+                              style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}
+                            />
                           </button>
-                        </>
-                      ) : (
-                        <span className="text-[12.5px] font-semibold px-2.5 py-1 rounded-xl" style={{ background: "var(--bg-subtle)", color: "var(--text-2)" }}>
-                          {ROLE_LABELS[member.role as TeamRole] ?? member.role}
-                        </span>
-                      )}
-                    </div>
+                        )}
+                        <button onClick={() => handleRemoveMember(member.userId)} className="p-2 rounded-xl transition-colors hover:bg-red-50 hover:text-red-500 flex-shrink-0" style={{ color: "var(--text-3)" }}>
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-[12.5px] font-semibold px-2.5 py-1 rounded-xl flex-shrink-0" style={{ background: "var(--bg-subtle)", color: "var(--text-2)" }}>
+                        {ROLE_LABELS[member.role as TeamRole] ?? member.role}
+                      </span>
+                    )}
                   </div>
                   {isExpanded && canEditPerms && (
                     <MemberPermissionsEditor

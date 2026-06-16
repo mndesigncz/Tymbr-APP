@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Neautorizováno" }, { status: 401 });
     const body = await req.json();
-    const { title, description, status, priority, dueDate, startDate, categoryId, hourlyRate, recurring, icon } = body;
+    const { title, description, status, priority, dueDate, startDate, categoryId, hourlyRate, recurring, icon, estimatedMinutes, expenses } = body;
     // assigneeIds: new multi-assignee array; assigneeId: legacy single
     const assigneeIds: string[] = Array.isArray(body.assigneeIds) ? body.assigneeIds.filter(Boolean) : [];
     if (!assigneeIds.length && body.assigneeId) assigneeIds.push(body.assigneeId);
@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
     const rows = await prisma.$queryRaw<any[]>`
       INSERT INTO "Task" (
         id, title, description, status, priority, "dueDate", "startDate",
-        "categoryId", "assigneeId", "hourlyRate", "completedAt",
+        "categoryId", "assigneeId", "hourlyRate", "estimatedMinutes", "expenses", "completedAt",
         "createdById", "teamId", recurring, icon, "createdAt", "updatedAt"
       )
       VALUES (
@@ -139,6 +139,8 @@ export async function POST(req: NextRequest) {
         ${categoryId || null},
         ${primaryAssigneeId},
         ${hourlyRate ? Number(hourlyRate) : null},
+        ${estimatedMinutes ? Math.round(Number(estimatedMinutes)) : null},
+        ${expenses ? Number(expenses) : null},
         ${completedAt},
         ${session.user.id},
         ${teamId},

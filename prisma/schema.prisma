@@ -300,6 +300,8 @@ model Task {
   startDate   DateTime?
   completedAt DateTime?
   hourlyRate  Float?
+  estimatedMinutes Int?
+  expenses    Float?
   visibility  String    @default("team")
   recurring   String    @default("none")
   icon        String?
@@ -429,6 +431,7 @@ model SubTask {
   title       String
   description String?
   hourlyRate  Float?
+  estimatedMinutes Int?
   done        Boolean  @default(false)
   order       Int      @default(0)
   createdAt   DateTime @default(now())

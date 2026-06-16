@@ -12,6 +12,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { formatDate, formatRelative } from "@/lib/utils";
+import { computeEstimate, formatCZK, formatDuration } from "@/lib/pricing";
 import type { Task } from "@/types";
 import {
   Calendar, Edit2, Trash2, MessageSquare,
@@ -387,6 +388,54 @@ export default function TaskDetailPage() {
                     </span>
                   </div>
                 ) : null}
+
+                {(() => {
+                  const est = computeEstimate({
+                    taskMinutes: task.estimatedMinutes,
+                    taskRate: task.hourlyRate,
+                    expenses: task.expenses,
+                    subtasks: (task.subtasks ?? []).map((s: any) => ({
+                      minutes: s.estimatedMinutes,
+                      rate: s.hourlyRate,
+                    })),
+                  });
+                  if (!est.hasData) return null;
+                  return (
+                    <div>
+                      <p className="text-[12px] mb-2" style={{ color: "var(--text-3)" }}>Předpokládaná cena zakázky</p>
+                      <div className="rounded-xl border p-3 space-y-2"
+                        style={{ background: "var(--bg-subtle)", borderColor: "var(--border-md)" }}>
+                        {est.laborTask > 0 && (
+                          <div className="flex justify-between text-[12px]">
+                            <span style={{ color: "var(--text-2)" }}>Práce – úkol</span>
+                            <span className="font-semibold" style={{ color: "var(--text-1)" }}>{formatCZK(est.laborTask)}</span>
+                          </div>
+                        )}
+                        {est.laborSubtasks > 0 && (
+                          <div className="flex justify-between text-[12px]">
+                            <span style={{ color: "var(--text-2)" }}>Práce – podúkoly</span>
+                            <span className="font-semibold" style={{ color: "var(--text-1)" }}>{formatCZK(est.laborSubtasks)}</span>
+                          </div>
+                        )}
+                        {est.expenses > 0 && (
+                          <div className="flex justify-between text-[12px]">
+                            <span style={{ color: "var(--text-2)" }}>Náklady</span>
+                            <span className="font-semibold" style={{ color: "var(--text-1)" }}>{formatCZK(est.expenses)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between pt-1.5 border-t" style={{ borderColor: "var(--border)" }}>
+                          <span className="text-[12.5px] font-bold" style={{ color: "var(--text-1)" }}>Celkem</span>
+                          <span className="text-[12.5px] font-bold" style={{ color: "var(--accent)" }}>{formatCZK(est.total)}</span>
+                        </div>
+                        {est.totalMinutes > 0 && (
+                          <p className="text-[11px]" style={{ color: "var(--text-3)" }}>
+                            Celková doba: {formatDuration(est.totalMinutes)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {task.completedAt ? (
                   <div>

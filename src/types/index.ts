@@ -65,6 +65,8 @@ export interface Task {
   startDate?: Date | null;
   completedAt?: Date | string | null;
   hourlyRate?: number | null;
+  estimatedMinutes?: number | null;
+  expenses?: number | null;
   createdAt: Date;
   updatedAt: Date;
   teamId?: string | null;
@@ -91,6 +93,7 @@ export interface SubTask {
   title: string;
   description?: string | null;
   hourlyRate?: number | null;
+  estimatedMinutes?: number | null;
   done: boolean;
   order: number;
   createdAt: Date | string;
