@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import type { Task } from "@/types";
-import { Plus, LayoutGrid, List, Search, SlidersHorizontal, X, CheckCheck, ChevronDown, Trash2, Square, CheckSquare2 } from "lucide-react";
+import { Plus, LayoutGrid, List, Search, SlidersHorizontal, X, CheckCheck, ChevronDown, Trash2, Square, CheckSquare2, Download } from "lucide-react";
+import { exportTasksToPdf } from "@/lib/exportPdf";
 import { useStatusConfig } from "@/hooks/useStatusConfig";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -96,6 +97,18 @@ function TasksContent() {
   const [dateRange, setDateRange] = useState<DateRange>("month");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    if (exporting || tasks.length === 0) return;
+    setExporting(true);
+    try {
+      const label = tab === "done" ? "Hotové úkoly" : "Aktivní úkoly";
+      await exportTasksToPdf(tasks, label);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const myId = session?.user?.id;
 
@@ -260,6 +273,16 @@ function TasksContent() {
         actions={
           <div className="flex items-center gap-2">
             <StartWorkButton />
+            <button
+              onClick={handleExport}
+              disabled={exporting || tasks.length === 0}
+              title="Exportovat do PDF"
+              aria-label="Exportovat do PDF"
+              className="p-2.5 rounded-xl border transition-colors hover:bg-[var(--hover)] disabled:opacity-40"
+              style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-2)" }}
+            >
+              <Download className="w-4 h-4" />
+            </button>
             <Link href="/tasks/new">
               <Button icon={<Plus className="w-4 h-4" />}>
                 <span>Nový úkol</span>
