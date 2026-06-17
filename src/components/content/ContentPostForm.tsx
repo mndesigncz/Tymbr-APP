@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
-import { Link2, Trash2 } from "lucide-react";
+import { Link2, Trash2, ImagePlus, Loader2, X } from "lucide-react";
 import type { ContentPost, ContentStatus, User } from "@/types";
 import { PLATFORMS, CONTENT_STATUSES } from "./platforms";
 
@@ -31,15 +31,39 @@ export function ContentPostForm({ post, defaultStatus, onSaved, onDeleted, onClo
   const [content, setContent] = useState(post?.content || "");
   const [link, setLink] = useState(post?.link || "");
   const [assigneeId, setAssigneeId] = useState(post?.assigneeId || "");
+  const [mediaUrl, setMediaUrl] = useState(post?.mediaUrl || "");
   const [members, setMembers] = useState<User[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch("/api/users").then((r) => r.json()).then((d) => Array.isArray(d) && setMembers(d)).catch(() => {});
   }, []);
+
+  const handlePickImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) await uploadImage(file);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const uploadImage = async (file: File) => {
+    setUploading(true);
+    setError("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/content-posts/upload", { method: "POST", body: fd });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(d.error || "Nahrání obrázku selhalo"); return; }
+      setMediaUrl(d.url);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +81,7 @@ export function ContentPostForm({ post, defaultStatus, onSaved, onDeleted, onClo
           scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : null,
           content: content || null,
           link: link || null,
+          mediaUrl: mediaUrl || null,
           assigneeId: assigneeId || null,
         }),
       });
@@ -136,6 +161,40 @@ export function ContentPostForm({ post, defaultStatus, onSaved, onDeleted, onClo
           Datum publikace {status === "scheduled" ? "" : "(nepovinné)"}
         </label>
         <Input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} />
+      </div>
+
+      {/* Media image */}
+      <div>
+        <label className="text-[12px] font-semibold mb-1.5 block" style={{ color: "var(--text-3)" }}>Obrázek</label>
+        <input ref={fileRef} type="file" accept="image/*" onChange={handlePickImage} className="hidden" />
+        {mediaUrl ? (
+          <div className="relative rounded-xl overflow-hidden border" style={{ borderColor: "var(--border-md)" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={mediaUrl} alt="Náhled" className="w-full max-h-64 object-cover" />
+            <button
+              type="button"
+              onClick={() => setMediaUrl("")}
+              className="absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center text-white transition-opacity hover:opacity-90"
+              style={{ background: "rgba(0,0,0,0.55)" }}
+              title="Odebrat obrázek"
+              aria-label="Odebrat obrázek"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className="w-full flex flex-col items-center justify-center gap-1.5 py-6 rounded-xl border border-dashed transition-colors hover:bg-[var(--bg-subtle)] disabled:opacity-60"
+            style={{ borderColor: "var(--border-md)", color: "var(--text-3)" }}
+          >
+            {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImagePlus className="w-5 h-5" />}
+            <span className="text-[12.5px] font-medium">{uploading ? "Nahrávám…" : "Nahrát obrázek"}</span>
+            <span className="text-[11px]">JPG, PNG, WEBP, GIF · max 8 MB</span>
+          </button>
+        )}
       </div>
 
       {/* Copy text */}

@@ -29,7 +29,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!existing) return NextResponse.json({ error: "Příspěvek nenalezen" }, { status: 404 });
 
     const body = await req.json();
-    const { title, content, link, assigneeId } = body;
+    const { title, content, link, assigneeId, mediaUrl } = body;
 
     let scheduledAt: Date | null | undefined;
     if ("scheduledAt" in body) {
@@ -57,6 +57,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         ...(scheduledAt !== undefined && { scheduledAt }),
         ...(publishedAt !== undefined && { publishedAt }),
         ...(link !== undefined && { link: link || null }),
+        ...(mediaUrl !== undefined && { mediaUrl: mediaUrl || null }),
         ...(assigneeId !== undefined && { assigneeId: assigneeId || null }),
       },
       include: postInclude,

@@ -136,8 +136,13 @@ export function ContentBoard() {
                 className={draggingId === post.id ? "opacity-40" : ""}
               >
                 <button type="button" onClick={() => openEdit(post)}
-                  className="w-full text-left rounded-2xl border p-4 transition-all duration-150 cursor-pointer hover:-translate-y-0.5"
+                  className="w-full text-left rounded-2xl border transition-all duration-150 cursor-pointer hover:-translate-y-0.5 overflow-hidden"
                   style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
+                  {post.mediaUrl && (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={post.mediaUrl} alt="" className="w-full h-32 object-cover" />
+                  )}
+                  <div className={post.mediaUrl ? "p-4 pt-3" : "p-4"}>
                   <div className="flex items-center gap-1.5 mb-2">
                     <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-1 rounded-lg"
                       style={{ color: platform.color, background: `color-mix(in srgb, ${platform.color} 10%, transparent)` }}>
@@ -164,6 +169,7 @@ export function ContentBoard() {
                     {post.assignee && (
                       <Avatar name={post.assignee.name} src={post.assignee.avatar} size="sm" />
                     )}
+                  </div>
                   </div>
                 </button>
               </div>
