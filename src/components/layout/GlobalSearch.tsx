@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Search, CheckSquare, MessageSquare, User, X, ArrowRight } from "lucide-react";
+import { Search, CheckSquare, MessageSquare, User, X, ArrowRight, StickyNote, Calendar, FileText, Link2, Paperclip } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 
 interface SearchTask {
@@ -19,6 +19,22 @@ interface SearchMember {
   user: { id: string; name: string; email: string; avatar: string | null };
   role: string;
 }
+interface SearchNote {
+  id: string; title: string; content: string; color: string | null;
+}
+interface SearchEvent {
+  id: string; title: string; startAt: string; allDay: boolean; location: string | null; color: string | null;
+}
+interface SearchFile {
+  id: string; name: string; type: string; url: string; mimeType: string | null;
+}
+
+interface SearchResults {
+  tasks: SearchTask[]; comments: SearchComment[]; members: SearchMember[];
+  notes: SearchNote[]; events: SearchEvent[]; files: SearchFile[];
+}
+
+type ItemType = "task" | "comment" | "member" | "note" | "event" | "file";
 
 const STATUS_COLORS: Record<string, string> = {
   todo: "#6B7280", in_progress: "#3B82F6", review: "#EAB308", done: "#22C55E",
@@ -28,7 +44,7 @@ export function GlobalSearch() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
-  const [results, setResults] = useState<{ tasks: SearchTask[]; comments: SearchComment[]; members: SearchMember[] } | null>(null);
+  const [results, setResults] = useState<SearchResults | null>(null);
   const [loading, setLoading] = useState(false);
   const [idx, setIdx] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -72,28 +88,50 @@ export function GlobalSearch() {
     }, 250);
   }, [q, open]);
 
-  const allItems: { type: "task" | "comment" | "member"; id: string; url: string }[] = [
+  // Rendered order — keep flatIdx() and the JSX sections in the same order.
+  const allItems: { type: ItemType; id: string; url: string; external?: boolean }[] = [
     ...(results?.tasks ?? []).map((t) => ({ type: "task" as const, id: t.id, url: `/tasks/${t.id}` })),
+    ...(results?.notes ?? []).map((n) => ({ type: "note" as const, id: n.id, url: `/notes?note=${n.id}` })),
+    ...(results?.events ?? []).map((e) => ({ type: "event" as const, id: e.id, url: `/calendar?event=${e.id}` })),
+    ...(results?.files ?? []).map((f) => ({ type: "file" as const, id: f.id, url: f.url, external: true })),
     ...(results?.comments ?? []).map((c) => ({ type: "comment" as const, id: c.id, url: `/tasks/${c.task.id}` })),
     ...(results?.members ?? []).map((m) => ({ type: "member" as const, id: m.user.id, url: `/tasks?assigneeId=${m.user.id}` })),
   ];
 
-  const navigate = (url: string) => { setOpen(false); router.push(url); };
+  const navigate = (url: string, external?: boolean) => {
+    setOpen(false);
+    if (external) { window.open(url, "_blank", "noopener,noreferrer"); return; }
+    router.push(url);
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") { e.preventDefault(); setIdx((i) => Math.min(i + 1, allItems.length - 1)); }
     else if (e.key === "ArrowUp") { e.preventDefault(); setIdx((i) => Math.max(i - 1, 0)); }
-    else if (e.key === "Enter" && allItems[idx]) navigate(allItems[idx].url);
+    else if (e.key === "Enter" && allItems[idx]) navigate(allItems[idx].url, allItems[idx].external);
     else if (e.key === "Escape") setOpen(false);
   };
 
   if (!open) return null;
 
-  const flatIdx = (type: "task" | "comment" | "member", localIdx: number) => {
-    if (type === "task") return localIdx;
-    if (type === "comment") return (results?.tasks.length ?? 0) + localIdx;
-    return (results?.tasks.length ?? 0) + (results?.comments.length ?? 0) + localIdx;
+  // Offset of each section in the flat keyboard-nav list (must match allItems order).
+  const flatIdx = (type: ItemType, localIdx: number) => {
+    const len = {
+      task: results?.tasks.length ?? 0,
+      note: results?.notes.length ?? 0,
+      event: results?.events.length ?? 0,
+      file: results?.files.length ?? 0,
+      comment: results?.comments.length ?? 0,
+      member: results?.members.length ?? 0,
+    };
+    const order: ItemType[] = ["task", "note", "event", "file", "comment", "member"];
+    let offset = 0;
+    for (const t of order) { if (t === type) break; offset += len[t]; }
+    return offset + localIdx;
   };
+
+  const totalCount =
+    (results?.tasks.length ?? 0) + (results?.notes.length ?? 0) + (results?.events.length ?? 0) +
+    (results?.files.length ?? 0) + (results?.comments.length ?? 0) + (results?.members.length ?? 0);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] bg-black/20 backdrop-blur-[3px] animate-fade-in"
@@ -110,7 +148,7 @@ export function GlobalSearch() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Hledat úkoly, komentáře, členy…"
+            placeholder="Hledat úkoly, poznámky, události, soubory…"
             className="flex-1 bg-transparent outline-none text-[15px]"
             style={{ color: "var(--text-1)" }}
           />
@@ -134,7 +172,7 @@ export function GlobalSearch() {
 
           {!loading && q.length >= 2 && results && (
             <>
-              {results.tasks.length === 0 && results.comments.length === 0 && results.members.length === 0 && (
+              {totalCount === 0 && (
                 <div className="py-10 text-center text-[13px]" style={{ color: "var(--text-3)" }}>
                   Žádné výsledky pro „{q}"
                 </div>
@@ -153,6 +191,63 @@ export function GlobalSearch() {
                             style={{ color: t.category.color, background: `${t.category.color}18` }}>{t.category.name}</span>
                         )}
                         <ArrowRight className="w-3.5 h-3.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "var(--text-3)" }} />
+                      </ResultRow>
+                    );
+                  })}
+                </Section>
+              )}
+
+              {results.notes.length > 0 && (
+                <Section label="Poznámky" icon={<StickyNote className="w-3.5 h-3.5" />}>
+                  {results.notes.map((n, i) => {
+                    const gi = flatIdx("note", i);
+                    return (
+                      <ResultRow key={n.id} active={idx === gi} onClick={() => navigate(`/notes?note=${n.id}`)}>
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: n.color || "var(--text-3)" }} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13.5px] font-medium truncate" style={{ color: "var(--text-1)" }}>{n.title || "Bez názvu"}</p>
+                          {n.content && <p className="text-[12px] truncate" style={{ color: "var(--text-3)" }}>{n.content}</p>}
+                        </div>
+                        <ArrowRight className="w-3.5 h-3.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "var(--text-3)" }} />
+                      </ResultRow>
+                    );
+                  })}
+                </Section>
+              )}
+
+              {results.events.length > 0 && (
+                <Section label="Události" icon={<Calendar className="w-3.5 h-3.5" />}>
+                  {results.events.map((e, i) => {
+                    const gi = flatIdx("event", i);
+                    return (
+                      <ResultRow key={e.id} active={idx === gi} onClick={() => navigate(`/calendar?event=${e.id}`)}>
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: e.color || "var(--accent)" }} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13.5px] font-medium truncate" style={{ color: "var(--text-1)" }}>{e.title}</p>
+                          <p className="text-[12px] truncate" style={{ color: "var(--text-3)" }}>
+                            {formatEventDate(e.startAt, e.allDay)}{e.location ? ` · ${e.location}` : ""}
+                          </p>
+                        </div>
+                        <ArrowRight className="w-3.5 h-3.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "var(--text-3)" }} />
+                      </ResultRow>
+                    );
+                  })}
+                </Section>
+              )}
+
+              {results.files.length > 0 && (
+                <Section label="Soubory" icon={<Paperclip className="w-3.5 h-3.5" />}>
+                  {results.files.map((f, i) => {
+                    const gi = flatIdx("file", i);
+                    const isLink = f.type === "link";
+                    return (
+                      <ResultRow key={f.id} active={idx === gi} onClick={() => navigate(f.url, true)}>
+                        {isLink
+                          ? <Link2 className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-3)" }} />
+                          : <FileText className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-3)" }} />}
+                        <span className="flex-1 text-[13.5px] font-medium truncate" style={{ color: "var(--text-1)" }}>{f.name}</span>
+                        <span className="text-[11px] px-1.5 py-0.5 rounded-md flex-shrink-0"
+                          style={{ background: "var(--bg-subtle)", color: "var(--text-3)" }}>{isLink ? "odkaz" : "soubor"}</span>
                       </ResultRow>
                     );
                   })}
@@ -211,6 +306,13 @@ export function GlobalSearch() {
       </div>
     </div>
   );
+}
+
+function formatEventDate(startAt: string, allDay: boolean): string {
+  const d = new Date(startAt);
+  const date = d.toLocaleDateString("cs-CZ", { day: "numeric", month: "short", year: "numeric" });
+  if (allDay) return date;
+  return `${date} · ${d.toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })}`;
 }
 
 function Section({ label, icon, children }: { label: string; icon: React.ReactNode; children: React.ReactNode }) {
