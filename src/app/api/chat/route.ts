@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { createNotifications } from "@/lib/notify";
 
-// Check if recipientId column exists (migration_v2 adds it)
+/** Extract unique user IDs from [[user:id]] markers in a message. */
+function parseMentionedUserIds(content: string): string[] {
+  const matches = content.matchAll(/\[\[user:([^\]]+)\]\]/g);
+  return [...new Set([...matches].map((m) => m[1]))];
+}
 async function hasDMSupport(): Promise<boolean> {
   try {
     await prisma.$queryRaw`SELECT "recipientId" FROM "ChatMessage" LIMIT 0`;
@@ -105,6 +110,17 @@ export async function POST(req: NextRequest) {
     const msg = rows[0];
     const userRows = await prisma.$queryRaw<any[]>`SELECT id, name, avatar FROM "User" WHERE id = ${session.user.id}`;
     const recRows = await prisma.$queryRaw<any[]>`SELECT id, name, avatar FROM "User" WHERE id = ${recipientId}`;
+
+    // Notify DM recipient
+    const senderName = userRows[0]?.name ?? "Někdo";
+    void createNotifications([{
+      userId: recipientId,
+      type: "mention",
+      title: `${senderName} ti napsal(a) přímou zprávu`,
+      body: content.trim().slice(0, 100),
+      url: "/chat",
+    }]);
+
     return NextResponse.json({ ...msg, user: userRows[0], recipient: recRows[0] }, { status: 201 });
   }
 
@@ -112,5 +128,19 @@ export async function POST(req: NextRequest) {
     data: { content: content.trim(), teamId, userId: session.user.id },
     include: { user: { select: { id: true, name: true, avatar: true } } },
   });
+
+  // Notify @mentioned users in team chat (skip self)
+  const mentionedIds = parseMentionedUserIds(content.trim()).filter((id) => id !== session.user.id);
+  if (mentionedIds.length > 0) {
+    const senderName = (message.user as any)?.name ?? "Někdo";
+    void createNotifications(mentionedIds.map((uid) => ({
+      userId: uid,
+      type: "mention" as const,
+      title: `${senderName} tě zmínil(a) v chatu`,
+      body: content.trim().slice(0, 100),
+      url: "/chat",
+    })));
+  }
+
   return NextResponse.json(message, { status: 201 });
 }
