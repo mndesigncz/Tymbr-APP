@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { sendTaskAssignedEmail } from "@/lib/email";
 import { fireWebhooks } from "@/lib/webhook";
+import { createNotification } from "@/lib/notify";
 
 export const maxDuration = 30;
 export const dynamic = "force-dynamic";
@@ -169,13 +170,22 @@ export async function POST(req: NextRequest) {
     // Notify newly assigned users (excluding the creator)
     const allAssignees = taskWithAssignees?.assignees ?? [];
     for (const a of allAssignees) {
-      if (a.id !== session.user.id && a.email) {
-        sendTaskAssignedEmail({
-          to: a.email,
-          assigneeName: a.name ?? "",
-          taskTitle: title,
-          taskId,
-          assignerName: session.user.name ?? "Správce",
+      if (a.id !== session.user.id) {
+        if (a.email) {
+          sendTaskAssignedEmail({
+            to: a.email,
+            assigneeName: a.name ?? "",
+            taskTitle: title,
+            taskId,
+            assignerName: session.user.name ?? "Správce",
+          });
+        }
+        void createNotification({
+          userId: a.id,
+          type: "task_assigned",
+          title: `Byl(a) jsi přiřazen(a) k úkolu „${title}"`,
+          body: description ? String(description).slice(0, 100) : undefined,
+          url: `/tasks/${taskId}`,
         });
       }
     }
