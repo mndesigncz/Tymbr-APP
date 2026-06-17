@@ -411,9 +411,11 @@ model Event {
   allDay      Boolean  @default(false)
   location    String?
   color       String?
-  visibility  String   @default("personal")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  visibility      String    @default("personal")
+  recurring       String    @default("none")
+  recurringUntil  DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   teamId String?
   team   Team?   @relation(fields: [teamId], references: [id], onDelete: SetNull)

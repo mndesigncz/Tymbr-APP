@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
-import { MapPin, Lock, Users, Trash2, Check, Share2 } from "lucide-react";
+import { MapPin, Lock, Users, Trash2, Check, Share2, RefreshCw } from "lucide-react";
 import type { CalendarEvent, Task, User } from "@/types";
 import { ShareSheet } from "@/components/share/ShareSheet";
 
@@ -56,6 +56,10 @@ export function EventForm({ event, defaultDate, initialValues, canUseTeam, onSav
     event?.visibility || (canUseTeam ? "team" : "personal")
   );
   const [taskId, setTaskId] = useState(event?.taskId || "");
+  const [recurring, setRecurring] = useState(event?.recurring || "none");
+  const [recurringUntil, setRecurringUntil] = useState(
+    event?.recurringUntil ? new Date(event.recurringUntil as string).toISOString().slice(0, 10) : ""
+  );
   const [assigneeIds, setAssigneeIds] = useState<string[]>(event?.assignees?.map((a) => a.id) ?? []);
   const [assigneeSearch, setAssigneeSearch] = useState("");
 
@@ -101,6 +105,8 @@ export function EventForm({ event, defaultDate, initialValues, canUseTeam, onSav
       visibility,
       taskId: taskId || null,
       assigneeIds,
+      recurring,
+      recurringUntil: recurringUntil ? new Date(recurringUntil).toISOString() : null,
     };
   };
 
@@ -226,6 +232,40 @@ export function EventForm({ event, defaultDate, initialValues, canUseTeam, onSav
           </div>
         </div>
       )}
+
+      {/* Recurrence */}
+      <div>
+        <label className="text-[12px] font-semibold mb-1.5 block" style={{ color: "var(--text-3)" }}>
+          <RefreshCw className="w-3 h-3 inline mr-1" />
+          Opakování
+        </label>
+        <div className="flex items-center gap-1 p-1 rounded-xl border flex-wrap"
+          style={{ background: "var(--bg-subtle)", borderColor: "var(--border-md)" }}>
+          {([
+            ["none", "Nikdy"],
+            ["daily", "Denně"],
+            ["weekly", "Týdně"],
+            ["monthly", "Měsíčně"],
+            ["yearly", "Ročně"],
+          ] as [string, string][]).map(([val, label]) => (
+            <button key={val} type="button" onClick={() => setRecurring(val)}
+              className="flex-1 px-2 py-2 rounded-lg text-[12px] font-semibold transition-all whitespace-nowrap"
+              style={recurring === val
+                ? { background: "var(--btn-invert-bg)", color: "var(--btn-invert-text)" }
+                : { color: "var(--text-2)" }}>
+              {label}
+            </button>
+          ))}
+        </div>
+        {recurring !== "none" && (
+          <div className="mt-2">
+            <label className="text-[12px] font-semibold mb-1.5 block" style={{ color: "var(--text-3)" }}>
+              Opakovat do (nepovinné)
+            </label>
+            <Input type="date" value={recurringUntil} onChange={(e) => setRecurringUntil(e.target.value)} />
+          </div>
+        )}
+      </div>
 
       {/* Color */}
       <div>

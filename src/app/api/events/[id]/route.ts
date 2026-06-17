@@ -50,6 +50,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const visibility = body.visibility !== undefined
       ? (body.visibility === "team" ? "team" : "personal")
       : undefined;
+    const recurring = "recurring" in body
+      ? (["daily", "weekly", "monthly", "yearly"].includes(body.recurring) ? body.recurring : "none")
+      : undefined;
+    const recurringUntil = "recurringUntil" in body
+      ? (body.recurringUntil ? new Date(body.recurringUntil) : null)
+      : undefined;
 
     if (visibility === "team" && !teamId) {
       return NextResponse.json({ error: "Pro týmovou událost je potřeba tým" }, { status: 400 });
@@ -85,6 +91,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           visibility,
           teamId: visibility === "team" ? teamId : null,
         }),
+        ...(recurring !== undefined && { recurring }),
+        ...(recurringUntil !== undefined && { recurringUntil }),
       },
     });
 
