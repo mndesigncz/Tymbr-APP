@@ -10,26 +10,29 @@ import { Avatar } from "@/components/ui/Avatar";
 import { TimeTracker } from "./TimeTracker";
 import { TeamSwitcher } from "./TeamSwitcher";
 import { useChatUnread } from "@/hooks/useChatUnread";
+import { parsePermissions, canSeeTab, isManager } from "@/lib/roles";
 import {
   LayoutDashboard, CheckSquare, Tag, LogOut, Settings,
   Clock, Users, MessageSquare, ChevronDown, Settings2, FolderOpen, Webhook,
-  Calendar, Megaphone,
+  Calendar, Megaphone, BookOpen,
 } from "lucide-react";
 
 const topItems = [
-  { href: "/dashboard",  icon: LayoutDashboard, label: "Přehled"  },
-  { href: "/tasks",      icon: CheckSquare,     label: "Úkoly"    },
-  { href: "/calendar",   icon: Calendar,        label: "Kalendář" },
-  { href: "/categories", icon: Tag,             label: "Funkce"   },
-  { href: "/time",       icon: Clock,           label: "Výkazy"   },
+  { href: "/dashboard",  icon: LayoutDashboard, label: "Přehled",      permKey: "dashboard"  },
+  { href: "/tasks",      icon: CheckSquare,     label: "Úkoly",        permKey: "tasks"      },
+  { href: "/calendar",   icon: Calendar,        label: "Kalendář",     permKey: "calendar"   },
+  { href: "/notes",      icon: BookOpen,        label: "Poznámky",     permKey: "notes"      },
+  { href: "/categories", icon: Tag,             label: "Funkce",       permKey: "categories" },
+  { href: "/time",       icon: Clock,           label: "Výkazy",       permKey: "time"       },
 ];
 
 const teamItems = [
-  { href: "/chat",          icon: MessageSquare, label: "Chat"        },
-  { href: "/files",         icon: FolderOpen,    label: "Soubory"     },
-  { href: "/content",       icon: Megaphone,     label: "Content plán" },
+  { href: "/chat",    icon: MessageSquare, label: "Chat",         permKey: "chat"    },
+  { href: "/files",   icon: FolderOpen,    label: "Soubory",      permKey: "files"   },
+  { href: "/content", icon: Megaphone,     label: "Content plán", permKey: "content" },
 ];
 
+// Settings items are manager-only (gated by role, not permissions)
 const settingsItems = [
   { href: "/settings/team",     icon: Settings2, label: "Nastavení týmu" },
   { href: "/settings/webhooks", icon: Webhook,   label: "Integrace"      },
@@ -40,10 +43,18 @@ export function Sidebar() {
   const { data: session } = useSession();
   const chatUnread = useChatUnread();
 
-  const teamActive = teamItems.some(
+  const userRole = (session?.user as any)?.teamRole as string | null;
+  const perms = parsePermissions((session?.user as any)?.permissions);
+  const isManagerUser = isManager(userRole as any);
+
+  const visibleTopItems = topItems.filter(({ permKey }) => canSeeTab(permKey, userRole, perms));
+  const visibleTeamItems = teamItems.filter(({ permKey }) => canSeeTab(permKey, userRole, perms));
+  const visibleSettingsItems = isManagerUser ? settingsItems : [];
+
+  const teamActive = visibleTeamItems.some(
     ({ href }) => pathname === href || pathname.startsWith(href)
   );
-  const settingsActive = settingsItems.some(
+  const settingsActive = visibleSettingsItems.some(
     ({ href }) => pathname === href || pathname.startsWith(href)
   );
   const [teamOpen, setTeamOpen] = useState(teamActive);
@@ -106,14 +117,14 @@ export function Sidebar() {
         <div className="flex items-center gap-2.5 min-w-0">
           <Image
             src="/icon-192.png"
-            alt="Tymbr"
+            alt="Noisium"
             width={32}
             height={32}
             className="w-8 h-8 rounded-xl shadow-sm flex-shrink-0"
             priority
           />
           <span className="text-[17px] font-bold tracking-tight truncate" style={{ color: "var(--text-1)" }}>
-            Tymbr
+            Noisium
           </span>
         </div>
       </div>
@@ -123,75 +134,77 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 mt-3 space-y-1">
-        {topItems.map(({ href, icon, label }) => renderLink(href, icon, label))}
+        {visibleTopItems.map(({ href, icon, label }) => renderLink(href, icon, label))}
 
-        {/* Collapsible Tým group */}
-        <div>
-          <button
-            onClick={() => setTeamOpen((o) => !o)}
-            className={cn(
-              "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-[14px] font-medium transition-all",
-              !teamActive && "hover:bg-[var(--hover)]"
-            )}
-            style={teamActive
-              ? { background: "var(--bg-card)", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
-              : { color: "var(--text-2)" }
-            }
-          >
-            <Users className="w-[18px] h-[18px] flex-shrink-0"
-              style={{ color: teamActive ? "var(--accent)" : "var(--text-2)" }} />
-            <span className="flex-1 text-left">Tým</span>
-            <ChevronDown
-              className="w-[14px] h-[14px] transition-transform"
-              style={{
-                color: teamActive ? "var(--accent)" : "var(--text-3)",
-                transform: teamOpen ? "rotate(180deg)" : "rotate(0deg)",
-              }}
-            />
-          </button>
-
-          {teamOpen && (
-            <div className="mt-1 space-y-1">
-              {teamItems.map(({ href, icon, label }) =>
-                renderLink(href, icon, label, true, href === "/chat" && chatUnread)
+        {/* Collapsible Tým group — hidden when no team items visible */}
+        {visibleTeamItems.length > 0 && (
+          <div>
+            <button
+              onClick={() => setTeamOpen((o) => !o)}
+              className={cn(
+                "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-[14px] font-medium transition-all",
+                !teamActive && "hover:bg-[var(--hover)]"
               )}
-            </div>
-          )}
-        </div>
-
-        {/* Collapsible Nastavení group */}
-        <div>
-          <button
-            onClick={() => setSettingsOpen((o) => !o)}
-            className={cn(
-              "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-[14px] font-medium transition-all",
-              !settingsActive && "hover:bg-[var(--hover)]"
+              style={teamActive
+                ? { background: "var(--bg-card)", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
+                : { color: "var(--text-2)" }
+              }
+            >
+              <Users className="w-[18px] h-[18px] flex-shrink-0"
+                style={{ color: teamActive ? "var(--accent)" : "var(--text-2)" }} />
+              <span className="flex-1 text-left">Tým</span>
+              <ChevronDown
+                className="w-[14px] h-[14px] transition-transform"
+                style={{
+                  color: teamActive ? "var(--accent)" : "var(--text-3)",
+                  transform: teamOpen ? "rotate(180deg)" : "rotate(0deg)",
+                }}
+              />
+            </button>
+            {teamOpen && (
+              <div className="mt-1 space-y-1">
+                {visibleTeamItems.map(({ href, icon, label }) =>
+                  renderLink(href, icon, label, true, href === "/chat" && chatUnread)
+                )}
+              </div>
             )}
-            style={settingsActive
-              ? { background: "var(--bg-card)", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
-              : { color: "var(--text-2)" }
-            }
-          >
-            <Settings className="w-[18px] h-[18px] flex-shrink-0"
-              style={{ color: settingsActive ? "var(--accent)" : "var(--text-2)" }} />
-            <span className="flex-1 text-left">Nastavení</span>
-            <ChevronDown
-              className="w-[14px] h-[14px] transition-transform"
-              style={{
-                color: settingsActive ? "var(--accent)" : "var(--text-3)",
-                transform: settingsOpen ? "rotate(180deg)" : "rotate(0deg)",
-              }}
-            />
-          </button>
+          </div>
+        )}
 
-          {settingsOpen && (
-            <div className="mt-1 space-y-1">
-              {settingsItems.map(({ href, icon, label }) =>
-                renderLink(href, icon, label, true)
+        {/* Collapsible Nastavení group — manager only */}
+        {visibleSettingsItems.length > 0 && (
+          <div>
+            <button
+              onClick={() => setSettingsOpen((o) => !o)}
+              className={cn(
+                "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-[14px] font-medium transition-all",
+                !settingsActive && "hover:bg-[var(--hover)]"
               )}
-            </div>
-          )}
-        </div>
+              style={settingsActive
+                ? { background: "var(--bg-card)", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
+                : { color: "var(--text-2)" }
+              }
+            >
+              <Settings className="w-[18px] h-[18px] flex-shrink-0"
+                style={{ color: settingsActive ? "var(--accent)" : "var(--text-2)" }} />
+              <span className="flex-1 text-left">Nastavení</span>
+              <ChevronDown
+                className="w-[14px] h-[14px] transition-transform"
+                style={{
+                  color: settingsActive ? "var(--accent)" : "var(--text-3)",
+                  transform: settingsOpen ? "rotate(180deg)" : "rotate(0deg)",
+                }}
+              />
+            </button>
+            {settingsOpen && (
+              <div className="mt-1 space-y-1">
+                {visibleSettingsItems.map(({ href, icon, label }) =>
+                  renderLink(href, icon, label, true)
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </nav>
 
       {/* Time tracker widget */}

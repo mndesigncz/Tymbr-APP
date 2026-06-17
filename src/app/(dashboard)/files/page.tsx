@@ -56,7 +56,7 @@ type Modal =
   | { kind: "deleteFolder"; item: TeamFolder }
   | { kind: "deleteFile"; item: TeamFile };
 
-const VIEW_KEY = "tymbr:filesView";
+const VIEW_KEY = "noisium:filesView";
 
 export default function FilesPage() {
   const { data: session } = useSession();

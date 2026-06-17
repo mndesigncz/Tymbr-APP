@@ -18,6 +18,7 @@ import type { Task, Category, User } from "@/types";
 import { useStatusConfig } from "@/hooks/useStatusConfig";
 import { usePriorityConfig } from "@/hooks/usePriorityConfig";
 import { useTimeTracker } from "@/context/TimeTrackerContext";
+import { computeEstimate, formatCZK, formatDuration, hoursToMinutes, minutesToHours } from "@/lib/pricing";
 
 interface TaskTemplate {
   id: string;
@@ -34,11 +35,14 @@ interface DraftSubtask {
   title: string;
   description: string;
   hourlyRate: string;
+  estimatedHours: string;
 }
 
 interface TaskFormProps {
   task?: Task;
   defaultStatus?: string;
+  /** Pre-fill a NEW task form (e.g. when creating a task from a note). Ignored when editing. */
+  initialValues?: { title?: string; description?: string };
   onSuccess?: (task: Task) => void;
   onCancel?: () => void;
 }
@@ -84,7 +88,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function TaskForm({ task, defaultStatus, onSuccess, onCancel }: TaskFormProps) {
+export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCancel }: TaskFormProps) {
   const router = useRouter();
   const statuses = useStatusConfig();
   const priorities = usePriorityConfig();
@@ -116,14 +120,16 @@ export function TaskForm({ task, defaultStatus, onSuccess, onCancel }: TaskFormP
   );
 
   const [form, setForm] = useState({
-    title: task?.title || "",
-    description: task?.description || "",
+    title: task?.title || initialValues?.title || "",
+    description: task?.description || initialValues?.description || "",
     status: task?.status || defaultStatus || "todo",
     priority: task?.priority || "medium",
     dueDate: task?.dueDate ? new Date(task.dueDate).toISOString().slice(0, 10) : "",
     startDate: task?.startDate ? new Date(task.startDate).toISOString().slice(0, 10) : "",
     categoryId: task?.categoryId || "",
     hourlyRate: task?.hourlyRate ? String(task.hourlyRate) : "",
+    estimatedHours: minutesToHours(task?.estimatedMinutes),
+    expenses: task?.expenses ? String(task.expenses) : "",
     recurring: task?.recurring || "none",
     icon: task?.icon || "",
   });
@@ -176,7 +182,7 @@ export function TaskForm({ task, defaultStatus, onSuccess, onCancel }: TaskFormP
       recurring: "none",
     }));
     if (Array.isArray(t.subtasks)) {
-      setDraftSubtasks(t.subtasks.map((st) => ({ title: st.title, description: st.description || "", hourlyRate: st.hourlyRate || "" })));
+      setDraftSubtasks(t.subtasks.map((st) => ({ title: st.title, description: st.description || "", hourlyRate: st.hourlyRate || "", estimatedHours: "" })));
     }
     setSelectedAssigneeIds([]);
     setTemplateOpen(false);
@@ -231,6 +237,8 @@ export function TaskForm({ task, defaultStatus, onSuccess, onCancel }: TaskFormP
     startDate: form.startDate || null,
     categoryId: form.categoryId || null,
     hourlyRate: form.hourlyRate ? Number(form.hourlyRate) : null,
+    estimatedMinutes: hoursToMinutes(form.estimatedHours),
+    expenses: form.expenses ? Number(form.expenses) : null,
     assigneeIds: selectedAssigneeIds,
     recurring: form.recurring || "none",
     icon: form.icon || null,
@@ -263,7 +271,7 @@ export function TaskForm({ task, defaultStatus, onSuccess, onCancel }: TaskFormP
             fetch(`/api/tasks/${saved.id}/subtasks`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ title: st.title, order: i }),
+              body: JSON.stringify({ title: st.title, order: i, estimatedMinutes: hoursToMinutes(st.estimatedHours) }),
             }).then(async (r) => {
               if (r.ok && (st.description || st.hourlyRate)) {
                 const created = await r.json();
@@ -319,7 +327,7 @@ export function TaskForm({ task, defaultStatus, onSuccess, onCancel }: TaskFormP
 
   const addDraftSubtask = () => {
     if (!newSubtaskTitle.trim()) return;
-    setDraftSubtasks((prev) => [...prev, { title: newSubtaskTitle.trim(), description: "", hourlyRate: "" }]);
+    setDraftSubtasks((prev) => [...prev, { title: newSubtaskTitle.trim(), description: "", hourlyRate: "", estimatedHours: "" }]);
     setNewSubtaskTitle("");
   };
 
@@ -560,9 +568,17 @@ export function TaskForm({ task, defaultStatus, onSuccess, onCancel }: TaskFormP
         />
       </div>
 
-      {/* Hourly rate */}
-      <Input label="Hodinová sazba (Kč/h)" type="number" placeholder="Např. 500"
-        value={form.hourlyRate} onChange={set("hourlyRate")} min="0" step="10" />
+      {/* Hourly rate + estimated time */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input label="Hodinová sazba (Kč/h)" type="number" placeholder="Např. 500"
+          value={form.hourlyRate} onChange={set("hourlyRate")} min="0" step="10" />
+        <Input label="Předpokládaná doba (h)" type="number" placeholder="Např. 2.5"
+          value={form.estimatedHours} onChange={set("estimatedHours")} min="0" step="0.5" />
+      </div>
+
+      {/* Expenses */}
+      <Input label="Náklady / materiál (Kč)" type="number" placeholder="Např. 1500"
+        value={form.expenses} onChange={set("expenses")} min="0" step="100" />
 
       {/* Assignees */}
       <div>
@@ -648,18 +664,33 @@ export function TaskForm({ task, defaultStatus, onSuccess, onCancel }: TaskFormP
                       className="w-full text-[12.5px] rounded-lg px-2.5 py-2 resize-none outline-none mt-2 border"
                       style={{ background: "var(--bg-card)", color: "var(--text-1)", borderColor: "var(--border-md)" }}
                     />
-                    <div className="flex items-center gap-2">
-                      <label className="text-[11.5px]" style={{ color: "var(--text-3)" }}>Sazba (Kč/h):</label>
-                      <input
-                        type="number"
-                        value={st.hourlyRate}
-                        onChange={(e) => updateDraftSubtask(i, "hourlyRate", e.target.value)}
-                        placeholder="Výchozí"
-                        min="0"
-                        step="10"
-                        className="w-24 text-[12.5px] rounded-lg px-2 py-1 outline-none border"
-                        style={{ background: "var(--bg-card)", color: "var(--text-1)", borderColor: "var(--border-md)" }}
-                      />
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <label className="text-[11.5px]" style={{ color: "var(--text-3)" }}>Sazba (Kč/h):</label>
+                        <input
+                          type="number"
+                          value={st.hourlyRate}
+                          onChange={(e) => updateDraftSubtask(i, "hourlyRate", e.target.value)}
+                          placeholder="Výchozí"
+                          min="0"
+                          step="10"
+                          className="w-24 text-[12.5px] rounded-lg px-2 py-1 outline-none border"
+                          style={{ background: "var(--bg-card)", color: "var(--text-1)", borderColor: "var(--border-md)" }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label className="text-[11.5px]" style={{ color: "var(--text-3)" }}>Čas (h):</label>
+                        <input
+                          type="number"
+                          value={st.estimatedHours}
+                          onChange={(e) => updateDraftSubtask(i, "estimatedHours", e.target.value)}
+                          placeholder="0"
+                          min="0"
+                          step="0.5"
+                          className="w-20 text-[12.5px] rounded-lg px-2 py-1 outline-none border"
+                          style={{ background: "var(--bg-card)", color: "var(--text-1)", borderColor: "var(--border-md)" }}
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
@@ -688,6 +719,57 @@ export function TaskForm({ task, defaultStatus, onSuccess, onCancel }: TaskFormP
           </div>
         </div>
       )}
+
+      {/* Price estimate preview */}
+      {(() => {
+        const est = computeEstimate({
+          taskMinutes: hoursToMinutes(form.estimatedHours),
+          taskRate: form.hourlyRate ? Number(form.hourlyRate) : null,
+          expenses: form.expenses ? Number(form.expenses) : null,
+          subtasks: draftSubtasks.map((st) => ({
+            minutes: hoursToMinutes(st.estimatedHours),
+            rate: st.hourlyRate ? Number(st.hourlyRate) : null,
+          })),
+        });
+        if (!est.hasData) return null;
+        return (
+          <div className="rounded-xl border p-4 space-y-2.5"
+            style={{ background: "var(--bg-subtle)", borderColor: "var(--border-md)" }}>
+            <p className="text-[12px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-3)" }}>
+              Předpokládaná cena zakázky
+            </p>
+            <div className="space-y-1.5">
+              {est.laborTask > 0 && (
+                <div className="flex justify-between text-[13px]">
+                  <span style={{ color: "var(--text-2)" }}>Práce – úkol ({formatDuration(hoursToMinutes(form.estimatedHours) ?? 0)})</span>
+                  <span className="font-semibold" style={{ color: "var(--text-1)" }}>{formatCZK(est.laborTask)}</span>
+                </div>
+              )}
+              {est.laborSubtasks > 0 && (
+                <div className="flex justify-between text-[13px]">
+                  <span style={{ color: "var(--text-2)" }}>Práce – podúkoly</span>
+                  <span className="font-semibold" style={{ color: "var(--text-1)" }}>{formatCZK(est.laborSubtasks)}</span>
+                </div>
+              )}
+              {est.expenses > 0 && (
+                <div className="flex justify-between text-[13px]">
+                  <span style={{ color: "var(--text-2)" }}>Náklady / materiál</span>
+                  <span className="font-semibold" style={{ color: "var(--text-1)" }}>{formatCZK(est.expenses)}</span>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-between pt-2 border-t" style={{ borderColor: "var(--border)" }}>
+              <span className="text-[13.5px] font-bold" style={{ color: "var(--text-1)" }}>Celkem</span>
+              <span className="text-[13.5px] font-bold" style={{ color: "var(--accent)" }}>{formatCZK(est.total)}</span>
+            </div>
+            {est.totalMinutes > 0 && (
+              <p className="text-[11.5px]" style={{ color: "var(--text-3)" }}>
+                Celková doba: {formatDuration(est.totalMinutes)}
+              </p>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Description */}
       <Textarea

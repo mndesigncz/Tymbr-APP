@@ -69,7 +69,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!accessible) return NextResponse.json({ error: "Úkol nenalezen" }, { status: 404 });
 
     const body = await req.json();
-    const { title, description, status, priority, dueDate, startDate, categoryId, hourlyRate, visibility, recurring, icon } = body;
+    const { title, description, status, priority, dueDate, startDate, categoryId, hourlyRate, visibility, recurring, icon, estimatedMinutes, expenses } = body;
 
     // Resolve assigneeIds array
     const hasAssigneeIds = "assigneeIds" in body;
@@ -137,6 +137,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         ...(visibility !== undefined && { visibility }),
         ...(recurring !== undefined && { recurring }),
         ...(icon !== undefined && { icon: icon || null }),
+        ...(estimatedMinutes !== undefined && { estimatedMinutes: estimatedMinutes ? Math.round(Number(estimatedMinutes)) : null }),
+        ...(expenses !== undefined && { expenses: expenses ? Number(expenses) : null }),
         ...completedAtUpdate,
       },
       include: taskInclude,

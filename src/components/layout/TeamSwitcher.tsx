@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { ChevronsUpDown, Check, Plus, Users } from "lucide-react";
+import { ChevronsUpDown, Check, Plus, Users, CornerDownRight } from "lucide-react";
 import { useTeams, switchTeam } from "@/hooks/useTeams";
 
 // Small deterministic colour per team so each avatar tile is distinguishable.
@@ -75,33 +75,51 @@ export function TeamSwitcher() {
           className="absolute top-full left-3 right-3 mt-1.5 rounded-2xl border z-50 overflow-hidden glass-strong animate-scale-in"
           style={{ borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)" }}
         >
-          <div className="py-1.5 max-h-[260px] overflow-y-auto no-scrollbar">
+          <div className="py-1.5 max-h-[280px] overflow-y-auto no-scrollbar">
             {teams.length > 0 && (
               <p className="px-3 pt-1 pb-1.5 text-[10.5px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
                 Tvoje týmy
               </p>
             )}
-            {teams.map((t) => {
-              const active = t.id === currentTeamId;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => handleSwitch(t.id)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 transition-colors hover:bg-[var(--hover)] text-left"
-                >
-                  <div
-                    className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 text-white text-[11px] font-bold"
-                    style={{ background: tileColor(t.id) }}
+            {(() => {
+              // Render parent teams first, then their subteams indented
+              const parents = teams.filter((t) => !t.parentId);
+              const subs = teams.filter((t) => t.parentId);
+              const ordered: typeof teams = [];
+              for (const p of parents) {
+                ordered.push(p);
+                ordered.push(...subs.filter((s) => s.parentId === p.id));
+              }
+              // Standalone subteams (parent not in list) at end
+              ordered.push(...subs.filter((s) => !parents.find((p) => p.id === s.parentId)));
+              return ordered.map((t) => {
+                const active = t.id === currentTeamId;
+                const isSubteam = !!t.parentId;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => handleSwitch(t.id)}
+                    className="w-full flex items-center gap-2.5 transition-colors hover:bg-[var(--hover)] text-left"
+                    style={{ paddingLeft: isSubteam ? "28px" : "12px", paddingRight: "12px", paddingTop: "6px", paddingBottom: "6px" }}
                   >
-                    {t.name.charAt(0).toUpperCase()}
-                  </div>
-                  <span className="flex-1 min-w-0 text-[13px] font-medium truncate" style={{ color: "var(--text-1)" }}>
-                    {t.name}
-                  </span>
-                  {active && <Check className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--accent)" }} />}
-                </button>
-              );
-            })}
+                    {isSubteam ? (
+                      <CornerDownRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--text-3)" }} />
+                    ) : (
+                      <div
+                        className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 text-white text-[11px] font-bold"
+                        style={{ background: tileColor(t.id) }}
+                      >
+                        {t.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <span className="flex-1 min-w-0 truncate" style={{ color: "var(--text-1)", fontSize: isSubteam ? "12px" : "13px", fontWeight: isSubteam ? 500 : 600 }}>
+                      {t.name}
+                    </span>
+                    {active && <Check className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--accent)" }} />}
+                  </button>
+                );
+              });
+            })()}
           </div>
           <div className="border-t py-1.5" style={{ borderColor: "var(--border)" }}>
             <button

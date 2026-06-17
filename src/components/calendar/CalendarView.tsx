@@ -216,13 +216,13 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
     <div className="space-y-4">
       {/* ── Filter bar — everything in one row, like the tasks tab ── */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar lg:flex-wrap lg:overflow-visible">
           {/* Range segmented */}
-          <div className="flex items-center gap-1 p-1 rounded-xl border"
+          <div className="flex items-center gap-1 p-1 rounded-xl border flex-shrink-0"
             style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
             {([["day", "Dnes"], ["week", "Týden"], ["month", "Měsíc"], ["custom", "Vlastní"]] as [RangeMode, string][]).map(([m, label]) => (
               <button key={m} onClick={() => setRangePreset(m)}
-                className="px-3 py-1.5 rounded-lg text-[12.5px] font-semibold transition-all"
+                className="px-3 py-1.5 rounded-lg text-[12.5px] font-semibold transition-all whitespace-nowrap"
                 style={seg(rangeMode === m)}>
                 {label}
               </button>
@@ -230,13 +230,13 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
           </div>
 
           {/* Scope segmented */}
-          <div className="flex items-center gap-1 p-1 rounded-xl border"
+          <div className="flex items-center gap-1 p-1 rounded-xl border flex-shrink-0"
             style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
             {([["all", "Vše"], ["personal", "Osobní"], ["team", "Týmové"]] as [Scope, string][])
               .filter(([s]) => s !== "team" || canUseTeam)
               .map(([s, label]) => (
                 <button key={s} onClick={() => setScope(s)}
-                  className="px-3 py-1.5 rounded-lg text-[12.5px] font-semibold transition-all"
+                  className="px-3 py-1.5 rounded-lg text-[12.5px] font-semibold transition-all whitespace-nowrap"
                   style={seg(scope === s)}>
                   {label}
                 </button>
@@ -245,13 +245,13 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
 
           {/* Layer toggles */}
           <button onClick={() => setShowEvents((v) => !v)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[12.5px] font-semibold transition-all"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[12.5px] font-semibold transition-all whitespace-nowrap flex-shrink-0"
             style={chip(showEvents)}>
             <CalendarIcon className="w-3.5 h-3.5" />
             Události
           </button>
           <button onClick={() => setShowTasks((v) => !v)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[12.5px] font-semibold transition-all"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[12.5px] font-semibold transition-all whitespace-nowrap flex-shrink-0"
             style={chip(showTasks)}>
             <CheckSquare className="w-3.5 h-3.5" />
             Úkoly

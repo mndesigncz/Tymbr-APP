@@ -55,7 +55,7 @@ export async function GET(req: Request) {
       }
     }
 
-    const teamName = user.teamMemberships[0]?.team?.name ?? "Tymbr";
+    const teamName = user.teamMemberships[0]?.team?.name ?? "Noisium";
 
     // Fetch overdue tasks (due before today, not done)
     const overdueTasks = await prisma.task.findMany({

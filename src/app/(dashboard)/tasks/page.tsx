@@ -194,8 +194,8 @@ function TasksContent() {
 
   useEffect(() => {
     const handler = () => { if (tab === "active") fetchActive(); };
-    window.addEventListener("tymbr:task-updated", handler);
-    return () => window.removeEventListener("tymbr:task-updated", handler);
+    window.addEventListener("noisium:task-updated", handler);
+    return () => window.removeEventListener("noisium:task-updated", handler);
   }, [tab, fetchActive]);
 
   useEffect(() => {
@@ -385,10 +385,10 @@ function TasksContent() {
         {/* Done date range */}
         {tab === "done" && (
           <div className="space-y-3">
-            <div className="flex flex-wrap gap-2 items-center">
+            <div className="flex gap-2 items-center overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 lg:flex-wrap">
               {(Object.keys(DATE_RANGE_LABELS) as DateRange[]).map((r) => (
                 <button key={r} onClick={() => setDateRange(r)}
-                  className="px-3 py-1.5 rounded-xl text-[12.5px] font-semibold border transition-all"
+                  className="px-3 py-1.5 rounded-xl text-[12.5px] font-semibold border transition-all whitespace-nowrap flex-shrink-0"
                   style={dateRange === r
                     ? { background: "#22C55E15", color: "#22C55E", borderColor: "#22C55E" }
                     : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}>
@@ -409,9 +409,9 @@ function TasksContent() {
         {tab === "active" && (
           <>
             {categories.length > 0 && (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 lg:flex-wrap">
                 <button onClick={() => setFilters((f) => ({ ...f, categoryId: "" }))}
-                  className="px-3 py-1.5 rounded-xl text-[12.5px] font-semibold border transition-all"
+                  className="px-3 py-1.5 rounded-xl text-[12.5px] font-semibold border transition-all whitespace-nowrap flex-shrink-0"
                   style={!filters.categoryId
                     ? { background: "var(--btn-invert-bg)", color: "var(--btn-invert-text)", borderColor: "var(--btn-invert-bg)" }
                     : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}>
@@ -420,7 +420,7 @@ function TasksContent() {
                 {categories.map((cat) => (
                   <button key={cat.id}
                     onClick={() => setFilters((f) => ({ ...f, categoryId: f.categoryId === cat.id ? "" : cat.id }))}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12.5px] font-semibold border transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12.5px] font-semibold border transition-all whitespace-nowrap flex-shrink-0"
                     style={filters.categoryId === cat.id
                       ? { background: `${cat.color}18`, color: cat.color, borderColor: cat.color }
                       : { background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}>

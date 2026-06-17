@@ -5,14 +5,14 @@ import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
-  title: "Tymbr – Řiďte tým bez chaosu",
+  title: "Noisium – Řiďte tým bez chaosu",
   description: "Úkoly, komunikace a soubory pro váš tým na jednom místě. Sledujte projekty, přidělujte práci a udržte tým v synchronu.",
-  applicationName: "Tymbr",
+  applicationName: "Noisium",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Tymbr",
+    title: "Noisium",
   },
   icons: {
     icon: "/icon-192.png",
@@ -37,7 +37,7 @@ export default function RootLayout({
     <html lang="cs" className="h-full">
       <head>
         {/* Apply saved theme before first paint to prevent flash */}
-        <script dangerouslySetInnerHTML={{ __html: `try{if(localStorage.getItem('tymbr:theme')==='dark')document.documentElement.setAttribute('data-theme','dark')}catch(e){}` }} />
+        <script dangerouslySetInnerHTML={{ __html: `try{if(localStorage.getItem('noisium:theme')==='dark')document.documentElement.setAttribute('data-theme','dark')}catch(e){}` }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />

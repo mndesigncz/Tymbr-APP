@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Check, Plus, Trash2, Play, ChevronDown, ChevronUp, User } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
+import { minutesToHours, hoursToMinutes } from "@/lib/pricing";
 import type { SubTask } from "@/types";
 
 interface Member {
@@ -60,11 +61,14 @@ export function Subtasks({ taskId, dark, onChange, activeSubtaskId, onActivateSu
     load();
   };
 
-  const updateField = async (st: SubTask, field: "title" | "description" | "hourlyRate", value: string) => {
+  const updateField = async (st: SubTask, field: "title" | "description" | "hourlyRate" | "estimatedMinutes", value: string) => {
+    let parsed: string | number | null = value;
+    if (field === "hourlyRate") parsed = value ? Number(value) : null;
+    else if (field === "estimatedMinutes") parsed = hoursToMinutes(value);
     await fetch(`/api/subtasks/${st.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ [field]: field === "hourlyRate" ? (value ? Number(value) : null) : value }),
+      body: JSON.stringify({ [field]: parsed }),
     });
     load();
   };
@@ -211,6 +215,21 @@ export function Subtasks({ taskId, dark, onChange, activeSubtaskId, onActivateSu
                         min="0"
                         step="10"
                         className="w-24 text-[12.5px] rounded-lg px-2 py-1 outline-none"
+                        style={{ background: c.inputBg, color: c.text1, border: `1px solid ${c.border}` }}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-[11.5px]" style={{ color: c.text3 }}>
+                        Čas (h):
+                      </label>
+                      <input
+                        type="number"
+                        defaultValue={minutesToHours(st.estimatedMinutes)}
+                        onBlur={(e) => updateField(st, "estimatedMinutes", e.target.value)}
+                        placeholder="0"
+                        min="0"
+                        step="0.5"
+                        className="w-20 text-[12.5px] rounded-lg px-2 py-1 outline-none"
                         style={{ background: c.inputBg, color: c.text1, border: `1px solid ${c.border}` }}
                       />
                     </div>

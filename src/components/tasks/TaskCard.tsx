@@ -56,7 +56,7 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusChange
       body: JSON.stringify({ status: newStatus }),
     });
     onStatusChange?.(task.id, newStatus);
-    window.dispatchEvent(new Event("tymbr:task-updated"));
+    window.dispatchEvent(new Event("noisium:task-updated"));
   };
 
   const compactBg = isDone ? "var(--success-soft)" : (urgent || isUrgent) ? "var(--danger-soft)" : "var(--bg-subtle)";

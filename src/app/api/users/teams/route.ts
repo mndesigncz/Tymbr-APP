@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
-// Returns every team the current user belongs to, with their role and the
-// team's member count. Used by the team switcher.
 export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Neautorizováno" }, { status: 401 });
@@ -19,6 +17,8 @@ export async function GET() {
         select: {
           id: true,
           name: true,
+          parentId: true,
+          parent: { select: { name: true } },
           _count: { select: { members: true } },
         },
       },
@@ -31,6 +31,8 @@ export async function GET() {
     name: m.team.name,
     role: m.role,
     memberCount: m.team._count.members,
+    parentId: m.team.parentId ?? null,
+    parentName: m.team.parent?.name ?? null,
   }));
 
   return NextResponse.json(teams);

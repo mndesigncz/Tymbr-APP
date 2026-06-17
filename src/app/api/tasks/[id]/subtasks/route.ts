@@ -27,12 +27,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!(await getAccessibleTask(id, session))) {
     return NextResponse.json({ error: "Úkol nenalezen" }, { status: 404 });
   }
-  const { title } = await req.json();
+  const body = await req.json();
+  const { title, estimatedMinutes } = body;
   if (!title?.trim()) return NextResponse.json({ error: "Název je povinný" }, { status: 400 });
 
   const count = await prisma.subTask.count({ where: { taskId: id } });
   const subtask = await prisma.subTask.create({
-    data: { title: title.trim(), taskId: id, order: count },
+    data: {
+      title: title.trim(),
+      taskId: id,
+      order: count,
+      ...(estimatedMinutes ? { estimatedMinutes: Math.round(Number(estimatedMinutes)) } : {}),
+    },
   });
   return NextResponse.json(subtask, { status: 201 });
 }

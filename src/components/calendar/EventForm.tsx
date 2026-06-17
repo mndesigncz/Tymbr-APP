@@ -6,8 +6,9 @@ import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
-import { MapPin, Lock, Users, Trash2, Check } from "lucide-react";
+import { MapPin, Lock, Users, Trash2, Check, Share2 } from "lucide-react";
 import type { CalendarEvent, Task, User } from "@/types";
+import { ShareSheet } from "@/components/share/ShareSheet";
 
 export const EVENT_COLORS = [
   "#f7592f", // orange (accent)
@@ -23,6 +24,8 @@ export const EVENT_COLORS = [
 interface EventFormProps {
   event?: CalendarEvent;
   defaultDate?: string; // yyyy-mm-dd to prefill for new events
+  /** Pre-fill a NEW event (e.g. when creating from a note). Ignored when editing. */
+  initialValues?: { title?: string; description?: string };
   canUseTeam: boolean;
   onSaved: (event: CalendarEvent) => void;
   onDeleted?: (id: string) => void;
@@ -37,17 +40,17 @@ function toTimeInput(d: Date | string): string {
   return `${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`;
 }
 
-export function EventForm({ event, defaultDate, canUseTeam, onSaved, onDeleted, onClose }: EventFormProps) {
+export function EventForm({ event, defaultDate, initialValues, canUseTeam, onSaved, onDeleted, onClose }: EventFormProps) {
   const today = defaultDate || new Date().toISOString().slice(0, 10);
 
-  const [title, setTitle] = useState(event?.title || "");
+  const [title, setTitle] = useState(event?.title || initialValues?.title || "");
   const [date, setDate] = useState(event ? toDateInput(event.startAt) : today);
   const [endDate, setEndDate] = useState(event ? toDateInput(event.endAt) : today);
   const [allDay, setAllDay] = useState(event?.allDay ?? false);
   const [startTime, setStartTime] = useState(event && !event.allDay ? toTimeInput(event.startAt) : "09:00");
   const [endTime, setEndTime] = useState(event && !event.allDay ? toTimeInput(event.endAt) : "10:00");
   const [location, setLocation] = useState(event?.location || "");
-  const [description, setDescription] = useState(event?.description || "");
+  const [description, setDescription] = useState(event?.description || initialValues?.description || "");
   const [color, setColor] = useState(event?.color || EVENT_COLORS[0]);
   const [visibility, setVisibility] = useState<"personal" | "team">(
     event?.visibility || (canUseTeam ? "team" : "personal")
@@ -62,6 +65,7 @@ export function EventForm({ event, defaultDate, canUseTeam, onSaved, onDeleted, 
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
+  const [showShare, setShowShare] = useState(false);
 
   useEffect(() => {
     fetch("/api/tasks").then((r) => r.json()).then((d) => Array.isArray(d) && setTasks(d)).catch(() => {});
@@ -321,6 +325,30 @@ export function EventForm({ event, defaultDate, canUseTeam, onSaved, onDeleted, 
         placeholder="Poznámka (nepovinné)"
         rows={3}
       />
+
+      {/* Share — existing events only */}
+      {event && (
+        <div className="rounded-xl border" style={{ borderColor: "var(--border-md)", background: "var(--bg-subtle)" }}>
+          <button
+            type="button"
+            onClick={() => setShowShare((s) => !s)}
+            className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[13px] font-semibold transition-colors hover:bg-[var(--hover)] rounded-xl"
+            style={{ color: "var(--text-1)" }}
+          >
+            <Share2 className="w-4 h-4" style={{ color: "var(--accent)" }} />
+            Sdílet událost
+          </button>
+          {showShare && (
+            <div className="px-3.5 pb-3.5">
+              <ShareSheet
+                resourceType="event"
+                resourceId={event.id}
+                chatMessage={`📅 **${title || event.title}**`}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {error && <p className="text-sm px-1" style={{ color: "var(--danger)" }}>{error}</p>}
 

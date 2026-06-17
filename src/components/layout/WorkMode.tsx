@@ -71,7 +71,7 @@ export function WorkMode() {
       const updated = await res.json();
       setTask(updated);
       loadOthers();
-      window.dispatchEvent(new CustomEvent("tymbr:task-updated", { detail: { taskId: task.id, status } }));
+      window.dispatchEvent(new CustomEvent("noisium:task-updated", { detail: { taskId: task.id, status } }));
     }
   };
 

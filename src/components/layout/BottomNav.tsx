@@ -3,50 +3,72 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { useChatUnread } from "@/hooks/useChatUnread";
+import { parsePermissions, canSeeTab, isManager } from "@/lib/roles";
 import {
   LayoutDashboard, CheckSquare, Calendar, MessageSquare,
-  CircleEllipsis, FolderOpen, Clock, Settings, Users, Webhook, Megaphone, X,
+  CircleEllipsis, FolderOpen, Clock, Settings, Users, Webhook, Megaphone, X, BookOpen,
 } from "lucide-react";
 
 const navItems = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Přehled", chat: false },
-  { href: "/tasks",     icon: CheckSquare,     label: "Úkoly",   chat: false },
-  { href: "/calendar",  icon: Calendar,        label: "Kalendář",chat: false },
-  { href: "/chat",      icon: MessageSquare,   label: "Chat",    chat: true  },
+  { href: "/dashboard", icon: LayoutDashboard, label: "Přehled",  chat: false, permKey: "dashboard" },
+  { href: "/tasks",     icon: CheckSquare,     label: "Úkoly",    chat: false, permKey: "tasks"     },
+  { href: "/calendar",  icon: Calendar,        label: "Kalendář", chat: false, permKey: "calendar"  },
+  { href: "/chat",      icon: MessageSquare,   label: "Chat",     chat: true,  permKey: "chat"      },
 ];
 
 const moreSections = [
   {
     label: "Práce",
     items: [
-      { href: "/content",  icon: Megaphone,  label: "Content plán" },
-      { href: "/files",    icon: FolderOpen, label: "Soubory"      },
-      { href: "/time",     icon: Clock,      label: "Výkazy"       },
+      { href: "/notes",    icon: BookOpen,   label: "Poznámky",     permKey: "notes",      managerOnly: false },
+      { href: "/content",  icon: Megaphone,  label: "Content plán", permKey: "content",    managerOnly: false },
+      { href: "/files",    icon: FolderOpen, label: "Soubory",      permKey: "files",      managerOnly: false },
+      { href: "/time",     icon: Clock,      label: "Výkazy",       permKey: "time",       managerOnly: false },
     ],
   },
   {
     label: "Tým",
     items: [
-      { href: "/settings/team",     icon: Users,    label: "Nastavení týmu" },
-      { href: "/settings/webhooks", icon: Webhook,  label: "Integrace"      },
+      { href: "/settings/team",     icon: Users,    label: "Nastavení týmu", permKey: null, managerOnly: true  },
+      { href: "/settings/webhooks", icon: Webhook,  label: "Integrace",      permKey: null, managerOnly: true  },
     ],
   },
   {
     label: "Účet",
     items: [
-      { href: "/settings", icon: Settings, label: "Nastavení účtu" },
+      { href: "/settings", icon: Settings, label: "Nastavení účtu", permKey: null, managerOnly: false },
     ],
   },
 ];
-
-const allMoreItems = moreSections.flatMap((s) => s.items);
 
 export function BottomNav() {
   const pathname = usePathname();
   const chatUnread = useChatUnread();
   const [moreOpen, setMoreOpen] = useState(false);
+  const { data: session } = useSession();
+
+  const userRole = (session?.user as any)?.teamRole as string | null;
+  const perms = parsePermissions((session?.user as any)?.permissions);
+
+  const visibleNavItems = navItems.filter(({ permKey }) =>
+    canSeeTab(permKey, userRole, perms)
+  );
+
+  const visibleMoreSections = moreSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter(({ permKey, managerOnly }) => {
+        if (managerOnly) return isManager(userRole as any);
+        if (permKey) return canSeeTab(permKey, userRole, perms);
+        return true;
+      }),
+    }))
+    .filter((section) => section.items.length > 0);
+
+  const allMoreItems = visibleMoreSections.flatMap((s) => s.items);
 
   const moreActive = allMoreItems.some(
     ({ href }) => pathname === href || pathname.startsWith(href + "/")
@@ -59,7 +81,7 @@ export function BottomNav() {
         style={{ background: "var(--nav-bg)", borderColor: "var(--border)" }}
       >
         <div className="flex items-end pb-safe">
-          {navItems.map(({ href, icon: Icon, label, chat }) => {
+          {visibleNavItems.map(({ href, icon: Icon, label, chat }) => {
             const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/"));
             const showBadge = chat && chatUnread && !active;
             return (
@@ -97,28 +119,30 @@ export function BottomNav() {
             );
           })}
 
-          {/* Více tab */}
-          <button
-            onClick={() => setMoreOpen(true)}
-            className="flex-1 flex flex-col items-center gap-0.5 pt-2 pb-2 transition-colors"
-            style={{ color: moreActive ? "var(--accent)" : "var(--text-3)" }}
-          >
-            <div className={cn(
-              "w-12 h-8 flex items-center justify-center rounded-full transition-all duration-200",
-              moreActive && "bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]"
-            )}>
-              <CircleEllipsis
-                className="transition-all duration-200"
-                style={{ width: 22, height: 22, strokeWidth: moreActive ? 2.3 : 1.9 }}
-              />
-            </div>
-            <span className={cn(
-              "text-[10px] transition-all duration-200",
-              moreActive ? "font-semibold" : "font-medium"
-            )}>
-              Více
-            </span>
-          </button>
+          {/* Více tab — only show when there are items in the sheet */}
+          {visibleMoreSections.length > 0 && (
+            <button
+              onClick={() => setMoreOpen(true)}
+              className="flex-1 flex flex-col items-center gap-0.5 pt-2 pb-2 transition-colors"
+              style={{ color: moreActive ? "var(--accent)" : "var(--text-3)" }}
+            >
+              <div className={cn(
+                "w-12 h-8 flex items-center justify-center rounded-full transition-all duration-200",
+                moreActive && "bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]"
+              )}>
+                <CircleEllipsis
+                  className="transition-all duration-200"
+                  style={{ width: 22, height: 22, strokeWidth: moreActive ? 2.3 : 1.9 }}
+                />
+              </div>
+              <span className={cn(
+                "text-[10px] transition-all duration-200",
+                moreActive ? "font-semibold" : "font-medium"
+              )}>
+                Více
+              </span>
+            </button>
+          )}
         </div>
       </nav>
 
@@ -155,7 +179,7 @@ export function BottomNav() {
 
             {/* Sections */}
             <div className="space-y-5">
-              {moreSections.map((section) => (
+              {visibleMoreSections.map((section) => (
                 <div key={section.label}>
                   <p className="text-[11px] font-semibold uppercase tracking-widest mb-2 px-0.5"
                     style={{ color: "var(--text-3)" }}>
