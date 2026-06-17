@@ -360,7 +360,7 @@ function NoteEditor({
         </div>
 
         {/* Editor body — transparent, glass card provides the background */}
-        <div className="flex-1 overflow-y-auto px-8 py-6 space-y-3">
+        <div className="flex-1 min-h-0 overflow-y-auto px-8 py-6 space-y-3">
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -552,7 +552,7 @@ function NotesContent() {
   const rest = filtered.filter((n) => !n.pinned);
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-[calc(100vh-6rem)] lg:h-screen">
       <Header
         title="Poznámky"
         actions={
