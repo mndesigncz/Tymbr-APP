@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Suspense } from "react";
 import {
   Plus, Search, Pin, PinOff, Trash2, Globe, Lock, Users,
-  CalendarPlus, CheckSquare, Share2, UserPlus, X, Check, BookOpen, Palette,
+  CalendarPlus, CheckSquare, Share2, UserPlus, X, Check, BookOpen, Palette, ChevronLeft,
 } from "lucide-react";
 import { formatRelative } from "@/lib/utils";
 import { TaskForm } from "@/components/tasks/TaskForm";
@@ -563,8 +563,9 @@ function NotesContent() {
       />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Note list sidebar */}
-        <div className="w-[272px] flex-shrink-0 border-r flex flex-col overflow-hidden"
+        {/* Note list sidebar — full width on mobile, fixed sidebar on desktop.
+            On mobile it hides once a note is open (master-detail pattern). */}
+        <div className={`${activeId ? "hidden lg:flex" : "flex"} w-full lg:w-[272px] flex-shrink-0 border-r flex-col overflow-hidden`}
           style={{ borderColor: "var(--border)", background: "var(--bg-page)" }}>
 
           {/* Search */}
@@ -639,16 +640,31 @@ function NotesContent() {
           </div>
         </div>
 
-        {/* Editor pane — no overflow-hidden so the card shadow can breathe */}
-        <div className="flex-1 min-h-0">
+        {/* Editor pane — no overflow-hidden so the card shadow can breathe.
+            On mobile it only appears once a note is selected. */}
+        <div className={`${activeId ? "flex" : "hidden lg:flex"} flex-1 min-h-0 flex-col`}>
           {activeNote ? (
-            <NoteEditor
-              key={activeNote.id}
-              note={activeNote}
-              onUpdate={handleUpdate}
-              onDelete={handleDelete}
-              onRefresh={() => loadNote(activeId!)}
-            />
+            <>
+              {/* Mobile-only back bar to return to the note list */}
+              <button
+                type="button"
+                onClick={() => setActiveId(null)}
+                className="lg:hidden flex items-center gap-1.5 px-4 py-2.5 text-[13px] font-semibold flex-shrink-0"
+                style={{ color: "var(--text-2)" }}
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Zpět na poznámky
+              </button>
+              <div className="flex-1 min-h-0">
+                <NoteEditor
+                  key={activeNote.id}
+                  note={activeNote}
+                  onUpdate={handleUpdate}
+                  onDelete={handleDelete}
+                  onRefresh={() => loadNote(activeId!)}
+                />
+              </div>
+            </>
           ) : (
             <div className="flex flex-col items-center justify-center h-full gap-4">
               <div className="w-16 h-16 rounded-3xl flex items-center justify-center"
