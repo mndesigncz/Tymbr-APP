@@ -112,6 +112,29 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
     }
   }, [searchParams, router]);
 
+  // Deep-link to a specific event via /calendar?event=<id> (e.g. from global search)
+  useEffect(() => {
+    const eventId = searchParams.get("event");
+    if (!eventId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/events/${eventId}`);
+        if (!res.ok) return;
+        const ev: CalendarEvent = await res.json();
+        if (cancelled || !ev?.id) return;
+        const start = new Date(ev.startAt);
+        setCurrent(start);
+        setAnchor(start);
+        setRangeMode("day");
+        setEditingEvent(ev);
+        setModalOpen(true);
+      } catch { /* ignore */ }
+      finally { if (!cancelled) router.replace("/calendar"); }
+    })();
+    return () => { cancelled = true; };
+  }, [searchParams, router]);
+
   // Items intersecting a given day
   const itemsForDay = useCallback((day: Date): DayItem[] => {
     const out: DayItem[] = [];

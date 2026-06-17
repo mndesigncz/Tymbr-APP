@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Header } from "@/components/layout/Header";
 import { Avatar } from "@/components/ui/Avatar";
@@ -484,6 +484,8 @@ function NoteEditor({
 /* ─── Notes content ──────────────────────────────────────────────────── */
 
 function NotesContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -497,6 +499,15 @@ function NotesContent() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Deep-link to a specific note via /notes?note=<id> (e.g. from global search)
+  useEffect(() => {
+    const noteId = searchParams.get("note");
+    if (noteId) {
+      setActiveId(noteId);
+      router.replace("/notes");
+    }
+  }, [searchParams, router]);
 
   const loadNote = useCallback(async (id: string) => {
     const res = await fetch(`/api/notes/${id}`);

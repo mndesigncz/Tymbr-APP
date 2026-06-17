@@ -237,6 +237,7 @@ model TeamFile {
   url       String
   mimeType  String?
   size      BigInt?
+  visibility String  @default("team")
   createdAt DateTime @default(now())
 
   folderId String?
