@@ -131,6 +131,8 @@ export interface CalendarEvent {
   taskId?: string | null;
   task?: EventTaskRef | null;
   assignees?: User[];
+  recurring?: string | null;
+  recurringUntil?: Date | string | null;
 }
 
 export type ContentPlatform = "instagram" | "facebook" | "tiktok" | "linkedin" | "x" | "youtube" | "newsletter" | "other";

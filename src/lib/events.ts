@@ -17,6 +17,47 @@ export function serializeEvent<T extends { assignees?: { user: unknown }[] }>(ev
 }
 
 /**
+ * Expand a recurring event into all occurrences that overlap [from, to].
+ * Non-recurring events are returned as-is. Expansion is capped at 2 years.
+ */
+export function expandRecurring<T extends { startAt: Date | string; endAt: Date | string; recurring?: string | null; recurringUntil?: Date | string | null }>(
+  event: T,
+  from: Date,
+  to: Date,
+): T[] {
+  const pattern = (event as any).recurring ?? "none";
+  if (!pattern || pattern === "none") return [event];
+
+  const baseStart = new Date(event.startAt);
+  const duration = new Date(event.endAt).getTime() - baseStart.getTime();
+
+  const hardCap = new Date(baseStart.getTime() + 2 * 365 * 24 * 60 * 60 * 1000);
+  const seriesEnd = event.recurringUntil ? new Date(event.recurringUntil) : hardCap;
+  const windowEnd = to < seriesEnd ? to : seriesEnd;
+
+  const results: T[] = [];
+  let cursor = new Date(baseStart);
+  let safety = 0;
+
+  while (cursor <= windowEnd && safety < 1500) {
+    safety++;
+    const occEnd = new Date(cursor.getTime() + duration);
+    if (occEnd >= from) {
+      results.push({ ...event, startAt: new Date(cursor), endAt: occEnd });
+    }
+    const next = new Date(cursor);
+    if (pattern === "daily") next.setDate(next.getDate() + 1);
+    else if (pattern === "weekly") next.setDate(next.getDate() + 7);
+    else if (pattern === "monthly") next.setMonth(next.getMonth() + 1);
+    else if (pattern === "yearly") next.setFullYear(next.getFullYear() + 1);
+    else break;
+    cursor = next;
+  }
+
+  return results;
+}
+
+/**
  * Replace an event's assignees with the given user ids. Uses raw SQL so the
  * Prisma 7 + pg adapter doesn't trip over id generation on the junction table.
  */

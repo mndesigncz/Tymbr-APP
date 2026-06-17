@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { getAccessibleTask } from "@/lib/access";
-import { eventInclude, serializeEvent, syncEventAssignees } from "@/lib/events";
+import { eventInclude, serializeEvent, syncEventAssignees, expandRecurring } from "@/lib/events";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +46,16 @@ export async function GET(req: NextRequest) {
       include: eventInclude,
       orderBy: { startAt: "asc" },
     });
-    return NextResponse.json(events.map(serializeEvent));
+
+    const windowFrom = from ? new Date(from) : new Date(0);
+    const windowTo = to ? new Date(to) : new Date(Date.now() + 2 * 365 * 24 * 60 * 60 * 1000);
+
+    const expanded = events.flatMap((ev) =>
+      expandRecurring(ev, windowFrom, windowTo).map(serializeEvent)
+    );
+    expanded.sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
+
+    return NextResponse.json(expanded);
   } catch (e: any) {
     console.error("[GET /api/events]", e?.message ?? e);
     return NextResponse.json({ error: e?.message ?? "Chyba serveru" }, { status: 500 });
@@ -65,6 +74,8 @@ export async function POST(req: NextRequest) {
     const { title, description, startAt, endAt, allDay, location, color } = body;
     const visibility = body.visibility === "team" ? "team" : "personal";
     const assigneeIds: string[] = Array.isArray(body.assigneeIds) ? body.assigneeIds.filter(Boolean) : [];
+    const recurring = ["daily", "weekly", "monthly", "yearly"].includes(body.recurring) ? body.recurring : "none";
+    const recurringUntil = body.recurringUntil ? new Date(body.recurringUntil) : null;
 
     if (!title?.trim()) return NextResponse.json({ error: "Název je povinný" }, { status: 400 });
     if (!startAt) return NextResponse.json({ error: "Začátek je povinný" }, { status: 400 });
@@ -98,6 +109,8 @@ export async function POST(req: NextRequest) {
         teamId: visibility === "team" ? teamId : null,
         createdById: userId,
         taskId,
+        recurring,
+        recurringUntil,
       },
     });
 

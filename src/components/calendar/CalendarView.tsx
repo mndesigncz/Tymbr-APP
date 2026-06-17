@@ -11,7 +11,7 @@ import {
 import { cs } from "date-fns/locale";
 import {
   ChevronLeft, ChevronRight, Plus, CalendarDays, Clock,
-  CheckSquare, Calendar as CalendarIcon, Lock, Users, MapPin,
+  CheckSquare, Calendar as CalendarIcon, Lock, Users, MapPin, RefreshCw,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
@@ -433,7 +433,10 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
                         className="w-full flex items-start gap-3 px-3 py-2.5 rounded-2xl text-left transition-colors hover:bg-[var(--hover)]">
                         <span className="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: it.color }} />
                         <div className="min-w-0 flex-1">
-                          <p className="text-[13.5px] font-semibold leading-snug line-clamp-2" style={{ color: "var(--text-1)" }}>
+                          <p className="text-[13.5px] font-semibold leading-snug line-clamp-2 flex items-center gap-1.5" style={{ color: "var(--text-1)" }}>
+                            {it.data.recurring && it.data.recurring !== "none" && (
+                              <RefreshCw className="w-3 h-3 flex-shrink-0 opacity-60" style={{ color: "var(--accent)" }} />
+                            )}
                             {it.data.title}
                           </p>
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
