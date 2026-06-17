@@ -1,10 +1,6 @@
-// Noisium service worker — enables installability and basic offline resilience.
-const CACHE = "noisium-v1";
-const ASSETS = [
-  "/icon-192.png",
-  "/icon-512.png",
-  "/apple-icon.png",
-];
+// Noisium service worker — offline resilience + Web Push notifications.
+const CACHE = "noisium-v2";
+const ASSETS = ["/icon-192.png", "/icon-512.png", "/apple-icon.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -25,18 +21,10 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
-
   const url = new URL(request.url);
-  // Never intercept API, auth, or Next.js internal traffic.
-  if (
-    url.pathname.startsWith("/api/") ||
-    url.pathname.startsWith("/auth/") ||
-    url.pathname.startsWith("/_next/")
-  ) return;
-  // Only handle same-origin requests.
+  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/auth/") || url.pathname.startsWith("/_next/")) return;
   if (url.origin !== self.location.origin) return;
 
-  // Navigations: network-first, fall back to cache if offline.
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request).catch(() =>
@@ -46,7 +34,6 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static assets (icons etc.): cache-first, then network.
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
@@ -57,6 +44,40 @@ self.addEventListener("fetch", (event) => {
         }
         return res;
       });
+    })
+  );
+});
+
+// Push notification received from server
+self.addEventListener("push", (event) => {
+  let data = {};
+  try { data = event.data?.json() ?? {}; } catch {}
+
+  const title = data.title ?? "Noisium";
+  const options = {
+    body: data.body,
+    icon: "/icon-192.png",
+    badge: "/icon-maskable-192.png",
+    data: { url: data.url ?? "/dashboard" },
+    vibrate: [100, 50, 100],
+    tag: data.tag ?? "noisium-notification",
+    renotify: true,
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Notification clicked — open or focus the relevant page
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url ?? "/dashboard";
+
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(url) && "focus" in client) return client.focus();
+      }
+      if (clients.openWindow) return clients.openWindow(url);
     })
   );
 });
