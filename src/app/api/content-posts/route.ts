@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     if (!teamId) return NextResponse.json({ error: "Nejprve si vytvoř tým" }, { status: 400 });
 
     const body = await req.json();
-    const { title, content, link, assigneeId } = body;
+    const { title, content, link, assigneeId, mediaUrl } = body;
     if (!title?.trim()) return NextResponse.json({ error: "Název je povinný" }, { status: 400 });
 
     const platform = PLATFORMS.includes(body.platform) ? body.platform : "other";
@@ -70,6 +70,7 @@ export async function POST(req: NextRequest) {
         scheduledAt,
         publishedAt: status === "published" ? new Date() : null,
         link: link || null,
+        mediaUrl: mediaUrl || null,
         teamId,
         createdById: session.user.id,
         assigneeId: assigneeId || null,

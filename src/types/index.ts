@@ -145,6 +145,7 @@ export interface ContentPost {
   scheduledAt?: Date | string | null;
   publishedAt?: Date | string | null;
   link?: string | null;
+  mediaUrl?: string | null;
   createdAt: Date | string;
   updatedAt: Date | string;
   teamId: string;
