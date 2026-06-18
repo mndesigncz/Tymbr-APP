@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { sendTaskAssignedEmail, sendStatusChangeEmail } from "@/lib/email";
 import { fireWebhooks } from "@/lib/webhook";
 import { getAccessibleTask } from "@/lib/access";
+import { createNotification, createNotifications } from "@/lib/notify";
 
 const taskInclude = {
   category: true,
@@ -167,6 +168,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
               assignerName: session.user.name ?? "Správce",
             });
           }
+          void createNotification({
+            userId: uid,
+            type: "task_assigned",
+            title: `Přiřazen/a k úkolu: ${task.title}`,
+            body: `Přiřadil/a: ${session.user.name ?? "Správce"}`,
+            url: `/tasks/${id}`,
+          });
         }
       }
     } else if (legacyAssigneeId !== undefined) {
@@ -189,6 +197,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
               assignerName: session.user.name ?? "Správce",
             });
           }
+          void createNotification({
+            userId: legacyAssigneeId,
+            type: "task_assigned",
+            title: `Přiřazen/a k úkolu: ${task.title}`,
+            body: `Přiřadil/a: ${session.user.name ?? "Správce"}`,
+            url: `/tasks/${id}`,
+          });
         }
       }
     }
@@ -198,9 +213,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     // Send status-change notifications (fire-and-forget)
     if (status !== undefined && prevStatus !== undefined && prevStatus !== status) {
       const changerName = session.user.name ?? "Správce";
+      const statusLabels: Record<string, string> = { todo: "K provedení", in_progress: "Probíhá", review: "Ke kontrole", done: "Hotovo" };
+      const assigneesToNotify = (result.assignees as { id: string; name: string | null; email: string }[])
+        .filter((a) => a.id !== session.user.id);
       void Promise.allSettled(
-        (result.assignees as { id: string; name: string | null; email: string }[])
-          .filter((a) => a.id !== session.user.id && a.email)
+        assigneesToNotify
+          .filter((a) => a.email)
           .map((a) =>
             sendStatusChangeEmail({
               to: a.email,
@@ -213,6 +231,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             })
           )
       );
+      void createNotifications(assigneesToNotify.map((a) => ({
+        userId: a.id,
+        type: "task_status" as const,
+        title: `Status změněn: ${task.title}`,
+        body: `${changerName}: ${statusLabels[prevStatus!] ?? prevStatus} → ${statusLabels[status] ?? status}`,
+        url: `/tasks/${id}`,
+      })));
     }
 
     // Fire webhooks
