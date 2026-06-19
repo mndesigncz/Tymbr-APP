@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Bell, Check, ExternalLink, BellOff } from "lucide-react";
+import { Bell, Check, ExternalLink, BellOff, Settings2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { formatRelative } from "@/lib/utils";
 
@@ -18,11 +18,19 @@ interface Notification {
 type PushState = "loading" | "unsupported" | "denied" | "enabled" | "disabled";
 
 const TYPE_ICONS: Record<string, string> = {
-  task_assigned: "📋",
-  comment: "💬",
-  status_change: "🔄",
-  mention: "🔔",
-  invitation: "✉️",
+  task_assigned:        "📋",
+  task_comment:         "💬",
+  task_status:          "🔄",
+  task_due_soon:        "⏰",
+  task_created_in_team: "✨",
+  event_assigned:       "📅",
+  mention:              "🔔",
+  direct_message:       "✉️",
+  invitation:           "🤝",
+  member_joined:        "👤",
+  content_assigned:     "📣",
+  comment:              "💬",
+  status_change:        "🔄",
 };
 
 function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
@@ -201,6 +209,18 @@ export function NotificationBell() {
                 </button>
               ))
             )}
+          </div>
+
+          {/* Notification center link */}
+          <div className="px-4 py-2.5 border-b" style={{ borderColor: "var(--border)" }}>
+            <button
+              onClick={() => { setOpen(false); router.push("/notifications"); }}
+              className="flex items-center gap-2 w-full text-[12px] font-semibold transition-opacity hover:opacity-70"
+              style={{ color: "var(--text-2)" }}
+            >
+              <Settings2 className="w-3.5 h-3.5" />
+              Centrum notifikací a nastavení
+            </button>
           </div>
 
           {/* Push notification toggle footer */}

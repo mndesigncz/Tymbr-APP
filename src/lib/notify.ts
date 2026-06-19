@@ -1,9 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import webpush from "web-push";
+import { DEFAULT_NOTIF_PREFS, type NotifType } from "@/lib/notifTypes";
 
-interface NotifyParams {
+export type { NotifType };
+
+export interface NotifyParams {
   userId: string;
-  type: "task_assigned" | "comment" | "status_change" | "mention" | "invitation";
+  type: NotifType;
   title: string;
   body?: string;
   url?: string;
@@ -39,7 +42,6 @@ async function sendPushToUser(userId: string, payload: { title: string; body?: s
           JSON.stringify(payload)
         );
       } catch (err: any) {
-        // Subscription expired or invalid — clean it up
         if (err.statusCode === 410 || err.statusCode === 404) {
           await prisma.$executeRaw`DELETE FROM "PushSubscription" WHERE endpoint = ${sub.endpoint}`;
         }
@@ -48,19 +50,66 @@ async function sendPushToUser(userId: string, payload: { title: string; body?: s
   } catch {}
 }
 
+function normType(type: string): string {
+  if (type === "comment") return "task_comment";
+  if (type === "status_change") return "task_status";
+  return type;
+}
+
+async function getUserPrefs(userId: string): Promise<Record<string, { inApp: boolean; push: boolean }>> {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { notificationPrefs: true } });
+    if (!user?.notificationPrefs) return {};
+    const parsed = JSON.parse(user.notificationPrefs);
+    const result: Record<string, { inApp: boolean; push: boolean }> = {};
+    for (const [k, v] of Object.entries(parsed)) {
+      if (v && typeof v === "object" && "inApp" in (v as object) && "push" in (v as object)) {
+        result[k] = { inApp: !!(v as any).inApp, push: !!(v as any).push };
+      }
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
+function getPref(userPrefs: Record<string, { inApp: boolean; push: boolean }>, type: string): { inApp: boolean; push: boolean } {
+  const key = normType(type);
+  if (key in userPrefs) return userPrefs[key];
+  return DEFAULT_NOTIF_PREFS[key] ?? { inApp: true, push: true };
+}
+
 export async function createNotification(params: NotifyParams) {
   try {
-    await prisma.notification.create({ data: params });
-    void sendPushToUser(params.userId, { title: params.title, body: params.body, url: params.url });
+    const userPrefs = await getUserPrefs(params.userId);
+    const pref = getPref(userPrefs, params.type);
+    if (pref.inApp) {
+      await prisma.notification.create({ data: params });
+    }
+    if (pref.push) {
+      void sendPushToUser(params.userId, { title: params.title, body: params.body, url: params.url });
+    }
   } catch {}
 }
 
 export async function createNotifications(list: NotifyParams[]) {
   if (!list.length) return;
   try {
-    await prisma.notification.createMany({ data: list });
+    const userIds = [...new Set(list.map((n) => n.userId))];
+    const prefsMap = new Map<string, Record<string, { inApp: boolean; push: boolean }>>();
+    await Promise.all(userIds.map(async (uid) => {
+      prefsMap.set(uid, await getUserPrefs(uid));
+    }));
+
+    const inAppList: NotifyParams[] = [];
     for (const n of list) {
-      void sendPushToUser(n.userId, { title: n.title, body: n.body, url: n.url });
+      const pref = getPref(prefsMap.get(n.userId) ?? {}, n.type);
+      if (pref.inApp) inAppList.push(n);
+      if (pref.push) void sendPushToUser(n.userId, { title: n.title, body: n.body, url: n.url });
+    }
+
+    if (inAppList.length > 0) {
+      await prisma.notification.createMany({ data: inAppList });
     }
   } catch {}
 }

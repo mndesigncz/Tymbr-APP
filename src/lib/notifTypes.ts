@@ -1,0 +1,95 @@
+export type NotifType =
+  | "task_assigned"
+  | "task_comment"
+  | "task_status"
+  | "task_due_soon"
+  | "task_created_in_team"
+  | "event_assigned"
+  | "mention"
+  | "direct_message"
+  | "invitation"
+  | "member_joined"
+  | "content_assigned"
+  | "comment"        // legacy alias → task_comment
+  | "status_change"; // legacy alias → task_status
+
+export const DEFAULT_NOTIF_PREFS: Record<string, { inApp: boolean; push: boolean }> = {
+  task_assigned:        { inApp: true,  push: true  },
+  task_comment:         { inApp: true,  push: true  },
+  task_status:          { inApp: true,  push: false },
+  task_due_soon:        { inApp: true,  push: true  },
+  task_created_in_team: { inApp: false, push: false },
+  event_assigned:       { inApp: true,  push: true  },
+  mention:              { inApp: true,  push: true  },
+  direct_message:       { inApp: true,  push: true  },
+  invitation:           { inApp: true,  push: true  },
+  member_joined:        { inApp: false, push: false },
+  content_assigned:     { inApp: true,  push: true  },
+};
+
+export interface NotifTypeInfo {
+  key: string;
+  label: string;
+  description: string;
+  icon: string;
+}
+
+export interface NotifCategory {
+  label: string;
+  types: NotifTypeInfo[];
+}
+
+export const NOTIF_CATEGORIES: NotifCategory[] = [
+  {
+    label: "Úkoly",
+    types: [
+      { key: "task_assigned",        label: "Přiřazení k úkolu",   description: "Když tě někdo přiřadí k úkolu",           icon: "📋" },
+      { key: "task_comment",         label: "Komentáře",            description: "Nový komentář u úkolu, na kterém pracuješ", icon: "💬" },
+      { key: "task_status",          label: "Změna statusu",        description: "Status tvého úkolu byl změněn",            icon: "🔄" },
+      { key: "task_due_soon",        label: "Blížící se termín",    description: "Připomenutí 24 h před termínem úkolu",      icon: "⏰" },
+      { key: "task_created_in_team", label: "Nový úkol v týmu",    description: "Nový úkol byl přidán do týmu",             icon: "✨" },
+    ],
+  },
+  {
+    label: "Události",
+    types: [
+      { key: "event_assigned", label: "Přiřazení k události", description: "Byl/a jsi přidán/a k události v kalendáři", icon: "📅" },
+    ],
+  },
+  {
+    label: "Komunikace",
+    types: [
+      { key: "mention",        label: "Zmínění",       description: "Někdo tě zmínil v chatu nebo komentáři", icon: "🔔" },
+      { key: "direct_message", label: "Přímé zprávy",  description: "Nová přímá zpráva od člena týmu",         icon: "✉️" },
+    ],
+  },
+  {
+    label: "Tým",
+    types: [
+      { key: "invitation",    label: "Pozvánka do týmu", description: "Pozvání do nového týmu",             icon: "🤝" },
+      { key: "member_joined", label: "Nový člen týmu",   description: "Nový člen se přidal do tvého týmu", icon: "👤" },
+    ],
+  },
+  {
+    label: "Obsah",
+    types: [
+      { key: "content_assigned", label: "Přiřazení obsahu", description: "Byl/a jsi přiřazen/a k obsahu v content plánu", icon: "📣" },
+    ],
+  },
+];
+
+export const TYPE_ICONS: Record<string, string> = {
+  task_assigned:        "📋",
+  task_comment:         "💬",
+  task_status:          "🔄",
+  task_due_soon:        "⏰",
+  task_created_in_team: "✨",
+  event_assigned:       "📅",
+  mention:              "🔔",
+  direct_message:       "✉️",
+  invitation:           "🤝",
+  member_joined:        "👤",
+  content_assigned:     "📣",
+  comment:              "💬",
+  status_change:        "🔄",
+};
