@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Bell, Check, ExternalLink, BellOff, Settings2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { formatRelative } from "@/lib/utils";
+import { NotifIcon } from "@/components/notifications/NotifIcon";
 
 interface Notification {
   id: string;
@@ -16,22 +17,6 @@ interface Notification {
 }
 
 type PushState = "loading" | "unsupported" | "denied" | "enabled" | "disabled";
-
-const TYPE_ICONS: Record<string, string> = {
-  task_assigned:        "📋",
-  task_comment:         "💬",
-  task_status:          "🔄",
-  task_due_soon:        "⏰",
-  task_created_in_team: "✨",
-  event_assigned:       "📅",
-  mention:              "🔔",
-  direct_message:       "✉️",
-  invitation:           "🤝",
-  member_joined:        "👤",
-  content_assigned:     "📣",
-  comment:              "💬",
-  status_change:        "🔄",
-};
 
 function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -198,7 +183,7 @@ export function NotificationBell() {
                   className="w-full flex items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[var(--hover)] border-b"
                   style={{ borderColor: "var(--border)", background: n.isRead ? "transparent" : "color-mix(in srgb, var(--accent) 4%, transparent)" }}
                 >
-                  <span className="text-[18px] flex-shrink-0 mt-0.5">{TYPE_ICONS[n.type] ?? "🔔"}</span>
+                  <div className="mt-0.5"><NotifIcon type={n.type} size={16} /></div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-semibold leading-snug line-clamp-1" style={{ color: "var(--text-1)" }}>{n.title}</p>
                     {n.body && <p className="text-[12px] mt-0.5 line-clamp-2" style={{ color: "var(--text-3)" }}>{n.body}</p>}

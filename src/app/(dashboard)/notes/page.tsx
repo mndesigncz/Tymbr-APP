@@ -204,14 +204,14 @@ function NoteEditor({
       u.email.toLowerCase().includes(collabSearch.toLowerCase()))
   );
 
-  // Floating-card shadow tinted with the note's colour when one is set
+  // Floating-card shadow — kept light & soft, tinted with the note's colour when one is set
   const cardShadow = color.value
-    ? `0 18px 44px ${color.border}55, 0 6px 16px ${color.border}33, 0 2px 6px rgba(0,0,0,0.06)`
-    : "var(--shadow-overlay)";
+    ? `0 10px 28px ${color.border}30, 0 3px 10px ${color.border}1f`
+    : "0 10px 30px rgba(0,0,0,0.07), 0 2px 8px rgba(0,0,0,0.04)";
 
   return (
-    // Outer container adds padding so the card floats with room for its shadow
-    <div className="h-full p-5 flex flex-col min-h-0" style={{ background: "var(--bg-page)" }}>
+    // Outer container adds even padding on all sides so the card floats with room around it
+    <div className="h-full p-3 sm:p-5 flex flex-col min-h-0" style={{ background: "var(--bg-page)" }}>
       <div
         className="glass-strong flex-1 min-h-0 rounded-3xl flex flex-col overflow-hidden transition-shadow duration-300"
         style={{
@@ -219,9 +219,9 @@ function NoteEditor({
           boxShadow: cardShadow,
         }}
       >
-        {/* Toolbar */}
+        {/* Toolbar — wraps on narrow screens so nothing gets clipped at the right edge */}
         <div
-          className="flex items-center gap-1 px-3 py-2 border-b flex-shrink-0"
+          className="flex flex-wrap items-center gap-1.5 px-2.5 sm:px-3 py-2 border-b flex-shrink-0"
           style={{
             borderColor: "var(--border)",
             background: color.value ? `${color.bg}28` : undefined,
@@ -281,40 +281,42 @@ function NoteEditor({
             )}
           </div>
 
-          <div className="flex-1" />
-
           {/* Save indicator */}
           {(saving || saved) && (
-            <span className="text-[11px] px-2" style={{ color: saved ? "#22C55E" : "var(--text-3)" }}>
+            <span className="text-[11px] px-1.5 order-2 sm:order-none" style={{ color: saved ? "#22C55E" : "var(--text-3)" }}>
               {saving ? "Ukládám…" : "✓ Uloženo"}
             </span>
           )}
 
-          {/* Visibility toggle */}
-          <div className="flex items-center rounded-xl overflow-hidden border"
-            style={{ borderColor: "var(--border-md)" }}>
-            <button
-              onClick={() => setVisibility("private")}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11.5px] font-medium transition-all"
-              style={note.visibility === "private"
-                ? { background: "var(--accent)", color: "#fff" }
-                : { background: "transparent", color: "var(--text-3)" }}
-            >
-              <Lock className="w-3 h-3" /> Soukromá
-            </button>
-            <button
-              onClick={() => setVisibility("team")}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11.5px] font-medium transition-all"
-              style={note.visibility === "team"
-                ? { background: "var(--accent)", color: "#fff" }
-                : { background: "transparent", color: "var(--text-3)" }}
-            >
-              <Globe className="w-3 h-3" /> Tým
-            </button>
-          </div>
+          {/* Right cluster — pushed right; wraps to its own line on mobile as one block */}
+          <div className="flex items-center gap-1 ml-auto">
+            {/* Visibility toggle — icon-only on mobile to save width */}
+            <div className="flex items-center rounded-xl overflow-hidden border"
+              style={{ borderColor: "var(--border-md)" }}>
+              <button
+                onClick={() => setVisibility("private")}
+                className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 text-[11.5px] font-medium transition-all"
+                title="Soukromá"
+                style={note.visibility === "private"
+                  ? { background: "var(--accent)", color: "#fff" }
+                  : { background: "transparent", color: "var(--text-3)" }}
+              >
+                <Lock className="w-3 h-3" /> <span className="hidden sm:inline">Soukromá</span>
+              </button>
+              <button
+                onClick={() => setVisibility("team")}
+                className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 text-[11.5px] font-medium transition-all"
+                title="Tým"
+                style={note.visibility === "team"
+                  ? { background: "var(--accent)", color: "#fff" }
+                  : { background: "transparent", color: "var(--text-3)" }}
+              >
+                <Globe className="w-3 h-3" /> <span className="hidden sm:inline">Tým</span>
+              </button>
+            </div>
 
-          {/* Action icon buttons */}
-          <div className="flex items-center gap-0.5 ml-1">
+            {/* Action icon buttons */}
+            <div className="flex items-center gap-0.5">
             <button
               onClick={togglePin}
               className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[var(--hover)]"
@@ -356,11 +358,12 @@ function NoteEditor({
                 <Trash2 className="w-4 h-4" />
               </button>
             )}
+            </div>
           </div>
         </div>
 
         {/* Editor body — transparent, glass card provides the background */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-8 py-6 space-y-3">
+        <div className="flex-1 min-h-0 overflow-y-auto px-5 sm:px-8 py-5 sm:py-6 space-y-3">
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}

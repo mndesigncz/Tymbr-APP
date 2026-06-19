@@ -8,7 +8,8 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { formatRelative } from "@/lib/utils";
-import { DEFAULT_NOTIF_PREFS, NOTIF_CATEGORIES, TYPE_ICONS } from "@/lib/notifTypes";
+import { DEFAULT_NOTIF_PREFS, NOTIF_CATEGORIES } from "@/lib/notifTypes";
+import { NotifIcon } from "@/components/notifications/NotifIcon";
 
 interface Notification {
   id: string;
@@ -259,9 +260,9 @@ export default function NotificationsPage() {
                           : "color-mix(in srgb, var(--accent) 4%, transparent)",
                       }}
                     >
-                      <span className="text-[18px] flex-shrink-0 mt-0.5">
-                        {TYPE_ICONS[n.type] ?? "🔔"}
-                      </span>
+                      <div className="mt-0.5">
+                        <NotifIcon type={n.type} size={16} />
+                      </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-[13px] font-semibold leading-snug" style={{ color: "var(--text-1)" }}>
                           {n.title}
@@ -347,7 +348,7 @@ export default function NotificationsPage() {
                       className="flex items-center gap-3 px-4 py-3 border-b last:border-b-0"
                       style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}
                     >
-                      <span className="text-[16px] flex-shrink-0">{t.icon}</span>
+                      <NotifIcon type={t.key} size={16} />
                       <div className="flex-1 min-w-0">
                         <p className="text-[13px] font-semibold leading-tight" style={{ color: "var(--text-1)" }}>
                           {t.label}

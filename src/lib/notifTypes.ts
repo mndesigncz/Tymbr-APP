@@ -77,19 +77,3 @@ export const NOTIF_CATEGORIES: NotifCategory[] = [
     ],
   },
 ];
-
-export const TYPE_ICONS: Record<string, string> = {
-  task_assigned:        "📋",
-  task_comment:         "💬",
-  task_status:          "🔄",
-  task_due_soon:        "⏰",
-  task_created_in_team: "✨",
-  event_assigned:       "📅",
-  mention:              "🔔",
-  direct_message:       "✉️",
-  invitation:           "🤝",
-  member_joined:        "👤",
-  content_assigned:     "📣",
-  comment:              "💬",
-  status_change:        "🔄",
-};
