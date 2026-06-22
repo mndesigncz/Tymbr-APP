@@ -14,17 +14,16 @@ import { parsePermissions, canSeeTab, isManager } from "@/lib/roles";
 import {
   LayoutDashboard, CheckSquare, Tag, LogOut, Settings,
   Clock, Users, MessageSquare, ChevronDown, Settings2, FolderOpen, Webhook,
-  Calendar, Megaphone, BookOpen, Bell,
+  Calendar, Megaphone, BookOpen,
 } from "lucide-react";
 
 const topItems = [
-  { href: "/dashboard",     icon: LayoutDashboard, label: "Přehled",    permKey: "dashboard"  },
-  { href: "/tasks",         icon: CheckSquare,     label: "Úkoly",      permKey: "tasks"      },
-  { href: "/calendar",      icon: Calendar,        label: "Kalendář",   permKey: "calendar"   },
-  { href: "/notes",         icon: BookOpen,        label: "Poznámky",   permKey: "notes"      },
-  { href: "/categories",    icon: Tag,             label: "Funkce",     permKey: "categories" },
-  { href: "/time",          icon: Clock,           label: "Výkazy",     permKey: "time"       },
-  { href: "/notifications", icon: Bell,            label: "Notifikace", permKey: null         },
+  { href: "/dashboard",  icon: LayoutDashboard, label: "Přehled",    permKey: "dashboard"  },
+  { href: "/tasks",      icon: CheckSquare,     label: "Úkoly",      permKey: "tasks"      },
+  { href: "/calendar",   icon: Calendar,        label: "Kalendář",   permKey: "calendar"   },
+  { href: "/notes",      icon: BookOpen,        label: "Poznámky",   permKey: "notes"      },
+  { href: "/categories", icon: Tag,             label: "Funkce",     permKey: "categories" },
+  { href: "/time",       icon: Clock,           label: "Výkazy",     permKey: "time"       },
 ];
 
 const teamItems = [
@@ -48,7 +47,7 @@ export function Sidebar() {
   const perms = parsePermissions((session?.user as any)?.permissions);
   const isManagerUser = isManager(userRole as any);
 
-  const visibleTopItems = topItems.filter(({ permKey }) => !permKey || canSeeTab(permKey, userRole, perms));
+  const visibleTopItems = topItems.filter(({ permKey }) => canSeeTab(permKey, userRole, perms));
   const visibleTeamItems = teamItems.filter(({ permKey }) => canSeeTab(permKey, userRole, perms));
   const visibleSettingsItems = isManagerUser ? settingsItems : [];
 
