@@ -5,6 +5,7 @@ import { Bell, Check, ExternalLink, BellOff, Settings2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { formatRelative } from "@/lib/utils";
 import { NotifIcon } from "@/components/notifications/NotifIcon";
+import { usePushSubscription } from "@/hooks/usePushSubscription";
 
 interface Notification {
   id: string;
@@ -16,23 +17,12 @@ interface Notification {
   createdAt: string;
 }
 
-type PushState = "loading" | "unsupported" | "denied" | "enabled" | "disabled";
-
-function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = window.atob(base64);
-  const output = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; i++) output[i] = rawData.charCodeAt(i);
-  return output.buffer;
-}
-
 export function NotificationBell() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unread, setUnread] = useState(0);
-  const [pushState, setPushState] = useState<PushState>("loading");
+  const { pushState, enable, disable } = usePushSubscription();
   const ref = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
@@ -48,22 +38,6 @@ export function NotificationBell() {
     const interval = setInterval(load, 30_000);
     return () => clearInterval(interval);
   }, [load]);
-
-  // Detect push state on mount
-  useEffect(() => {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator) || !("PushManager" in window)) {
-      setPushState("unsupported");
-      return;
-    }
-    if (Notification.permission === "denied") {
-      setPushState("denied");
-      return;
-    }
-    navigator.serviceWorker.ready
-      .then((reg) => reg.pushManager.getSubscription())
-      .then((sub) => setPushState(sub ? "enabled" : "disabled"))
-      .catch(() => setPushState("unsupported"));
-  }, []);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -87,49 +61,6 @@ export function NotificationBell() {
     }
     setOpen(false);
     if (n.url) router.push(n.url);
-  };
-
-  const enablePush = async () => {
-    try {
-      const perm = await Notification.requestPermission();
-      if (perm !== "granted") { setPushState("denied"); return; }
-
-      const reg = await navigator.serviceWorker.ready;
-      const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-      if (!vapidKey) return;
-
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidKey),
-      });
-
-      const json = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
-      await fetch("/api/notifications/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
-      });
-
-      setPushState("enabled");
-    } catch {
-      setPushState("disabled");
-    }
-  };
-
-  const disablePush = async () => {
-    try {
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.getSubscription();
-      if (sub) {
-        await fetch("/api/notifications/subscribe", {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ endpoint: sub.endpoint }),
-        });
-        await sub.unsubscribe();
-      }
-      setPushState("disabled");
-    } catch {}
   };
 
   const showPushFooter = pushState !== "loading" && pushState !== "unsupported";
@@ -196,19 +127,19 @@ export function NotificationBell() {
             )}
           </div>
 
-          {/* Notification center link */}
+          {/* Settings link */}
           <div className="px-4 py-2.5 border-b" style={{ borderColor: "var(--border)" }}>
             <button
-              onClick={() => { setOpen(false); router.push("/notifications"); }}
+              onClick={() => { setOpen(false); router.push("/settings?tab=notifikace"); }}
               className="flex items-center gap-2 w-full text-[12px] font-semibold transition-opacity hover:opacity-70"
               style={{ color: "var(--text-2)" }}
             >
               <Settings2 className="w-3.5 h-3.5" />
-              Centrum notifikací a nastavení
+              Nastavení notifikací
             </button>
           </div>
 
-          {/* Push notification toggle footer */}
+          {/* Push toggle footer */}
           {showPushFooter && (
             <div className="px-4 py-3 border-t flex items-center justify-between gap-2" style={{ borderColor: "var(--border)" }}>
               {pushState === "denied" ? (
@@ -220,17 +151,13 @@ export function NotificationBell() {
                 <>
                   <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: "#22C55E" }} />
                   <span className="text-[11.5px] flex-1" style={{ color: "var(--text-2)" }}>Push notifikace zapnuty</span>
-                  <button
-                    onClick={disablePush}
-                    className="text-[11.5px] font-medium transition-opacity hover:opacity-70"
-                    style={{ color: "var(--text-3)" }}
-                  >
+                  <button onClick={disable} className="text-[11.5px] font-medium transition-opacity hover:opacity-70" style={{ color: "var(--text-3)" }}>
                     Vypnout
                   </button>
                 </>
               ) : (
                 <button
-                  onClick={enablePush}
+                  onClick={enable}
                   className="flex items-center gap-2 w-full text-[12px] font-semibold transition-opacity hover:opacity-80"
                   style={{ color: "var(--accent)" }}
                 >
