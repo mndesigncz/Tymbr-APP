@@ -12,7 +12,7 @@ import {
   Circle, Flag, CalendarRange, Tag, Users, Repeat,
   CheckSquare, Star, Target, Zap, AlertTriangle, FileText, Package,
   FolderOpen, Globe, Home, MessageSquare, Settings2, Wrench, Heart,
-  Briefcase, BookOpen, Bell, PenLine,
+  Briefcase, BookOpen, Bell, PenLine, UserCheck,
 } from "lucide-react";
 import type { Task, Category, User } from "@/types";
 import { useStatusConfig } from "@/hooks/useStatusConfig";
@@ -132,6 +132,7 @@ export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCanc
     expenses: task?.expenses ? String(task.expenses) : "",
     recurring: task?.recurring || "none",
     icon: task?.icon || "",
+    customApproverId: task?.customApproverId || "",
   });
 
   useEffect(() => {
@@ -242,6 +243,7 @@ export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCanc
     assigneeIds: selectedAssigneeIds,
     recurring: form.recurring || "none",
     icon: form.icon || null,
+    customApproverId: form.customApproverId || null,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -342,6 +344,8 @@ export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCanc
 
   const catOptions = categories.map((c) => ({ value: c.id, label: c.name }));
   const selectedUsers = users.filter((u) => selectedAssigneeIds.includes(u.id));
+  const selectedCategory = categories.find((c) => c.id === form.categoryId);
+  const showCustomApprover = !selectedCategory?.approvalEnabled;
   const TaskIcon = form.icon ? ICON_MAP[form.icon] : null;
 
   const filteredUsers = assigneeSearch.trim()
@@ -630,6 +634,60 @@ export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCanc
           <p className="text-[13px]" style={{ color: "var(--text-3)" }}>Žádní členové týmu</p>
         )}
       </div>
+
+      {/* Custom approver — only when selected category has no approval enabled */}
+      {showCustomApprover && users.length > 0 && (
+        <div>
+          <FieldLabel>
+            Schvalovatel{form.customApproverId && <span style={{ color: "var(--accent)" }}> · vybráno</span>}
+          </FieldLabel>
+          <div className="rounded-xl border p-2 space-y-1 max-h-44 overflow-y-auto"
+            style={{ background: "var(--bg-subtle)", borderColor: "var(--border-md)" }}>
+            <button
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, customApproverId: "" }))}
+              className="w-full flex items-center gap-3 px-2.5 py-2 rounded-lg transition-all text-left"
+              style={{ background: !form.customApproverId ? "color-mix(in srgb, var(--accent) 9%, transparent)" : "var(--bg-card)" }}
+            >
+              <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "var(--bg-subtle)", border: "1px solid var(--border-md)" }}>
+                <X className="w-3 h-3" style={{ color: "var(--text-3)" }} />
+              </div>
+              <p className="text-[13px] font-medium" style={{ color: "var(--text-2)" }}>Žádný schvalovatel</p>
+              {!form.customApproverId && (
+                <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ml-auto"
+                  style={{ background: "var(--accent)" }}>
+                  <Check className="w-3 h-3 text-white" />
+                </div>
+              )}
+            </button>
+            {users.map((u) => {
+              const selected = form.customApproverId === u.id;
+              return (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, customApproverId: f.customApproverId === u.id ? "" : u.id }))}
+                  className="w-full flex items-center gap-3 px-2.5 py-2 rounded-lg transition-all text-left"
+                  style={{ background: selected ? "color-mix(in srgb, var(--accent) 9%, transparent)" : "var(--bg-card)" }}
+                >
+                  <Avatar name={u.name} src={u.avatar} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-semibold truncate" style={{ color: "var(--text-1)" }}>{u.name}</p>
+                    <p className="text-[11.5px] truncate" style={{ color: "var(--text-3)" }}>{u.email}</p>
+                  </div>
+                  {selected && (
+                    <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{ background: "var(--accent)" }}>
+                      <UserCheck className="w-3 h-3 text-white" />
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Subtasks — new tasks only */}
       {!task && (

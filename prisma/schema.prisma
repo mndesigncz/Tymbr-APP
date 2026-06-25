@@ -41,6 +41,7 @@ model User {
   shareLinks           ShareLink[]    @relation("ShareLinkCreator")
   approvalCategories   Category[]     @relation("CategoryApprover")
   approvedTasks        Task[]         @relation("TaskApprover")
+  customApproverTasks  Task[]         @relation("TaskCustomApprover")
 }
 
 model Notification {
@@ -390,10 +391,12 @@ model Task {
   assigneeId String?
   assignee   User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
 
-  approvalStatus   String?
-  approvedById     String?
-  approvedAt       DateTime?
-  approvedBy       User?     @relation("TaskApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvalStatus     String?
+  approvedById       String?
+  approvedAt         DateTime?
+  approvedBy         User?     @relation("TaskApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  customApproverId   String?
+  customApprover     User?     @relation("TaskCustomApprover", fields: [customApproverId], references: [id], onDelete: SetNull)
 
   comments       Comment[]
   timeEntries    TimeEntry[]
@@ -413,6 +416,7 @@ model Task {
   @@index([teamId, status])
   @@index([teamId, completedAt])
   @@index([approvedById])
+  @@index([customApproverId])
 }
 
 model Event {

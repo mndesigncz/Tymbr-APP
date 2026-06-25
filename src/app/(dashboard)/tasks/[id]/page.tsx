@@ -217,31 +217,39 @@ export default function TaskDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-7">
           <div className="lg:col-span-2 space-y-6">
             {/* Approval banner */}
-            {task.approvalStatus === "pending" && (
-              <div className="rounded-2xl border px-4 py-3.5 flex flex-col sm:flex-row sm:items-center gap-3"
-                style={{ borderColor: "#F59E0B", background: "color-mix(in srgb, #F59E0B 8%, transparent)" }}>
-                <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                  <Clock className="w-4 h-4 flex-shrink-0" style={{ color: "#F59E0B" }} />
-                  <div className="min-w-0">
-                    <p className="text-[13.5px] font-semibold" style={{ color: "#F59E0B" }}>Čeká na schválení</p>
-                    {task.category?.approver && (
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <Avatar name={task.category.approver.name} src={task.category.approver.avatar} size="xs" />
-                        <span className="text-[12px]" style={{ color: "var(--text-3)" }}>{task.category.approver.name}</span>
-                      </div>
-                    )}
+            {task.approvalStatus === "pending" && (() => {
+              const effectiveApprover = (task.category as any)?.approvalEnabled
+                ? task.category?.approver
+                : (task as any).customApprover;
+              const effectiveApproverId = (task.category as any)?.approvalEnabled
+                ? (task.category as any)?.approverId
+                : (task as any)?.customApproverId;
+              return (
+                <div className="rounded-2xl border px-4 py-3.5 flex flex-col sm:flex-row sm:items-center gap-3"
+                  style={{ borderColor: "#F59E0B", background: "color-mix(in srgb, #F59E0B 8%, transparent)" }}>
+                  <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                    <Clock className="w-4 h-4 flex-shrink-0" style={{ color: "#F59E0B" }} />
+                    <div className="min-w-0">
+                      <p className="text-[13.5px] font-semibold" style={{ color: "#F59E0B" }}>Čeká na schválení</p>
+                      {effectiveApprover && (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <Avatar name={effectiveApprover.name} src={effectiveApprover.avatar} size="xs" />
+                          <span className="text-[12px]" style={{ color: "var(--text-3)" }}>{effectiveApprover.name}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
+                  {session?.user?.id === effectiveApproverId && (
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" loading={approving} onClick={() => handleApproval("approved")}
+                        icon={<UserCheck className="w-3.5 h-3.5" />}>Schválit</Button>
+                      <Button size="sm" variant="danger" loading={approving} onClick={() => handleApproval("rejected")}
+                        icon={<XCircle className="w-3.5 h-3.5" />}>Zamítnout</Button>
+                    </div>
+                  )}
                 </div>
-                {session?.user?.id === (task.category as any)?.approverId && (
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" loading={approving} onClick={() => handleApproval("approved")}
-                      icon={<UserCheck className="w-3.5 h-3.5" />}>Schválit</Button>
-                    <Button size="sm" variant="danger" loading={approving} onClick={() => handleApproval("rejected")}
-                      icon={<XCircle className="w-3.5 h-3.5" />}>Zamítnout</Button>
-                  </div>
-                )}
-              </div>
-            )}
+              );
+            })()}
 
             {task.approvalStatus === "approved" && (
               <div className="rounded-2xl border px-4 py-3 flex items-center gap-2.5"
@@ -256,24 +264,29 @@ export default function TaskDetailPage() {
               </div>
             )}
 
-            {task.approvalStatus === "rejected" && (
-              <div className="rounded-2xl border px-4 py-3.5 flex items-center justify-between gap-3"
-                style={{ borderColor: "#EF4444", background: "color-mix(in srgb, #EF4444 8%, transparent)" }}>
-                <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                  <XCircle className="w-4 h-4 flex-shrink-0" style={{ color: "#EF4444" }} />
-                  <div className="min-w-0">
-                    <p className="text-[13.5px] font-semibold" style={{ color: "#EF4444" }}>Zamítnuto</p>
-                    {task.approvedBy && (
-                      <p className="text-[12px]" style={{ color: "var(--text-3)" }}>od {task.approvedBy.name} — úkol byl vrácen k dopracování</p>
-                    )}
+            {task.approvalStatus === "rejected" && (() => {
+              const effectiveApproverId = (task.category as any)?.approvalEnabled
+                ? (task.category as any)?.approverId
+                : (task as any)?.customApproverId;
+              return (
+                <div className="rounded-2xl border px-4 py-3.5 flex items-center justify-between gap-3"
+                  style={{ borderColor: "#EF4444", background: "color-mix(in srgb, #EF4444 8%, transparent)" }}>
+                  <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                    <XCircle className="w-4 h-4 flex-shrink-0" style={{ color: "#EF4444" }} />
+                    <div className="min-w-0">
+                      <p className="text-[13.5px] font-semibold" style={{ color: "#EF4444" }}>Zamítnuto</p>
+                      {task.approvedBy && (
+                        <p className="text-[12px]" style={{ color: "var(--text-3)" }}>od {task.approvedBy.name} — úkol byl vrácen k dopracování</p>
+                      )}
+                    </div>
                   </div>
+                  {session?.user?.id === effectiveApproverId && (
+                    <Button size="sm" loading={approving} onClick={() => handleApproval("approved")}
+                      icon={<UserCheck className="w-3.5 h-3.5" />}>Schválit přesto</Button>
+                  )}
                 </div>
-                {session?.user?.id === (task.category as any)?.approverId && (
-                  <Button size="sm" loading={approving} onClick={() => handleApproval("approved")}
-                    icon={<UserCheck className="w-3.5 h-3.5" />}>Schválit přesto</Button>
-                )}
-              </div>
-            )}
+              );
+            })()}
 
             <div className="rounded-3xl border p-6" style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
               <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -397,9 +410,11 @@ export default function TaskDetailPage() {
                       <div className="absolute top-full left-0 right-0 mt-1 rounded-xl overflow-hidden z-10"
                         style={{ background: "var(--bg-card)", border: "1px solid var(--border-md)", boxShadow: "0 12px 32px rgba(0,0,0,0.12)" }}>
                         {statuses.map((s) => {
-                          const catApproverId = (task.category as any)?.approverId ?? null;
-                          const approvalPending = task.approvalStatus === "pending" && !!catApproverId;
-                          const isApprover = session?.user?.id === catApproverId;
+                          const effApproverId = (task.category as any)?.approvalEnabled
+                            ? ((task.category as any)?.approverId ?? null)
+                            : ((task as any)?.customApproverId ?? null);
+                          const approvalPending = task.approvalStatus === "pending" && !!effApproverId;
+                          const isApprover = session?.user?.id === effApproverId;
                           const isDoneLocked = s.key === "done" && approvalPending && !isApprover;
                           return (
                             <button
@@ -417,7 +432,12 @@ export default function TaskDetailPage() {
                             </button>
                           );
                         })}
-                        {task.approvalStatus === "pending" && session?.user?.id !== (task.category as any)?.approverId && (
+                        {(() => {
+                          const effApproverId = (task.category as any)?.approvalEnabled
+                            ? ((task.category as any)?.approverId ?? null)
+                            : ((task as any)?.customApproverId ?? null);
+                          return task.approvalStatus === "pending" && session?.user?.id !== effApproverId;
+                        })() && (
                           <p className="px-3 py-1.5 text-[11px] border-t" style={{ color: "var(--text-3)", borderColor: "var(--border)" }}>
                             Čeká na schválení — přesun do „Hotovo" je uzamčen
                           </p>

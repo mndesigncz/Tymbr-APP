@@ -92,6 +92,8 @@ export interface Task {
   approvedById?: string | null;
   approvedAt?: string | null;
   approvedBy?: { id: string; name: string; avatar?: string | null } | null;
+  customApproverId?: string | null;
+  customApprover?: { id: string; name: string; avatar?: string | null } | null;
   _count?: { comments: number };
 }
 

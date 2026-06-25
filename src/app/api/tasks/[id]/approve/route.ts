@@ -17,7 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Neplatná akce" }, { status: 400 });
   }
 
-  // Verify the caller is the category approver
+  // Verify the caller is the effective approver (category approver or task custom approver)
   const task = await prisma.task.findUnique({
     where: { id },
     include: {
@@ -26,7 +26,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   });
 
   if (!task) return NextResponse.json({ error: "Úkol nenalezen" }, { status: 404 });
-  if (!task.category?.approvalEnabled || task.category.approverId !== session.user.id) {
+  const effectiveApproverId = task.category?.approvalEnabled
+    ? task.category.approverId
+    : (task as any).customApproverId;
+  if (!effectiveApproverId || effectiveApproverId !== session.user.id) {
     return NextResponse.json({ error: "Nemáš oprávnění schvalovat tento úkol" }, { status: 403 });
   }
 

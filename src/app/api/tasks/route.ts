@@ -110,6 +110,7 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Neautorizováno" }, { status: 401 });
     const body = await req.json();
     const { title, description, status, priority, dueDate, startDate, categoryId, hourlyRate, recurring, icon, estimatedMinutes, expenses } = body;
+    const customApproverId: string | null = body.customApproverId || null;
     // assigneeIds: new multi-assignee array; assigneeId: legacy single
     const assigneeIds: string[] = Array.isArray(body.assigneeIds) ? body.assigneeIds.filter(Boolean) : [];
     if (!assigneeIds.length && body.assigneeId) assigneeIds.push(body.assigneeId);
@@ -127,7 +128,7 @@ export async function POST(req: NextRequest) {
       INSERT INTO "Task" (
         id, title, description, status, priority, "dueDate", "startDate",
         "categoryId", "assigneeId", "hourlyRate", "estimatedMinutes", "expenses", "completedAt",
-        "createdById", "teamId", recurring, icon, "createdAt", "updatedAt"
+        "createdById", "teamId", recurring, icon, "customApproverId", "createdAt", "updatedAt"
       )
       VALUES (
         gen_random_uuid()::text,
@@ -147,6 +148,7 @@ export async function POST(req: NextRequest) {
         ${teamId},
         ${recurring || "none"},
         ${icon || null},
+        ${customApproverId},
         NOW(),
         NOW()
       )

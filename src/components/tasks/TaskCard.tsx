@@ -31,9 +31,12 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, currentUserId,
   const isUrgent = task.priority === "urgent";
   const isDone = currentStatus === "done";
 
-  const categoryApproverId = (task.category as any)?.approverId ?? null;
-  const approvalPending = task.approvalStatus === "pending" && !!categoryApproverId;
-  const isApprover = !!currentUserId && categoryApproverId === currentUserId;
+  const categoryApproverId = (task.category as any)?.approvalEnabled
+    ? ((task.category as any)?.approverId ?? null)
+    : null;
+  const effectiveApproverId = categoryApproverId ?? (task as any).customApproverId ?? null;
+  const approvalPending = task.approvalStatus === "pending" && !!effectiveApproverId;
+  const isApprover = !!currentUserId && effectiveApproverId === currentUserId;
   const lockedForDone = approvalPending && !isApprover;
 
   const statusCfg = statuses.find((s) => s.key === currentStatus);
