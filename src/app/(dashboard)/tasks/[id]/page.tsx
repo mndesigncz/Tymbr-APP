@@ -306,9 +306,6 @@ export default function TaskDetailPage() {
             </div>
 
             <div className="rounded-3xl border p-6" style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
-              <h3 className="text-[16px] font-bold tracking-tight mb-4" style={{ color: "var(--text-1)" }}>
-                Podúkoly
-              </h3>
               <Subtasks taskId={task.id} members={members} />
             </div>
 
