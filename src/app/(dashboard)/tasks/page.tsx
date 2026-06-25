@@ -11,12 +11,92 @@ import { StartWorkButton } from "@/components/layout/StartWorkButton";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import type { Task } from "@/types";
-import { Plus, LayoutGrid, List, Search, SlidersHorizontal, X, CheckCheck, ChevronDown, Trash2, Square, CheckSquare2, Download } from "lucide-react";
+import type { Task, SubTask } from "@/types";
+import { Plus, LayoutGrid, List, Search, SlidersHorizontal, X, CheckCheck, ChevronDown, Trash2, Square, CheckSquare2, Download, Check, Calendar } from "lucide-react";
 import { exportTasksToPdf } from "@/lib/exportPdf";
 import { useStatusConfig } from "@/hooks/useStatusConfig";
+import { formatDate, isOverdue } from "@/lib/utils";
 import Link from "next/link";
 import { Suspense } from "react";
+
+function SubtaskListCard({ subtask, parentTaskId }: { subtask: SubTask; parentTaskId: string }) {
+  const [done, setDone] = useState(subtask.done);
+  const overdue = !done && subtask.dueDate && isOverdue(subtask.dueDate);
+
+  const toggleDone = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const next = !done;
+    setDone(next);
+    await fetch(`/api/subtasks/${subtask.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ done: next }),
+    });
+  };
+
+  return (
+    <Link href={`/tasks/${parentTaskId}`} className="block">
+      <div
+        className="rounded-xl px-3 py-2.5 flex items-start gap-2.5 transition-all hover:-translate-y-0.5"
+        style={{
+          background: done
+            ? "color-mix(in srgb, var(--success) 4%, var(--bg-card))"
+            : "var(--bg-card)",
+          border: "1px solid var(--border)",
+          boxShadow: "var(--shadow-sm)",
+        }}
+      >
+        {/* Checkbox */}
+        <button
+          onClick={toggleDone}
+          className="w-[16px] h-[16px] rounded flex items-center justify-center flex-shrink-0 mt-0.5 transition-all border"
+          style={
+            done
+              ? { background: "var(--success)", borderColor: "var(--success)" }
+              : { borderColor: "var(--border-md)", background: "transparent" }
+          }
+        >
+          {done && <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />}
+        </button>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <p
+            className="text-[12.5px] font-medium truncate"
+            style={{
+              color: done ? "var(--text-3)" : "var(--text-1)",
+              textDecoration: done ? "line-through" : undefined,
+            }}
+          >
+            {subtask.title}
+          </p>
+          {(subtask.dueDate || subtask.description) && (
+            <div className="flex items-center gap-2 mt-0.5">
+              {subtask.dueDate && (
+                <span className="flex items-center gap-0.5 text-[11px]"
+                  style={{ color: overdue ? "var(--danger)" : "var(--text-3)" }}>
+                  <Calendar className="w-3 h-3" />
+                  {formatDate(subtask.dueDate)}
+                </span>
+              )}
+              {subtask.description && (
+                <span className="text-[11px] truncate" style={{ color: "var(--text-3)" }}>
+                  {subtask.description}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Assignee */}
+        {subtask.assignee && (
+          <Avatar name={subtask.assignee.name} src={subtask.assignee.avatar} size="sm" className="flex-shrink-0 mt-0.5" />
+        )}
+      </div>
+    </Link>
+  );
+}
 
 const STATUS_OPTS = [
   { value: "", label: "Všechny statusy" },
@@ -537,19 +617,30 @@ function TasksContent() {
                 </div>
               )}
               {tasks.map((task) => (
-                <div key={task.id} className="relative group">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); toggleSelect(task.id); }}
-                    className="absolute top-3 left-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
-                    style={selected.has(task.id) ? { opacity: 1 } : {}}>
-                    {selected.has(task.id)
-                      ? <CheckSquare2 className="w-5 h-5" style={{ color: "var(--accent)" }} />
-                      : <Square className="w-5 h-5" style={{ color: "var(--text-3)" }} />}
-                  </button>
-                  <div className="rounded-2xl transition-shadow"
-                    style={selected.has(task.id) ? { boxShadow: "0 0 0 2px var(--accent)" } : {}}>
-                    <TaskCard task={task} currentUserId={myId} />
+                <div key={task.id} className="flex flex-col">
+                  <div className="relative group">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleSelect(task.id); }}
+                      className="absolute top-3 left-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
+                      style={selected.has(task.id) ? { opacity: 1 } : {}}>
+                      {selected.has(task.id)
+                        ? <CheckSquare2 className="w-5 h-5" style={{ color: "var(--accent)" }} />
+                        : <Square className="w-5 h-5" style={{ color: "var(--text-3)" }} />}
+                    </button>
+                    <div className="rounded-2xl transition-shadow"
+                      style={selected.has(task.id) ? { boxShadow: "0 0 0 2px var(--accent)" } : {}}>
+                      <TaskCard task={task} currentUserId={myId} />
+                    </div>
                   </div>
+                  {/* Subtask cards — visually connected to parent */}
+                  {(task.subtasks ?? []).length > 0 && (
+                    <div className="relative ml-5 mt-1.5 flex flex-col gap-1.5 pl-4"
+                      style={{ borderLeft: "2px solid var(--border-md)" }}>
+                      {(task.subtasks ?? []).map((st) => (
+                        <SubtaskListCard key={st.id} subtask={st} parentTaskId={task.id} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
