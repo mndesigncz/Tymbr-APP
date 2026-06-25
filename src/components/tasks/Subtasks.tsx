@@ -299,8 +299,8 @@ export function Subtasks({
                     )}
                   </div>
 
-                  {/* Action buttons — visible on hover */}
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0">
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-0.5 flex-shrink-0">
                     {onActivateSubtask && (
                       <button
                         onClick={() => onActivateSubtask(isActive ? null : st.id)}

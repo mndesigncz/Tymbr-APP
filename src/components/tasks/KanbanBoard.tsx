@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { TaskCard } from "./TaskCard";
+import { SubtaskListCard } from "./SubtaskListCard";
 import type { Task } from "@/types";
 import { Plus } from "lucide-react";
 import Link from "next/link";
@@ -90,14 +91,25 @@ export function KanbanBoard({ tasks, currentUserId, onStatusChange }: KanbanBoar
         {/* Column body */}
         <div className="flex flex-col gap-4 min-h-0 lg:min-h-[120px]">
           {colTasks.map((task) => (
-            <div
-              key={task.id}
-              draggable
-              onDragStart={(e) => handleDragStart(e, task.id)}
-              onDragEnd={() => { setDraggingId(null); setOverColumn(null); }}
-              className={draggingId === task.id ? "opacity-40" : ""}
-            >
-              <TaskCard task={task} currentUserId={currentUserId} />
+            <div key={task.id}>
+              <div
+                draggable
+                onDragStart={(e) => handleDragStart(e, task.id)}
+                onDragEnd={() => { setDraggingId(null); setOverColumn(null); }}
+                className={draggingId === task.id ? "opacity-40" : ""}
+              >
+                <TaskCard task={task} currentUserId={currentUserId} />
+              </div>
+              {(task.subtasks ?? []).length > 0 && (
+                <div
+                  className="ml-4 mt-1.5 flex flex-col gap-1.5 pl-3"
+                  style={{ borderLeft: "2px solid var(--border-md)" }}
+                >
+                  {(task.subtasks ?? []).map((st) => (
+                    <SubtaskListCard key={st.id} subtask={st} parentTaskId={task.id} />
+                  ))}
+                </div>
+              )}
             </div>
           ))}
           {colTasks.length === 0 && (
