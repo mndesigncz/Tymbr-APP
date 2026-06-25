@@ -7,9 +7,13 @@ import { getAccessibleTask } from "@/lib/access";
 import { createNotification, createNotifications } from "@/lib/notify";
 
 const taskInclude = {
-  category: true,
+  category: {
+    include: { approver: { select: { id: true, name: true, avatar: true } } },
+  },
   createdBy: { select: { id: true, name: true, email: true, avatar: true } },
   assignee: { select: { id: true, name: true, email: true, avatar: true } },
+  approvedBy: { select: { id: true, name: true, avatar: true } },
+  customApprover: { select: { id: true, name: true, avatar: true } },
   comments: {
     include: { user: { select: { id: true, name: true, avatar: true } } },
     orderBy: { createdAt: "asc" as const },
@@ -71,6 +75,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const body = await req.json();
     const { title, description, status, priority, dueDate, startDate, categoryId, hourlyRate, visibility, recurring, icon, estimatedMinutes, expenses } = body;
+    const customApproverId = "customApproverId" in body ? (body.customApproverId || null) : undefined;
 
     // Resolve assigneeIds array
     const hasAssigneeIds = "assigneeIds" in body;
@@ -104,9 +109,25 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           completedAt: true, status: true, statusHistory: { where: { endedAt: null }, take: 1 },
           title: true, description: true, priority: true, dueDate: true, categoryId: true,
           hourlyRate: true, teamId: true, createdById: true, assigneeId: true, visibility: true, recurring: true,
+          approvalStatus: true, customApproverId: true,
+          category: { select: { approvalEnabled: true, approverId: true } },
         },
       });
       prevStatus = existingTask?.status;
+
+      // Block "done" if approval is pending and user is not the effective approver
+      const effectiveApproverId = existingTask?.category?.approvalEnabled
+        ? existingTask?.category?.approverId
+        : existingTask?.customApproverId;
+      if (
+        status === "done" &&
+        existingTask?.approvalStatus === "pending" &&
+        effectiveApproverId &&
+        effectiveApproverId !== session.user.id
+      ) {
+        return NextResponse.json({ error: "Tento úkol musí být nejdřív schválen" }, { status: 403 });
+      }
+
       if (status === "done") {
         if (!existingTask?.completedAt) completedAtUpdate = { completedAt: new Date() };
       } else {
@@ -140,6 +161,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         ...(icon !== undefined && { icon: icon || null }),
         ...(estimatedMinutes !== undefined && { estimatedMinutes: estimatedMinutes ? Math.round(Number(estimatedMinutes)) : null }),
         ...(expenses !== undefined && { expenses: expenses ? Number(expenses) : null }),
+        ...(customApproverId !== undefined && { customApproverId }),
         ...completedAtUpdate,
       },
       include: taskInclude,
@@ -238,6 +260,26 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         body: `${changerName}: ${statusLabels[prevStatus!] ?? prevStatus} → ${statusLabels[status] ?? status}`,
         url: `/tasks/${id}`,
       })));
+
+      // Approval flow: when moving to "review" check if category or task has an approver
+      if (status === "review") {
+        const cat = (task as any).category;
+        const taskCustomApprover = customApproverId !== undefined ? customApproverId : existingTask?.customApproverId;
+        const approverToNotify = (cat?.approvalEnabled && cat?.approverId) ? cat.approverId : taskCustomApprover;
+        if (approverToNotify) {
+          await prisma.task.update({ where: { id }, data: { approvalStatus: "pending", approvedById: null, approvedAt: null } });
+          void createNotification({
+            userId: approverToNotify,
+            type: "task_approval_requested",
+            title: `Ke schválení: ${task.title}`,
+            body: `Žádá: ${session.user.name ?? "Člen týmu"}`,
+            url: `/tasks/${id}`,
+          });
+        }
+      } else if (prevStatus === "review") {
+        // Moving away from review — clear pending approval
+        await prisma.task.update({ where: { id }, data: { approvalStatus: null } });
+      }
     }
 
     // Fire webhooks

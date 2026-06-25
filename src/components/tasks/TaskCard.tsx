@@ -15,10 +15,11 @@ interface TaskCardProps {
   compact?: boolean;
   urgent?: boolean;
   showUrgentMark?: boolean;
+  currentUserId?: string;
   onStatusChange?: (taskId: string, status: string) => void;
 }
 
-export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusChange }: TaskCardProps) {
+export function TaskCard({ task, compact, urgent, showUrgentMark, currentUserId, onStatusChange }: TaskCardProps) {
   const { start, active } = useTimeTracker();
   const statuses = useStatusConfig();
   const [statusOpen, setStatusOpen] = useState(false);
@@ -29,6 +30,14 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusChange
   const isCurrentlyActive = active?.taskId === task.id;
   const isUrgent = task.priority === "urgent";
   const isDone = currentStatus === "done";
+
+  const categoryApproverId = (task.category as any)?.approvalEnabled
+    ? ((task.category as any)?.approverId ?? null)
+    : null;
+  const effectiveApproverId = categoryApproverId ?? (task as any).customApproverId ?? null;
+  const approvalPending = task.approvalStatus === "pending" && !!effectiveApproverId;
+  const isApprover = !!currentUserId && effectiveApproverId === currentUserId;
+  const lockedForDone = approvalPending && !isApprover;
 
   const statusCfg = statuses.find((s) => s.key === currentStatus);
 
@@ -49,12 +58,14 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusChange
     e.stopPropagation();
     setStatusOpen(false);
     if (newStatus === currentStatus) return;
+    if (newStatus === "done" && lockedForDone) return;
     setOptimisticStatus(newStatus);
-    await fetch(`/api/tasks/${task.id}`, {
+    const res = await fetch(`/api/tasks/${task.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: newStatus }),
     });
+    if (!res.ok) { setOptimisticStatus(null); return; }
     onStatusChange?.(task.id, newStatus);
     window.dispatchEvent(new Event("noisium:task-updated"));
   };
@@ -66,20 +77,30 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusChange
   const subDone = subtasks.filter((s) => s.done).length;
 
   const StatusDropdown = () => (
-    <div className="absolute top-full left-0 mt-1 w-40 rounded-xl overflow-hidden z-50"
+    <div className="absolute top-full left-0 mt-1 w-44 rounded-xl overflow-hidden z-50"
       style={{ background: "var(--bg-card)", border: "1px solid var(--border-md)", boxShadow: "var(--shadow-overlay)" }}>
-      {statuses.map((s) => (
-        <button
-          key={s.key}
-          onMouseDown={(e) => handleStatusSelect(e, s.key)}
-          className="w-full flex items-center gap-2 px-3 py-2 text-[12.5px] transition-colors hover:bg-[var(--hover)]"
-          style={{ color: s.key === currentStatus ? s.color : "var(--text-1)", fontWeight: s.key === currentStatus ? 700 : 500 }}
-        >
-          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
-          {s.label}
-          {s.key === currentStatus && <ChevronRight className="w-3 h-3 ml-auto opacity-40" />}
-        </button>
-      ))}
+      {statuses.map((s) => {
+        const isDoneLocked = s.key === "done" && lockedForDone;
+        return (
+          <button
+            key={s.key}
+            onMouseDown={(e) => handleStatusSelect(e, s.key)}
+            disabled={isDoneLocked}
+            className="w-full flex items-center gap-2 px-3 py-2 text-[12.5px] transition-colors hover:bg-[var(--hover)] disabled:cursor-not-allowed disabled:opacity-50"
+            style={{ color: s.key === currentStatus ? s.color : "var(--text-1)", fontWeight: s.key === currentStatus ? 700 : 500 }}
+          >
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
+            {s.label}
+            {s.key === currentStatus && <ChevronRight className="w-3 h-3 ml-auto opacity-40" />}
+            {isDoneLocked && <Lock className="w-3 h-3 ml-auto opacity-50" />}
+          </button>
+        );
+      })}
+      {lockedForDone && (
+        <p className="px-3 py-1.5 text-[11px] border-t" style={{ color: "var(--text-3)", borderColor: "var(--border)" }}>
+          Čeká na schválení
+        </p>
+      )}
     </div>
   );
 
@@ -177,6 +198,16 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, onStatusChange
             <div className="flex items-center gap-1.5 mb-2.5">
               <AlertTriangle className="w-3.5 h-3.5" style={{ color: "var(--danger)" }} />
               <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "var(--danger)" }}>Urgentní</span>
+            </div>
+          )}
+
+          {approvalPending && (
+            <div className="flex items-center gap-1.5 mb-2.5 px-2 py-1 rounded-lg w-fit"
+              style={{ background: isApprover ? "color-mix(in srgb, #F59E0B 12%, transparent)" : "color-mix(in srgb, #6B7280 8%, transparent)" }}>
+              <Lock className="w-3 h-3 flex-shrink-0" style={{ color: isApprover ? "#F59E0B" : "var(--text-3)" }} />
+              <span className="text-[11px] font-semibold" style={{ color: isApprover ? "#F59E0B" : "var(--text-3)" }}>
+                {isApprover ? "Čeká na tvoje schválení" : "Čeká na schválení"}
+              </span>
             </div>
           )}
 

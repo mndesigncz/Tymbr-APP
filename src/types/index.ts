@@ -51,6 +51,9 @@ export interface Category {
   name: string;
   color: string;
   icon: string;
+  approvalEnabled: boolean;
+  approverId?: string | null;
+  approver?: { id: string; name: string; avatar?: string | null } | null;
   createdAt: Date;
   _count?: { tasks: number };
 }
@@ -85,6 +88,12 @@ export interface Task {
   recurring?: string;
   icon?: string | null;
   blockedByCount?: number;
+  approvalStatus?: string | null;
+  approvedById?: string | null;
+  approvedAt?: string | null;
+  approvedBy?: { id: string; name: string; avatar?: string | null } | null;
+  customApproverId?: string | null;
+  customApprover?: { id: string; name: string; avatar?: string | null } | null;
   _count?: { comments: number };
 }
 

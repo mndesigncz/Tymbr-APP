@@ -5,11 +5,18 @@ import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { Avatar } from "@/components/ui/Avatar";
 import type { Category } from "@/types";
-import { Plus, Tag, Trash2, Edit2, CheckSquare, Settings2, Eye, EyeOff, GripVertical, Flag, AlertCircle } from "lucide-react";
+import { Plus, Tag, Trash2, Edit2, CheckSquare, Settings2, Eye, EyeOff, GripVertical, Flag, AlertCircle, UserCheck } from "lucide-react";
 import Link from "next/link";
 import { refreshStatusConfig } from "@/hooks/useStatusConfig";
 import { refreshPriorityConfig } from "@/hooks/usePriorityConfig";
+
+interface TeamMember {
+  id: string;
+  name: string;
+  avatar?: string | null;
+}
 
 const COLORS = [
   "#F97316", "#3B82F6", "#22C55E", "#EAB308", "#EF4444",
@@ -44,8 +51,9 @@ export default function CategoriesPage() {
   const [catLoading, setCatLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
-  const [form, setForm] = useState({ name: "", color: "#F97316" });
+  const [form, setForm] = useState({ name: "", color: "#F97316", approvalEnabled: false, approverId: "" });
   const [saving, setSaving] = useState(false);
+  const [members, setMembers] = useState<TeamMember[]>([]);
 
   // Statuses state
   const [statuses, setStatuses] = useState<StatusConfig[]>([]);
@@ -72,6 +80,14 @@ export default function CategoriesPage() {
     setCatLoading(false);
   };
 
+  const fetchMembers = async () => {
+    const res = await fetch("/api/teams");
+    const data = await res.json();
+    if (data?.members) {
+      setMembers(data.members.map((m: any) => ({ id: m.userId, name: m.user?.name ?? m.name ?? "", avatar: m.user?.avatar ?? null })));
+    }
+  };
+
   const fetchStatuses = async () => {
     setStatusLoading(true);
     const res = await fetch("/api/teams/status-config");
@@ -88,7 +104,7 @@ export default function CategoriesPage() {
     setPrioLoading(false);
   };
 
-  useEffect(() => { fetchCategories(); }, []);
+  useEffect(() => { fetchCategories(); fetchMembers(); }, []);
   useEffect(() => {
     if (pageTab === "statuses") fetchStatuses();
     if (pageTab === "priorities") fetchPriorities();
@@ -125,17 +141,23 @@ export default function CategoriesPage() {
     refreshPriorityConfig();
   };
 
-  const openNew = () => { setEditing(null); setForm({ name: "", color: "#F97316" }); setModalOpen(true); };
-  const openEdit = (cat: Category) => { setEditing(cat); setForm({ name: cat.name, color: cat.color }); setModalOpen(true); };
+  const openNew = () => { setEditing(null); setForm({ name: "", color: "#F97316", approvalEnabled: false, approverId: "" }); setModalOpen(true); };
+  const openEdit = (cat: Category) => { setEditing(cat); setForm({ name: cat.name, color: cat.color, approvalEnabled: cat.approvalEnabled ?? false, approverId: cat.approverId ?? "" }); setModalOpen(true); };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) return;
     setSaving(true);
+    const payload = {
+      name: form.name,
+      color: form.color,
+      approvalEnabled: form.approvalEnabled,
+      approverId: form.approvalEnabled ? form.approverId : null,
+    };
     if (editing) {
-      await fetch(`/api/categories/${editing.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+      await fetch(`/api/categories/${editing.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     } else {
-      await fetch("/api/categories", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+      await fetch("/api/categories", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     }
     setSaving(false);
     setModalOpen(false);
@@ -303,6 +325,13 @@ export default function CategoriesPage() {
                       {cat._count?.tasks ?? 0} úkolů
                     </div>
                   </Link>
+                  {cat.approvalEnabled && cat.approver && (
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <UserCheck className="w-3 h-3 flex-shrink-0" style={{ color: "var(--accent)" }} />
+                      <Avatar name={cat.approver.name} src={cat.approver.avatar} size="xs" />
+                      <span className="text-[11px] truncate" style={{ color: "var(--text-3)" }}>{cat.approver.name}</span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -437,6 +466,53 @@ export default function CategoriesPage() {
               ))}
             </div>
           </div>
+
+          {/* Approval */}
+          <div className="border rounded-2xl p-4 space-y-4" style={{ borderColor: "var(--border-md)", background: "var(--bg-subtle)" }}>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <div className="mt-0.5 flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={form.approvalEnabled}
+                  onChange={(e) => setForm((f) => ({ ...f, approvalEnabled: e.target.checked }))}
+                  className="w-4 h-4 rounded"
+                />
+              </div>
+              <div>
+                <p className="text-[13.5px] font-semibold" style={{ color: "var(--text-1)" }}>Vyžadovat schválení</p>
+                <p className="text-[12px] mt-0.5" style={{ color: "var(--text-3)" }}>Při přesunu úkolu do „Ke kontrole" se odešle push notifikace schvalovateli</p>
+              </div>
+            </label>
+
+            {form.approvalEnabled && (
+              <div>
+                <label className="text-[12px] font-medium block mb-2" style={{ color: "var(--text-2)" }}>Schvalovatel</label>
+                <div className="space-y-1.5 max-h-44 overflow-y-auto">
+                  {members.map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, approverId: m.id }))}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all"
+                      style={{
+                        background: form.approverId === m.id ? "color-mix(in srgb, var(--accent) 12%, transparent)" : "var(--bg-card)",
+                        border: `1px solid ${form.approverId === m.id ? "var(--accent)" : "var(--border)"}`,
+                        color: "var(--text-1)",
+                      }}
+                    >
+                      <Avatar name={m.name} src={m.avatar} size="sm" />
+                      <span className="text-[13px] font-medium flex-1 truncate">{m.name}</span>
+                      {form.approverId === m.id && <UserCheck className="w-4 h-4 flex-shrink-0" style={{ color: "var(--accent)" }} />}
+                    </button>
+                  ))}
+                  {members.length === 0 && (
+                    <p className="text-[12px] text-center py-3" style={{ color: "var(--text-3)" }}>Žádní členové týmu</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="secondary" onClick={() => setModalOpen(false)} className="flex-1">Zrušit</Button>
             <Button type="submit" loading={saving} className="flex-1">{editing ? "Uložit" : "Vytvořit"}</Button>

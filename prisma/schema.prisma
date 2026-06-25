@@ -39,6 +39,9 @@ model User {
   notesCreated         Note[]         @relation("NoteCreator")
   noteCollaborations   NoteCollaborator[]
   shareLinks           ShareLink[]    @relation("ShareLinkCreator")
+  approvalCategories   Category[]     @relation("CategoryApprover")
+  approvedTasks        Task[]         @relation("TaskApprover")
+  customApproverTasks  Task[]         @relation("TaskCustomApprover")
 }
 
 model Notification {
@@ -305,19 +308,24 @@ model TeamInvitation {
 }
 
 model Category {
-  id        String   @id @default(cuid())
-  name      String
-  color     String   @default("#F97316")
-  icon      String   @default("folder")
-  createdAt DateTime @default(now())
+  id              String   @id @default(cuid())
+  name            String
+  color           String   @default("#F97316")
+  icon            String   @default("folder")
+  approvalEnabled Boolean  @default(false)
+  createdAt       DateTime @default(now())
 
   teamId String?
   team   Team?   @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  approverId String?
+  approver   User?   @relation("CategoryApprover", fields: [approverId], references: [id], onDelete: SetNull)
 
   tasks     Task[]
   templates TaskTemplate[]
 
   @@index([teamId])
+  @@index([approverId])
 }
 
 model Webhook {
@@ -383,6 +391,13 @@ model Task {
   assigneeId String?
   assignee   User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
 
+  approvalStatus     String?
+  approvedById       String?
+  approvedAt         DateTime?
+  approvedBy         User?     @relation("TaskApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  customApproverId   String?
+  customApprover     User?     @relation("TaskCustomApprover", fields: [customApproverId], references: [id], onDelete: SetNull)
+
   comments       Comment[]
   timeEntries    TimeEntry[]
   subtasks       SubTask[]
@@ -400,6 +415,8 @@ model Task {
   @@index([completedAt])
   @@index([teamId, status])
   @@index([teamId, completedAt])
+  @@index([approvedById])
+  @@index([customApproverId])
 }
 
 model Event {

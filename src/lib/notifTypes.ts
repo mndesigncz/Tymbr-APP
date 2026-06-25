@@ -4,6 +4,9 @@ export type NotifType =
   | "task_status"
   | "task_due_soon"
   | "task_created_in_team"
+  | "task_approval_requested"
+  | "task_approved"
+  | "task_rejected"
   | "event_assigned"
   | "mention"
   | "direct_message"
@@ -14,17 +17,20 @@ export type NotifType =
   | "status_change"; // legacy alias → task_status
 
 export const DEFAULT_NOTIF_PREFS: Record<string, { inApp: boolean; push: boolean }> = {
-  task_assigned:        { inApp: true,  push: true  },
-  task_comment:         { inApp: true,  push: true  },
-  task_status:          { inApp: true,  push: false },
-  task_due_soon:        { inApp: true,  push: true  },
-  task_created_in_team: { inApp: false, push: false },
-  event_assigned:       { inApp: true,  push: true  },
-  mention:              { inApp: true,  push: true  },
-  direct_message:       { inApp: true,  push: true  },
-  invitation:           { inApp: true,  push: true  },
-  member_joined:        { inApp: false, push: false },
-  content_assigned:     { inApp: true,  push: true  },
+  task_assigned:             { inApp: true,  push: true  },
+  task_comment:              { inApp: true,  push: true  },
+  task_status:               { inApp: true,  push: false },
+  task_due_soon:             { inApp: true,  push: true  },
+  task_created_in_team:      { inApp: false, push: false },
+  task_approval_requested:   { inApp: true,  push: true  },
+  task_approved:             { inApp: true,  push: true  },
+  task_rejected:             { inApp: true,  push: true  },
+  event_assigned:            { inApp: true,  push: true  },
+  mention:                   { inApp: true,  push: true  },
+  direct_message:            { inApp: true,  push: true  },
+  invitation:                { inApp: true,  push: true  },
+  member_joined:             { inApp: false, push: false },
+  content_assigned:          { inApp: true,  push: true  },
 };
 
 export interface NotifTypeInfo {
@@ -43,11 +49,14 @@ export const NOTIF_CATEGORIES: NotifCategory[] = [
   {
     label: "Úkoly",
     types: [
-      { key: "task_assigned",        label: "Přiřazení k úkolu",   description: "Když tě někdo přiřadí k úkolu",           icon: "📋" },
-      { key: "task_comment",         label: "Komentáře",            description: "Nový komentář u úkolu, na kterém pracuješ", icon: "💬" },
-      { key: "task_status",          label: "Změna statusu",        description: "Status tvého úkolu byl změněn",            icon: "🔄" },
-      { key: "task_due_soon",        label: "Blížící se termín",    description: "Připomenutí 24 h před termínem úkolu",      icon: "⏰" },
-      { key: "task_created_in_team", label: "Nový úkol v týmu",    description: "Nový úkol byl přidán do týmu",             icon: "✨" },
+      { key: "task_assigned",           label: "Přiřazení k úkolu",   description: "Když tě někdo přiřadí k úkolu",             icon: "📋" },
+      { key: "task_comment",            label: "Komentáře",            description: "Nový komentář u úkolu, na kterém pracuješ",  icon: "💬" },
+      { key: "task_status",             label: "Změna statusu",        description: "Status tvého úkolu byl změněn",              icon: "🔄" },
+      { key: "task_due_soon",           label: "Blížící se termín",    description: "Připomenutí 24 h před termínem úkolu",       icon: "⏰" },
+      { key: "task_created_in_team",    label: "Nový úkol v týmu",    description: "Nový úkol byl přidán do týmu",               icon: "✨" },
+      { key: "task_approval_requested", label: "Žádost o schválení",   description: "Úkol čeká na tvoje schválení",               icon: "✅" },
+      { key: "task_approved",           label: "Úkol schválen",        description: "Tvůj úkol byl schválen",                     icon: "✅" },
+      { key: "task_rejected",           label: "Úkol zamítnut",        description: "Tvůj úkol byl zamítnut",                     icon: "❌" },
     ],
   },
   {

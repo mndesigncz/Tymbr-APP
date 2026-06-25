@@ -506,7 +506,7 @@ function TasksContent() {
             ))}
           </div>
         ) : view === "kanban" ? (
-          <KanbanBoard tasks={tasks} onStatusChange={handleStatusChange} />
+          <KanbanBoard tasks={tasks} currentUserId={myId} onStatusChange={handleStatusChange} />
         ) : (
           <>
             {tasks.length > 0 && (
@@ -548,7 +548,7 @@ function TasksContent() {
                   </button>
                   <div className="rounded-2xl transition-shadow"
                     style={selected.has(task.id) ? { boxShadow: "0 0 0 2px var(--accent)" } : {}}>
-                    <TaskCard task={task} />
+                    <TaskCard task={task} currentUserId={myId} />
                   </div>
                 </div>
               ))}
