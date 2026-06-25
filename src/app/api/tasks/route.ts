@@ -12,7 +12,7 @@ const taskInclude = {
   category: true,
   createdBy: { select: { id: true, name: true, email: true, avatar: true } },
   assignee: { select: { id: true, name: true, email: true, avatar: true } },
-  subtasks: { select: { id: true, done: true } },
+  subtasks: { orderBy: { order: "asc" as const }, select: { id: true, done: true, title: true, dueDate: true } },
   _count: { select: { comments: true } },
 };
 

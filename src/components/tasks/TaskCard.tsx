@@ -5,7 +5,7 @@ import Link from "next/link";
 import { formatDate, isOverdue } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
 import { PriorityBadge } from "./PriorityBadge";
-import { Calendar, MessageSquare, Play, AlertTriangle, ListChecks, ChevronRight, RefreshCw, Lock } from "lucide-react";
+import { Calendar, MessageSquare, Play, AlertTriangle, ListChecks, ChevronRight, RefreshCw, Lock, Check } from "lucide-react";
 import type { Task } from "@/types";
 import { useTimeTracker } from "@/context/TimeTrackerContext";
 import { useStatusConfig } from "@/hooks/useStatusConfig";
@@ -259,12 +259,44 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, currentUserId,
           </div>
 
           {subTotal > 0 && (
-            <div className="flex items-center gap-2 mb-4">
-              <ListChecks className="w-3.5 h-3.5 flex-shrink-0" style={{ color: subDone === subTotal ? "var(--success)" : "var(--text-3)" }} />
-              <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-subtle)" }}>
-                <div className="h-full rounded-full transition-all" style={{ width: `${(subDone / subTotal) * 100}%`, background: "var(--success)" }} />
+            <div className="mb-4 space-y-2">
+              {/* Progress bar */}
+              <div className="flex items-center gap-2">
+                <ListChecks className="w-3.5 h-3.5 flex-shrink-0" style={{ color: subDone === subTotal ? "var(--success)" : "var(--text-3)" }} />
+                <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-subtle)" }}>
+                  <div className="h-full rounded-full transition-all" style={{ width: `${(subDone / subTotal) * 100}%`, background: "var(--success)" }} />
+                </div>
+                <span className="text-[11.5px] font-semibold flex-shrink-0 tabular-nums" style={{ color: "var(--text-3)" }}>{subDone}/{subTotal}</span>
               </div>
-              <span className="text-[11.5px] font-semibold flex-shrink-0" style={{ color: "var(--text-3)" }}>{subDone}/{subTotal}</span>
+              {/* Subtask list — max 3 visible */}
+              <div className="space-y-0.5 pl-5">
+                {subtasks.slice(0, 3).map((st) => (
+                  <div key={st.id} className="flex items-center gap-1.5 min-w-0">
+                    <span
+                      className="w-3.5 h-3.5 rounded flex-shrink-0 flex items-center justify-center border"
+                      style={st.done
+                        ? { background: "var(--success)", borderColor: "var(--success)" }
+                        : { background: "transparent", borderColor: "var(--border-md)" }}
+                    >
+                      {st.done && <Check className="w-2 h-2 text-white" strokeWidth={3} />}
+                    </span>
+                    <span
+                      className="text-[12px] truncate"
+                      style={{
+                        color: st.done ? "var(--text-3)" : "var(--text-2)",
+                        textDecoration: st.done ? "line-through" : undefined,
+                      }}
+                    >
+                      {st.title}
+                    </span>
+                  </div>
+                ))}
+                {subTotal > 3 && (
+                  <p className="text-[11.5px] pl-5" style={{ color: "var(--text-3)" }}>
+                    +{subTotal - 3} dalších
+                  </p>
+                )}
+              </div>
             </div>
           )}
 
