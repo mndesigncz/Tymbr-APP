@@ -17,7 +17,7 @@ import type { Task } from "@/types";
 import {
   Calendar, Edit2, Trash2, MessageSquare,
   ChevronDown, Check, Globe, EyeOff, Send, Share2,
-  UserCheck, XCircle, Clock,
+  UserCheck, XCircle, Clock, Lock,
 } from "lucide-react";
 import { ShareSheet } from "@/components/share/ShareSheet";
 import { useSession } from "next-auth/react";
@@ -396,19 +396,32 @@ export default function TaskDetailPage() {
                     {statusOpen && (
                       <div className="absolute top-full left-0 right-0 mt-1 rounded-xl overflow-hidden z-10"
                         style={{ background: "var(--bg-card)", border: "1px solid var(--border-md)", boxShadow: "0 12px 32px rgba(0,0,0,0.12)" }}>
-                        {statuses.map((s) => (
-                          <button
-                            key={s.key}
-                            onClick={() => handleStatusChange(s.key)}
-                            className="w-full flex items-center justify-between px-3 py-2.5 transition-colors text-left hover:bg-[var(--hover)]"
-                          >
-                            <span className="flex items-center gap-2 text-[13.5px] font-medium" style={{ color: s.color }}>
-                              <span className="w-2 h-2 rounded-full" style={{ background: s.color }} />
-                              {s.label}
-                            </span>
-                            {task.status === s.key && <Check className="w-4 h-4" style={{ color: "var(--accent)" }} />}
-                          </button>
-                        ))}
+                        {statuses.map((s) => {
+                          const catApproverId = (task.category as any)?.approverId ?? null;
+                          const approvalPending = task.approvalStatus === "pending" && !!catApproverId;
+                          const isApprover = session?.user?.id === catApproverId;
+                          const isDoneLocked = s.key === "done" && approvalPending && !isApprover;
+                          return (
+                            <button
+                              key={s.key}
+                              onClick={() => !isDoneLocked && handleStatusChange(s.key)}
+                              disabled={isDoneLocked}
+                              className="w-full flex items-center justify-between px-3 py-2.5 transition-colors text-left hover:bg-[var(--hover)] disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <span className="flex items-center gap-2 text-[13.5px] font-medium" style={{ color: s.color }}>
+                                <span className="w-2 h-2 rounded-full" style={{ background: s.color }} />
+                                {s.label}
+                              </span>
+                              {task.status === s.key && <Check className="w-4 h-4" style={{ color: "var(--accent)" }} />}
+                              {isDoneLocked && <Lock className="w-3.5 h-3.5 opacity-40" style={{ color: "var(--text-3)" }} />}
+                            </button>
+                          );
+                        })}
+                        {task.approvalStatus === "pending" && session?.user?.id !== (task.category as any)?.approverId && (
+                          <p className="px-3 py-1.5 text-[11px] border-t" style={{ color: "var(--text-3)", borderColor: "var(--border)" }}>
+                            Čeká na schválení — přesun do „Hotovo" je uzamčen
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>

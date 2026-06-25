@@ -10,10 +10,11 @@ import { ScrollFadeX } from "@/components/ui/ScrollFadeX";
 
 interface KanbanBoardProps {
   tasks: Task[];
+  currentUserId?: string;
   onStatusChange?: (taskId: string, newStatus: string) => void;
 }
 
-export function KanbanBoard({ tasks, onStatusChange }: KanbanBoardProps) {
+export function KanbanBoard({ tasks, currentUserId, onStatusChange }: KanbanBoardProps) {
   const statuses = useStatusConfig();
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [overColumn, setOverColumn] = useState<string | null>(null);
@@ -33,7 +34,18 @@ export function KanbanBoard({ tasks, onStatusChange }: KanbanBoardProps) {
     e.preventDefault();
     if (draggingId && onStatusChange) {
       const task = tasks.find((t) => t.id === draggingId);
-      if (task && task.status !== key) onStatusChange(draggingId, key);
+      if (task && task.status !== key) {
+        // Block drag to "done" when approval is pending and user isn't the approver
+        const catApproverId = (task.category as any)?.approverId ?? null;
+        const approvalPending = task.approvalStatus === "pending" && !!catApproverId;
+        const isApprover = !!currentUserId && catApproverId === currentUserId;
+        if (key === "done" && approvalPending && !isApprover) {
+          setDraggingId(null);
+          setOverColumn(null);
+          return;
+        }
+        onStatusChange(draggingId, key);
+      }
     }
     setDraggingId(null);
     setOverColumn(null);
@@ -75,9 +87,7 @@ export function KanbanBoard({ tasks, onStatusChange }: KanbanBoardProps) {
           </Link>
         </div>
 
-        {/* Column body — vertical task list. The column hugs its own content
-            (see items-start on the row) so a fuller column never stretches the
-            empty space of shorter ones. A small min-height keeps a drop area. */}
+        {/* Column body */}
         <div className="flex flex-col gap-4 min-h-0 lg:min-h-[120px]">
           {colTasks.map((task) => (
             <div
@@ -87,7 +97,7 @@ export function KanbanBoard({ tasks, onStatusChange }: KanbanBoardProps) {
               onDragEnd={() => { setDraggingId(null); setOverColumn(null); }}
               className={draggingId === task.id ? "opacity-40" : ""}
             >
-              <TaskCard task={task} />
+              <TaskCard task={task} currentUserId={currentUserId} />
             </div>
           ))}
           {colTasks.length === 0 && (
@@ -102,13 +112,9 @@ export function KanbanBoard({ tasks, onStatusChange }: KanbanBoardProps) {
 
   return (
     <>
-      {/* Mobile: columns stacked vertically — only the task list scrolls (the page). */}
       <div className="flex flex-col gap-4 lg:hidden">
         {columns}
       </div>
-
-      {/* Desktop: horizontally scrollable board with edge fades. items-start so
-          each column hugs its own content height instead of matching the tallest. */}
       <ScrollFadeX className="hidden lg:flex items-start gap-4 pb-2" fadeColor="var(--bg-page)">
         {columns}
       </ScrollFadeX>

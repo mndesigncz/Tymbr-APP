@@ -107,9 +107,22 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           completedAt: true, status: true, statusHistory: { where: { endedAt: null }, take: 1 },
           title: true, description: true, priority: true, dueDate: true, categoryId: true,
           hourlyRate: true, teamId: true, createdById: true, assigneeId: true, visibility: true, recurring: true,
+          approvalStatus: true,
+          category: { select: { approvalEnabled: true, approverId: true } },
         },
       });
       prevStatus = existingTask?.status;
+
+      // Block "done" if approval is pending and user is not the approver
+      if (
+        status === "done" &&
+        existingTask?.approvalStatus === "pending" &&
+        existingTask?.category?.approverId &&
+        existingTask.category.approverId !== session.user.id
+      ) {
+        return NextResponse.json({ error: "Tento úkol musí být nejdřív schválen" }, { status: 403 });
+      }
+
       if (status === "done") {
         if (!existingTask?.completedAt) completedAtUpdate = { completedAt: new Date() };
       } else {
