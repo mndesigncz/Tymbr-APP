@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
-/** Categories belong to the currently selected team — verify before mutating. */
 async function categoryInCurrentTeam(id: string, session: { user: { teamId?: string | null } }): Promise<boolean> {
   const teamId = session.user.teamId ?? null;
   if (!teamId) return false;
@@ -18,8 +17,21 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!(await categoryInCurrentTeam(id, session))) {
     return NextResponse.json({ error: "Kategorie nenalezena" }, { status: 404 });
   }
-  const { name, color, icon } = await req.json();
-  const cat = await prisma.category.update({ where: { id }, data: { name, color, icon } });
+
+  const { name, color, icon, approvalEnabled, approverId } = await req.json();
+
+  const data: any = {};
+  if (name !== undefined) data.name = name;
+  if (color !== undefined) data.color = color;
+  if (icon !== undefined) data.icon = icon;
+  if (approvalEnabled !== undefined) data.approvalEnabled = approvalEnabled === true;
+  if (approverId !== undefined) data.approverId = (approvalEnabled && approverId) ? approverId : null;
+
+  const cat = await prisma.category.update({
+    where: { id },
+    data,
+    include: { approver: { select: { id: true, name: true, avatar: true } } },
+  });
   return NextResponse.json(cat);
 }
 

@@ -17,6 +17,7 @@ import type { Task } from "@/types";
 import {
   Calendar, Edit2, Trash2, MessageSquare,
   ChevronDown, Check, Globe, EyeOff, Send, Share2,
+  UserCheck, XCircle, Clock,
 } from "lucide-react";
 import { ShareSheet } from "@/components/share/ShareSheet";
 import { useSession } from "next-auth/react";
@@ -56,6 +57,8 @@ export default function TaskDetailPage() {
   const [statusOpen, setStatusOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [members, setMembers] = useState<{ id: string; name: string; avatar?: string | null }[]>([]);
+
+  const [approving, setApproving] = useState(false);
 
   const teamRole = (session?.user as any)?.teamRole as string | undefined;
   const isAdminOrOwner = teamRole === "admin" || teamRole === "owner";
@@ -123,6 +126,17 @@ export default function TaskDetailPage() {
     else if (e.key === "ArrowUp") { e.preventDefault(); setMentionIdx((i) => Math.max(i - 1, 0)); }
     else if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); selectMention(mentionResults[mentionIdx].name); }
     else if (e.key === "Escape") setMention(null);
+  };
+
+  const handleApproval = async (action: "approved" | "rejected") => {
+    setApproving(true);
+    const res = await fetch(`/api/tasks/${id}/approve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+    if (res.ok) setTask(await res.json());
+    setApproving(false);
   };
 
   const handleVisibilityChange = async (visibility: "team" | "private") => {
@@ -202,6 +216,65 @@ export default function TaskDetailPage() {
       <div className="px-4 sm:px-6 lg:px-8 pt-2 pb-12 max-w-4xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-7">
           <div className="lg:col-span-2 space-y-6">
+            {/* Approval banner */}
+            {task.approvalStatus === "pending" && (
+              <div className="rounded-2xl border px-4 py-3.5 flex flex-col sm:flex-row sm:items-center gap-3"
+                style={{ borderColor: "#F59E0B", background: "color-mix(in srgb, #F59E0B 8%, transparent)" }}>
+                <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                  <Clock className="w-4 h-4 flex-shrink-0" style={{ color: "#F59E0B" }} />
+                  <div className="min-w-0">
+                    <p className="text-[13.5px] font-semibold" style={{ color: "#F59E0B" }}>Čeká na schválení</p>
+                    {task.category?.approver && (
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <Avatar name={task.category.approver.name} src={task.category.approver.avatar} size="xs" />
+                        <span className="text-[12px]" style={{ color: "var(--text-3)" }}>{task.category.approver.name}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {session?.user?.id === (task.category as any)?.approverId && (
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" loading={approving} onClick={() => handleApproval("approved")}
+                      icon={<UserCheck className="w-3.5 h-3.5" />}>Schválit</Button>
+                    <Button size="sm" variant="danger" loading={approving} onClick={() => handleApproval("rejected")}
+                      icon={<XCircle className="w-3.5 h-3.5" />}>Zamítnout</Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {task.approvalStatus === "approved" && (
+              <div className="rounded-2xl border px-4 py-3 flex items-center gap-2.5"
+                style={{ borderColor: "#22C55E", background: "color-mix(in srgb, #22C55E 8%, transparent)" }}>
+                <UserCheck className="w-4 h-4 flex-shrink-0" style={{ color: "#22C55E" }} />
+                <div className="flex-1 min-w-0">
+                  <span className="text-[13.5px] font-semibold" style={{ color: "#22C55E" }}>Schváleno</span>
+                  {task.approvedBy && (
+                    <span className="text-[12px] ml-2" style={{ color: "var(--text-3)" }}>od {task.approvedBy.name}</span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {task.approvalStatus === "rejected" && (
+              <div className="rounded-2xl border px-4 py-3.5 flex items-center justify-between gap-3"
+                style={{ borderColor: "#EF4444", background: "color-mix(in srgb, #EF4444 8%, transparent)" }}>
+                <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                  <XCircle className="w-4 h-4 flex-shrink-0" style={{ color: "#EF4444" }} />
+                  <div className="min-w-0">
+                    <p className="text-[13.5px] font-semibold" style={{ color: "#EF4444" }}>Zamítnuto</p>
+                    {task.approvedBy && (
+                      <p className="text-[12px]" style={{ color: "var(--text-3)" }}>od {task.approvedBy.name} — úkol byl vrácen k dopracování</p>
+                    )}
+                  </div>
+                </div>
+                {session?.user?.id === (task.category as any)?.approverId && (
+                  <Button size="sm" loading={approving} onClick={() => handleApproval("approved")}
+                    icon={<UserCheck className="w-3.5 h-3.5" />}>Schválit přesto</Button>
+                )}
+              </div>
+            )}
+
             <div className="rounded-3xl border p-6" style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
               <div className="flex flex-wrap items-center gap-2 mb-4">
                 <StatusBadge status={task.status} />

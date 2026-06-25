@@ -7,9 +7,12 @@ import { getAccessibleTask } from "@/lib/access";
 import { createNotification, createNotifications } from "@/lib/notify";
 
 const taskInclude = {
-  category: true,
+  category: {
+    include: { approver: { select: { id: true, name: true, avatar: true } } },
+  },
   createdBy: { select: { id: true, name: true, email: true, avatar: true } },
   assignee: { select: { id: true, name: true, email: true, avatar: true } },
+  approvedBy: { select: { id: true, name: true, avatar: true } },
   comments: {
     include: { user: { select: { id: true, name: true, avatar: true } } },
     orderBy: { createdAt: "asc" as const },
@@ -238,6 +241,24 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         body: `${changerName}: ${statusLabels[prevStatus!] ?? prevStatus} → ${statusLabels[status] ?? status}`,
         url: `/tasks/${id}`,
       })));
+
+      // Approval flow: when moving to "review" check if category requires approval
+      if (status === "review") {
+        const cat = (task as any).category;
+        if (cat?.approvalEnabled && cat?.approverId) {
+          await prisma.task.update({ where: { id }, data: { approvalStatus: "pending", approvedById: null, approvedAt: null } });
+          void createNotification({
+            userId: cat.approverId,
+            type: "task_approval_requested",
+            title: `Ke schválení: ${task.title}`,
+            body: `Žádá: ${session.user.name ?? "Člen týmu"}`,
+            url: `/tasks/${id}`,
+          });
+        }
+      } else if (prevStatus === "review") {
+        // Moving away from review — clear pending approval
+        await prisma.task.update({ where: { id }, data: { approvalStatus: null } });
+      }
     }
 
     // Fire webhooks
