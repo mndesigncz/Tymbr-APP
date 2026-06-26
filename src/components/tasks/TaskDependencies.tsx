@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Lock, ArrowRight, X, Plus, Search } from "lucide-react";
+import { DropdownPortal } from "@/components/ui/DropdownPortal";
 
 interface DepTask { id: string; title: string; status: string; priority: string }
 interface Dep { id: string; blocker: DepTask }
@@ -23,6 +24,7 @@ export function TaskDependencies({ taskId, teamId }: Props) {
   const [suggestions, setSuggestions] = useState<DepTask[]>([]);
   const [loadingSug, setLoadingSug] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchWrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch(`/api/tasks/${taskId}/dependencies`)
@@ -124,8 +126,8 @@ export function TaskDependencies({ taskId, teamId }: Props) {
 
       {/* Add picker */}
       {adding && (
-        <div className="relative">
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl border"
+        <div>
+          <div ref={searchWrapperRef} className="flex items-center gap-2 px-3 py-2 rounded-xl border"
             style={{ background: "var(--bg-subtle)", borderColor: "var(--border-md)" }}>
             <Search className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--text-3)" }} />
             <input
@@ -138,21 +140,25 @@ export function TaskDependencies({ taskId, teamId }: Props) {
               onKeyDown={(e) => { if (e.key === "Escape") { setAdding(false); setSearch(""); } }}
             />
           </div>
-          {(suggestions.length > 0 || loadingSug) && (
-            <div className="absolute top-full left-0 right-0 mt-1 rounded-xl overflow-hidden z-30 shadow-lg"
-              style={{ background: "var(--bg-card)", border: "1px solid var(--border-md)" }}>
-              {loadingSug && <p className="text-[12px] px-4 py-3" style={{ color: "var(--text-3)" }}>Hledám…</p>}
-              {suggestions.map((t) => (
-                <button key={t.id} onClick={() => addDep(t)}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 text-left transition-colors hover:bg-[var(--hover)]">
-                  <span className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ background: STATUS_COLORS[t.status] ?? "#6B7280" }} />
-                  <span className="flex-1 text-[13px] font-medium truncate" style={{ color: "var(--text-1)" }}>{t.title}</span>
-                  <ArrowRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--text-3)" }} />
-                </button>
-              ))}
-            </div>
-          )}
+          <DropdownPortal
+            triggerRef={searchWrapperRef}
+            open={suggestions.length > 0 || loadingSug}
+            onClose={() => { setSuggestions([]); }}
+            align="left"
+            className="rounded-xl overflow-hidden shadow-lg"
+            style={{ background: "var(--bg-card)", border: "1px solid var(--border-md)", minWidth: "240px" }}
+          >
+            {loadingSug && <p className="text-[12px] px-4 py-3" style={{ color: "var(--text-3)" }}>Hledám…</p>}
+            {suggestions.map((t) => (
+              <button key={t.id} onClick={() => addDep(t)}
+                className="w-full flex items-center gap-2 px-4 py-2.5 text-left transition-colors hover:bg-[var(--hover)]">
+                <span className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ background: STATUS_COLORS[t.status] ?? "#6B7280" }} />
+                <span className="flex-1 text-[13px] font-medium truncate" style={{ color: "var(--text-1)" }}>{t.title}</span>
+                <ArrowRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--text-3)" }} />
+              </button>
+            ))}
+          </DropdownPortal>
         </div>
       )}
 

@@ -12,6 +12,7 @@ import { StartWorkButton } from "@/components/layout/StartWorkButton";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { DropdownPortal } from "@/components/ui/DropdownPortal";
 import type { Task } from "@/types";
 import { Plus, LayoutGrid, List, Search, SlidersHorizontal, X, CheckCheck, ChevronDown, Trash2, Square, CheckSquare2, Download } from "lucide-react";
 import { exportTasksToPdf } from "@/lib/exportPdf";
@@ -91,7 +92,7 @@ function TasksContent() {
   const [members, setMembers] = useState<{ id: string; name: string; avatar?: string | null }[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
   const [pickDropOpen, setPickDropOpen] = useState(false);
-  const pickRef = useRef<HTMLDivElement>(null);
+  const pickRef = useRef<HTMLButtonElement>(null);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState("");
@@ -113,15 +114,6 @@ function TasksContent() {
   };
 
   const myId = session?.user?.id;
-
-  // Close pick dropdown on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (pickRef.current && !pickRef.current.contains(e.target as Node)) setPickDropOpen(false);
-    };
-    if (pickDropOpen) document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [pickDropOpen]);
 
   const [fetchError, setFetchError] = useState<string | null>(null);
 
@@ -328,37 +320,42 @@ function TasksContent() {
                 </button>
               ))}
               {/* Pick dropdown */}
-              <div ref={pickRef} className="relative">
-                <button
-                  onClick={() => { setScope("pick"); setPickDropOpen((o) => !o); }}
-                  className="flex items-center gap-1 px-3 py-2 rounded-lg text-[13px] font-semibold transition-all"
-                  style={scope === "pick"
-                    ? { background: "var(--accent)", color: "#fff" }
-                    : { color: "var(--text-2)" }}>
-                  {pickLabel}
-                  <ChevronDown className="w-3 h-3" />
-                </button>
-                {pickDropOpen && members.length > 0 && (
-                  <div className="absolute top-full left-0 mt-1 z-50 rounded-2xl border py-1.5 min-w-[180px]"
-                    style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", boxShadow: "var(--shadow-md, 0 8px 24px rgba(0,0,0,0.1))" }}>
-                    {members.map((m) => (
-                      <label key={m.id}
-                        className="flex items-center gap-2.5 px-3.5 py-2 cursor-pointer hover:bg-[var(--hover)] transition-colors">
-                        <input
-                          type="checkbox"
-                          checked={selectedMembers.has(m.id)}
-                          onChange={() => toggleMember(m.id)}
-                          className="w-3.5 h-3.5 rounded accent-[var(--accent)]"
-                        />
-                        <Avatar name={m.name} src={m.avatar} size="xs" />
-                        <span className="text-[13px] font-medium" style={{ color: "var(--text-1)" }}>
-                          {m.name.split(" ")[0]}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <button
+                ref={pickRef}
+                onClick={() => { setScope("pick"); setPickDropOpen((o) => !o); }}
+                className="flex items-center gap-1 px-3 py-2 rounded-lg text-[13px] font-semibold transition-all"
+                style={scope === "pick"
+                  ? { background: "var(--accent)", color: "#fff" }
+                  : { color: "var(--text-2)" }}>
+                {pickLabel}
+                <ChevronDown className="w-3 h-3" />
+              </button>
+              {members.length > 0 && (
+                <DropdownPortal
+                  triggerRef={pickRef}
+                  open={pickDropOpen}
+                  onClose={() => setPickDropOpen(false)}
+                  align="left"
+                  className="rounded-2xl border py-1.5 min-w-[180px]"
+                  style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", boxShadow: "var(--shadow-md, 0 8px 24px rgba(0,0,0,0.1))" }}
+                >
+                  {members.map((m) => (
+                    <label key={m.id}
+                      className="flex items-center gap-2.5 px-3.5 py-2 cursor-pointer hover:bg-[var(--hover)] transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={selectedMembers.has(m.id)}
+                        onChange={() => toggleMember(m.id)}
+                        className="w-3.5 h-3.5 rounded accent-[var(--accent)]"
+                      />
+                      <Avatar name={m.name} src={m.avatar} size="xs" />
+                      <span className="text-[13px] font-medium" style={{ color: "var(--text-1)" }}>
+                        {m.name.split(" ")[0]}
+                      </span>
+                    </label>
+                  ))}
+                </DropdownPortal>
+              )}
             </div>
           )}
           </div>

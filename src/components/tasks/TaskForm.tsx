@@ -19,6 +19,7 @@ import { useStatusConfig } from "@/hooks/useStatusConfig";
 import { usePriorityConfig } from "@/hooks/usePriorityConfig";
 import { useTimeTracker } from "@/context/TimeTrackerContext";
 import { computeEstimate, formatCZK, formatDuration, hoursToMinutes, minutesToHours } from "@/lib/pricing";
+import { DropdownPortal } from "@/components/ui/DropdownPortal";
 
 interface TaskTemplate {
   id: string;
@@ -104,14 +105,14 @@ export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCanc
   const [expandedSubtask, setExpandedSubtask] = useState<number | null>(null);
 
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
-  const iconPickerRef = useRef<HTMLDivElement>(null);
+  const iconPickerRef = useRef<HTMLButtonElement>(null);
 
   const [templates, setTemplates] = useState<TaskTemplate[]>([]);
   const [templateOpen, setTemplateOpen] = useState(false);
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
   const [templateName, setTemplateName] = useState("");
-  const templateRef = useRef<HTMLDivElement>(null);
+  const templateRef = useRef<HTMLButtonElement>(null);
 
   const [assigneeSearch, setAssigneeSearch] = useState("");
 
@@ -147,27 +148,6 @@ export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCanc
     });
   }, []);
 
-  useEffect(() => {
-    if (!templateOpen) return;
-    const handle = (e: MouseEvent) => {
-      if (templateRef.current && !templateRef.current.contains(e.target as Node)) {
-        setTemplateOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
-  }, [templateOpen]);
-
-  useEffect(() => {
-    if (!iconPickerOpen) return;
-    const handle = (e: MouseEvent) => {
-      if (iconPickerRef.current && !iconPickerRef.current.contains(e.target as Node)) {
-        setIconPickerOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
-  }, [iconPickerOpen]);
 
   const applyTemplate = (t: TaskTemplate) => {
     setForm((f) => ({
@@ -361,8 +341,9 @@ export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCanc
     <form onSubmit={handleSubmit} className="space-y-5 max-w-2xl mx-auto">
       {/* Template picker — new tasks only */}
       {!task && (
-        <div className="relative" ref={templateRef}>
+        <>
           <button
+            ref={templateRef}
             type="button"
             onClick={() => setTemplateOpen((o) => !o)}
             className="flex items-center justify-center gap-2 text-[13px] font-semibold px-3.5 py-2.5 rounded-xl border transition-all hover:bg-[var(--hover)] w-full"
@@ -377,51 +358,55 @@ export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCanc
             )}
           </button>
 
-          {templateOpen && (
-            <div className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-2xl border overflow-hidden glass-strong animate-scale-in"
-              style={{ borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)" }}>
-              {templates.length === 0 ? (
-                <p className="text-[13px] px-4 py-5 text-center" style={{ color: "var(--text-3)" }}>
-                  Žádné šablony. Vyplň formulář a ulož ho jako šablonu.
-                </p>
-              ) : (
-                <div className="max-h-56 overflow-y-auto divide-y" style={{ borderColor: "var(--border)" }}>
-                  {templates.map((t) => (
-                    <div
-                      key={t.id}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => applyTemplate(t)}
-                      onKeyDown={(e) => { if (e.key === "Enter") applyTemplate(t); }}
-                      className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--hover)] cursor-pointer">
-                      <div className="min-w-0">
-                        <p className="text-[13.5px] font-semibold truncate" style={{ color: "var(--text-1)" }}>{t.name}</p>
-                        {t.description && (
-                          <p className="text-[12px] truncate mt-0.5" style={{ color: "var(--text-3)" }}>{t.description}</p>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={(e) => deleteTemplate(e, t.id)}
-                        className="flex-shrink-0 p-1.5 rounded-lg transition-colors hover:bg-[var(--danger-soft)]"
-                        style={{ color: "var(--text-3)" }}
-                        aria-label="Smazat šablonu">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+          <DropdownPortal
+            triggerRef={templateRef}
+            open={templateOpen}
+            onClose={() => setTemplateOpen(false)}
+            className="rounded-2xl border overflow-hidden glass-strong animate-scale-in"
+            style={{ borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)", minWidth: "320px" }}
+          >
+            {templates.length === 0 ? (
+              <p className="text-[13px] px-4 py-5 text-center" style={{ color: "var(--text-3)" }}>
+                Žádné šablony. Vyplň formulář a ulož ho jako šablonu.
+              </p>
+            ) : (
+              <div className="max-h-56 overflow-y-auto divide-y" style={{ borderColor: "var(--border)" }}>
+                {templates.map((t) => (
+                  <div
+                    key={t.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => applyTemplate(t)}
+                    onKeyDown={(e) => { if (e.key === "Enter") applyTemplate(t); }}
+                    className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--hover)] cursor-pointer">
+                    <div className="min-w-0">
+                      <p className="text-[13.5px] font-semibold truncate" style={{ color: "var(--text-1)" }}>{t.name}</p>
+                      {t.description && (
+                        <p className="text-[12px] truncate mt-0.5" style={{ color: "var(--text-3)" }}>{t.description}</p>
+                      )}
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+                    <button
+                      type="button"
+                      onClick={(e) => deleteTemplate(e, t.id)}
+                      className="flex-shrink-0 p-1.5 rounded-lg transition-colors hover:bg-[var(--danger-soft)]"
+                      style={{ color: "var(--text-3)" }}
+                      aria-label="Smazat šablonu">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </DropdownPortal>
+        </>
       )}
 
       {/* Title + icon picker */}
-      <div className="relative" ref={iconPickerRef}>
+      <div>
         <FieldLabel>Název</FieldLabel>
         <div className="flex items-center gap-2.5">
           <button
+            ref={iconPickerRef}
             type="button"
             onClick={() => setIconPickerOpen((o) => !o)}
             className="w-[46px] h-[46px] rounded-xl flex-shrink-0 flex items-center justify-center border transition-all hover:bg-[var(--hover)]"
@@ -440,39 +425,40 @@ export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCanc
         </div>
 
         {/* Icon picker dropdown */}
-        {iconPickerOpen && (
-          <div
-            className="absolute top-full left-0 mt-1.5 z-50 rounded-2xl border p-3 glass-strong animate-scale-in"
-            style={{ borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)", minWidth: "252px" }}
-          >
-            <div className="grid grid-cols-6 gap-1.5">
-              {ICON_OPTIONS.map(({ key, Icon: Opt }) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => { setForm((f) => ({ ...f, icon: f.icon === key ? "" : key })); setIconPickerOpen(false); }}
-                  className="w-9 h-9 flex items-center justify-center rounded-xl transition-all hover:bg-[var(--hover)]"
-                  style={{
-                    background: form.icon === key ? "color-mix(in srgb, var(--accent) 14%, transparent)" : "transparent",
-                    color: form.icon === key ? "var(--accent)" : "var(--text-2)",
-                  }}
-                >
-                  <Opt className="w-[18px] h-[18px]" />
-                </button>
-              ))}
-            </div>
-            {form.icon && (
+        <DropdownPortal
+          triggerRef={iconPickerRef}
+          open={iconPickerOpen}
+          onClose={() => setIconPickerOpen(false)}
+          className="rounded-2xl border p-3 glass-strong animate-scale-in"
+          style={{ borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)", minWidth: "252px" }}
+        >
+          <div className="grid grid-cols-6 gap-1.5">
+            {ICON_OPTIONS.map(({ key, Icon: Opt }) => (
               <button
+                key={key}
                 type="button"
-                onClick={() => { setForm((f) => ({ ...f, icon: "" })); setIconPickerOpen(false); }}
-                className="mt-2 w-full text-[12px] py-1.5 rounded-xl text-center transition-colors hover:bg-[var(--danger-soft)]"
-                style={{ color: "var(--text-3)" }}
+                onClick={() => { setForm((f) => ({ ...f, icon: f.icon === key ? "" : key })); setIconPickerOpen(false); }}
+                className="w-9 h-9 flex items-center justify-center rounded-xl transition-all hover:bg-[var(--hover)]"
+                style={{
+                  background: form.icon === key ? "color-mix(in srgb, var(--accent) 14%, transparent)" : "transparent",
+                  color: form.icon === key ? "var(--accent)" : "var(--text-2)",
+                }}
               >
-                Odebrat ikonu
+                <Opt className="w-[18px] h-[18px]" />
               </button>
-            )}
+            ))}
           </div>
-        )}
+          {form.icon && (
+            <button
+              type="button"
+              onClick={() => { setForm((f) => ({ ...f, icon: "" })); setIconPickerOpen(false); }}
+              className="mt-2 w-full text-[12px] py-1.5 rounded-xl text-center transition-colors hover:bg-[var(--danger-soft)]"
+              style={{ color: "var(--text-3)" }}
+            >
+              Odebrat ikonu
+            </button>
+          )}
+        </DropdownPortal>
       </div>
 
       {/* Status */}

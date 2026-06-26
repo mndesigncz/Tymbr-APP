@@ -6,6 +6,7 @@ import {
   Clock, DollarSign, Pencil,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
+import { DropdownPortal } from "@/components/ui/DropdownPortal";
 import { minutesToHours, hoursToMinutes } from "@/lib/pricing";
 import { formatDate, isOverdue } from "@/lib/utils";
 import type { SubTask } from "@/types";
@@ -78,6 +79,7 @@ export function Subtasks({
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const newInputRef = useRef<HTMLInputElement>(null);
+  const assigneeBtnRef = useRef<HTMLButtonElement>(null);
 
   const c = {
     text1: dark ? "#f5f5f7" : "var(--text-1)",
@@ -388,8 +390,9 @@ export function Subtasks({
                       {members.length > 0 && (
                         <div>
                           <label className="text-[10.5px] font-semibold uppercase tracking-wide mb-1 block" style={{ color: c.text3 }}>Přiřadit</label>
-                          <div className="relative">
+                          <div>
                             <button
+                              ref={assigneeBtnRef}
                               onClick={() => setAssigneeOpenId(assigneeOpenId === st.id ? null : st.id)}
                               className="w-full flex items-center gap-1.5 text-[12.5px] px-2.5 py-1.5 rounded-xl text-left"
                               style={{ background: c.inputBg, color: assignee ? c.text1 : c.text3, border: `1px solid ${c.borderMd}` }}
@@ -398,33 +401,34 @@ export function Subtasks({
                                 ? <><Avatar name={assignee.name} src={assignee.avatar} size="sm" /><span className="truncate">{assignee.name}</span></>
                                 : <><User className="w-3.5 h-3.5" /><span>Nikdo</span></>}
                             </button>
-                            {assigneeOpenId === st.id && (
-                              <>
-                                <div className="fixed inset-0 z-40" onClick={() => setAssigneeOpenId(null)} />
-                                <div className="absolute top-full left-0 mt-1 w-48 rounded-xl overflow-hidden z-50"
-                                  style={{ background: "var(--bg-card)", border: "1px solid var(--border-md)", boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}>
-                                  {assignee && (
-                                    <button onClick={() => { setAssigneeOpenId(null); patch(st.id, { assigneeId: null }); }}
-                                      className="w-full flex items-center gap-2 px-3 py-2 text-[12.5px] hover:bg-[var(--hover)]"
-                                      style={{ color: "var(--text-3)" }}>
-                                      <span className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "var(--bg-subtle)" }}>
-                                        <User className="w-3 h-3" />
-                                      </span>
-                                      Odebrat přiřazení
-                                    </button>
-                                  )}
-                                  {members.map((m) => (
-                                    <button key={m.id} onClick={() => { setAssigneeOpenId(null); patch(st.id, { assigneeId: m.id }); }}
-                                      className="w-full flex items-center gap-2 px-3 py-2 text-[12.5px] hover:bg-[var(--hover)]"
-                                      style={{ color: "var(--text-1)" }}>
-                                      <Avatar name={m.name} src={m.avatar} size="sm" />
-                                      <span className="truncate">{m.name}</span>
-                                      {st.assigneeId === m.id && <Check className="w-3 h-3 ml-auto" style={{ color: "var(--accent)" }} />}
-                                    </button>
-                                  ))}
-                                </div>
-                              </>
-                            )}
+                            <DropdownPortal
+                              triggerRef={assigneeBtnRef}
+                              open={assigneeOpenId === st.id}
+                              onClose={() => setAssigneeOpenId(null)}
+                              align="left"
+                              className="w-48 rounded-xl overflow-hidden"
+                              style={{ background: "var(--bg-card)", border: "1px solid var(--border-md)", boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}
+                            >
+                              {assignee && (
+                                <button onClick={() => { setAssigneeOpenId(null); patch(st.id, { assigneeId: null }); }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-[12.5px] hover:bg-[var(--hover)]"
+                                  style={{ color: "var(--text-3)" }}>
+                                  <span className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "var(--bg-subtle)" }}>
+                                    <User className="w-3 h-3" />
+                                  </span>
+                                  Odebrat přiřazení
+                                </button>
+                              )}
+                              {members.map((m) => (
+                                <button key={m.id} onClick={() => { setAssigneeOpenId(null); patch(st.id, { assigneeId: m.id }); }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 text-[12.5px] hover:bg-[var(--hover)]"
+                                  style={{ color: "var(--text-1)" }}>
+                                  <Avatar name={m.name} src={m.avatar} size="sm" />
+                                  <span className="truncate">{m.name}</span>
+                                  {st.assigneeId === m.id && <Check className="w-3 h-3 ml-auto" style={{ color: "var(--accent)" }} />}
+                                </button>
+                              ))}
+                            </DropdownPortal>
                           </div>
                         </div>
                       )}

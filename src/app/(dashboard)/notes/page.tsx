@@ -16,6 +16,7 @@ import { formatRelative } from "@/lib/utils";
 import { TaskForm } from "@/components/tasks/TaskForm";
 import { EventForm } from "@/components/calendar/EventForm";
 import { ShareSheet } from "@/components/share/ShareSheet";
+import { DropdownPortal } from "@/components/ui/DropdownPortal";
 
 const NOTE_COLORS = [
   { value: null,      label: "Výchozí",  bg: "var(--bg-card)",    border: "var(--border-md)" },
@@ -124,7 +125,8 @@ function NoteEditor({
   const [eventOpen, setEventOpen] = useState(false);
   const canUseTeam = !!(session?.user as any)?.teamId;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const colorPickerRef = useRef<HTMLDivElement>(null);
+  const colorPickerRef = useRef<HTMLButtonElement>(null);
+  const collabBtnRef = useRef<HTMLButtonElement>(null);
 
   const debouncedTitle = useDebounce(title, 600);
   const debouncedContent = useDebounce(content, 600);
@@ -135,16 +137,6 @@ function NoteEditor({
     fetch("/api/users").then((r) => r.json()).then((d) => { if (Array.isArray(d)) setUsers(d); });
   }, []);
 
-  // Close color picker on outside click
-  useEffect(() => {
-    if (!showColorPicker) return;
-    const handler = (e: MouseEvent) => {
-      if (colorPickerRef.current && !colorPickerRef.current.contains(e.target as Node))
-        setShowColorPicker(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [showColorPicker]);
 
   const save = useCallback(async (patch: Record<string, any>) => {
     setSaving(true);
@@ -228,58 +220,58 @@ function NoteEditor({
           }}
         >
           {/* Color picker button */}
-          <div className="relative" ref={colorPickerRef}>
-            <button
-              onClick={() => setShowColorPicker((o) => !o)}
-              className="w-8 h-8 rounded-xl flex items-center justify-center transition-all hover:bg-[var(--hover)]"
-              title="Barva poznámky"
-            >
-              {note.color ? (
-                <span
-                  className="w-4 h-4 rounded-full border-[1.5px]"
-                  style={{ background: color.bg, borderColor: color.border }}
-                />
-              ) : (
-                <Palette className="w-4 h-4" style={{ color: "var(--text-3)" }} />
-              )}
-            </button>
-
-            {showColorPicker && (
-              <div
-                className="absolute top-full left-0 mt-2 p-3 rounded-2xl glass-strong border animate-scale-in z-50"
-                style={{ borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)", minWidth: 230 }}
-              >
-                <p className="text-[10.5px] font-semibold uppercase tracking-widest mb-2.5"
-                  style={{ color: "var(--text-3)" }}>
-                  Barva poznámky
-                </p>
-                <div className="flex items-center gap-2">
-                  {NOTE_COLORS.map((c) => (
-                    <button
-                      key={c.label}
-                      onClick={() => setNoteColor(c.value)}
-                      className="w-8 h-8 rounded-full transition-all hover:scale-110 flex items-center justify-center flex-shrink-0"
-                      style={{
-                        background: c.bg === "var(--bg-card)" ? "var(--bg-subtle)" : c.bg,
-                        border: note.color === c.value
-                          ? `2.5px solid var(--accent)`
-                          : `2px solid ${c.border}`,
-                        boxShadow: note.color === c.value ? `0 0 0 2px var(--accent)44` : undefined,
-                      }}
-                      title={c.label}
-                    >
-                      {note.color === c.value && (
-                        <Check className="w-3.5 h-3.5" style={{ color: c.value ? "#000" : "var(--text-2)" }} />
-                      )}
-                      {!note.color && c.value === null && (
-                        <Check className="w-3.5 h-3.5" style={{ color: "var(--text-2)" }} />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
+          <button
+            ref={colorPickerRef}
+            onClick={() => setShowColorPicker((o) => !o)}
+            className="w-8 h-8 rounded-xl flex items-center justify-center transition-all hover:bg-[var(--hover)]"
+            title="Barva poznámky"
+          >
+            {note.color ? (
+              <span
+                className="w-4 h-4 rounded-full border-[1.5px]"
+                style={{ background: color.bg, borderColor: color.border }}
+              />
+            ) : (
+              <Palette className="w-4 h-4" style={{ color: "var(--text-3)" }} />
             )}
-          </div>
+          </button>
+
+          <DropdownPortal
+            triggerRef={colorPickerRef}
+            open={showColorPicker}
+            onClose={() => setShowColorPicker(false)}
+            className="p-3 rounded-2xl glass-strong border animate-scale-in"
+            style={{ borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)", minWidth: 230 }}
+          >
+            <p className="text-[10.5px] font-semibold uppercase tracking-widest mb-2.5"
+              style={{ color: "var(--text-3)" }}>
+              Barva poznámky
+            </p>
+            <div className="flex items-center gap-2">
+              {NOTE_COLORS.map((c) => (
+                <button
+                  key={c.label}
+                  onClick={() => setNoteColor(c.value)}
+                  className="w-8 h-8 rounded-full transition-all hover:scale-110 flex items-center justify-center flex-shrink-0"
+                  style={{
+                    background: c.bg === "var(--bg-card)" ? "var(--bg-subtle)" : c.bg,
+                    border: note.color === c.value
+                      ? `2.5px solid var(--accent)`
+                      : `2px solid ${c.border}`,
+                    boxShadow: note.color === c.value ? `0 0 0 2px var(--accent)44` : undefined,
+                  }}
+                  title={c.label}
+                >
+                  {note.color === c.value && (
+                    <Check className="w-3.5 h-3.5" style={{ color: c.value ? "#000" : "var(--text-2)" }} />
+                  )}
+                  {!note.color && c.value === null && (
+                    <Check className="w-3.5 h-3.5" style={{ color: "var(--text-2)" }} />
+                  )}
+                </button>
+              ))}
+            </div>
+          </DropdownPortal>
 
           {/* Save indicator */}
           {(saving || saved) && (
@@ -405,51 +397,56 @@ function NoteEditor({
               </div>
             ))}
             {isOwner && (
-              <div className="relative">
+              <>
                 <button
+                  ref={collabBtnRef}
                   onClick={() => setShowCollabPicker((o) => !o)}
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium border transition-all hover:border-[var(--accent)]"
                   style={{ borderColor: "var(--border-md)", color: "var(--text-2)" }}
                 >
                   <UserPlus className="w-3.5 h-3.5" /> Přizvat
                 </button>
-                {showCollabPicker && (
-                  <div className="absolute bottom-full left-0 mb-2 w-56 rounded-2xl border overflow-hidden z-50 glass-strong animate-scale-in"
-                    style={{ borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)" }}>
-                    <div className="p-2">
-                      <input
-                        autoFocus
-                        value={collabSearch}
-                        onChange={(e) => setCollabSearch(e.target.value)}
-                        placeholder="Hledat člena…"
-                        className="w-full text-[12.5px] px-2.5 py-1.5 rounded-lg outline-none border"
-                        style={{ background: "var(--bg-card)", color: "var(--text-1)", borderColor: "var(--border-md)" }}
-                      />
-                    </div>
-                    <div className="max-h-40 overflow-y-auto">
-                      {filteredUsers.length === 0 ? (
-                        <p className="text-[12px] px-3 py-2 text-center" style={{ color: "var(--text-3)" }}>
-                          Nikdo nenalezen
-                        </p>
-                      ) : filteredUsers.map((u) => (
-                        <button
-                          key={u.id}
-                          onClick={() => addCollaborator(u.id)}
-                          className="w-full flex items-center gap-2.5 px-3 py-2 transition-colors hover:bg-[var(--hover)] text-left"
-                        >
-                          <Avatar name={u.name} src={u.avatar} size="sm" />
-                          <div className="min-w-0">
-                            <p className="text-[12.5px] font-medium truncate" style={{ color: "var(--text-1)" }}>
-                              {u.name}
-                            </p>
-                            <p className="text-[11px] truncate" style={{ color: "var(--text-3)" }}>{u.email}</p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
+                <DropdownPortal
+                  triggerRef={collabBtnRef}
+                  open={showCollabPicker}
+                  onClose={() => setShowCollabPicker(false)}
+                  anchor="top"
+                  className="w-56 rounded-2xl border overflow-hidden glass-strong animate-scale-in"
+                  style={{ borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)" }}
+                >
+                  <div className="p-2">
+                    <input
+                      autoFocus
+                      value={collabSearch}
+                      onChange={(e) => setCollabSearch(e.target.value)}
+                      placeholder="Hledat člena…"
+                      className="w-full text-[12.5px] px-2.5 py-1.5 rounded-lg outline-none border"
+                      style={{ background: "var(--bg-card)", color: "var(--text-1)", borderColor: "var(--border-md)" }}
+                    />
                   </div>
-                )}
-              </div>
+                  <div className="max-h-40 overflow-y-auto">
+                    {filteredUsers.length === 0 ? (
+                      <p className="text-[12px] px-3 py-2 text-center" style={{ color: "var(--text-3)" }}>
+                        Nikdo nenalezen
+                      </p>
+                    ) : filteredUsers.map((u) => (
+                      <button
+                        key={u.id}
+                        onClick={() => addCollaborator(u.id)}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 transition-colors hover:bg-[var(--hover)] text-left"
+                      >
+                        <Avatar name={u.name} src={u.avatar} size="sm" />
+                        <div className="min-w-0">
+                          <p className="text-[12.5px] font-medium truncate" style={{ color: "var(--text-1)" }}>
+                            {u.name}
+                          </p>
+                          <p className="text-[11px] truncate" style={{ color: "var(--text-3)" }}>{u.email}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </DropdownPortal>
+              </>
             )}
           </div>
         </div>
