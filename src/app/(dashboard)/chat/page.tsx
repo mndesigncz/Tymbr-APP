@@ -410,13 +410,13 @@ export default function ChatPage() {
                 open={mentionQuery !== null}
                 onClose={() => setMentionQuery(null)}
                 anchor="top"
+                align="left"
                 className="rounded-2xl border overflow-hidden"
                 style={{
                   background: "var(--bg-card)",
                   borderColor: "var(--border-md)",
                   boxShadow: "0 -8px 32px rgba(0,0,0,0.12)",
-                  left: 0,
-                  right: 0,
+                  right: 16,
                 }}
               >
                 {mentionResults.length === 0 ? (
