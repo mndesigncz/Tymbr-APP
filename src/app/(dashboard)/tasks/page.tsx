@@ -6,17 +6,20 @@ import { useSession } from "next-auth/react";
 import { Header } from "@/components/layout/Header";
 import { KanbanBoard } from "@/components/tasks/KanbanBoard";
 import { TaskCard } from "@/components/tasks/TaskCard";
+import { SubtaskListCard } from "@/components/tasks/SubtaskListCard";
 import { Avatar } from "@/components/ui/Avatar";
 import { StartWorkButton } from "@/components/layout/StartWorkButton";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { DropdownPortal } from "@/components/ui/DropdownPortal";
 import type { Task } from "@/types";
 import { Plus, LayoutGrid, List, Search, SlidersHorizontal, X, CheckCheck, ChevronDown, Trash2, Square, CheckSquare2, Download } from "lucide-react";
 import { exportTasksToPdf } from "@/lib/exportPdf";
 import { useStatusConfig } from "@/hooks/useStatusConfig";
 import Link from "next/link";
 import { Suspense } from "react";
+
 
 const STATUS_OPTS = [
   { value: "", label: "Všechny statusy" },
@@ -89,7 +92,7 @@ function TasksContent() {
   const [members, setMembers] = useState<{ id: string; name: string; avatar?: string | null }[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
   const [pickDropOpen, setPickDropOpen] = useState(false);
-  const pickRef = useRef<HTMLDivElement>(null);
+  const pickRef = useRef<HTMLButtonElement>(null);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState("");
@@ -111,15 +114,6 @@ function TasksContent() {
   };
 
   const myId = session?.user?.id;
-
-  // Close pick dropdown on outside click
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (pickRef.current && !pickRef.current.contains(e.target as Node)) setPickDropOpen(false);
-    };
-    if (pickDropOpen) document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [pickDropOpen]);
 
   const [fetchError, setFetchError] = useState<string | null>(null);
 
@@ -326,37 +320,42 @@ function TasksContent() {
                 </button>
               ))}
               {/* Pick dropdown */}
-              <div ref={pickRef} className="relative">
-                <button
-                  onClick={() => { setScope("pick"); setPickDropOpen((o) => !o); }}
-                  className="flex items-center gap-1 px-3 py-2 rounded-lg text-[13px] font-semibold transition-all"
-                  style={scope === "pick"
-                    ? { background: "var(--accent)", color: "#fff" }
-                    : { color: "var(--text-2)" }}>
-                  {pickLabel}
-                  <ChevronDown className="w-3 h-3" />
-                </button>
-                {pickDropOpen && members.length > 0 && (
-                  <div className="absolute top-full left-0 mt-1 z-50 rounded-2xl border py-1.5 min-w-[180px]"
-                    style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", boxShadow: "var(--shadow-md, 0 8px 24px rgba(0,0,0,0.1))" }}>
-                    {members.map((m) => (
-                      <label key={m.id}
-                        className="flex items-center gap-2.5 px-3.5 py-2 cursor-pointer hover:bg-[var(--hover)] transition-colors">
-                        <input
-                          type="checkbox"
-                          checked={selectedMembers.has(m.id)}
-                          onChange={() => toggleMember(m.id)}
-                          className="w-3.5 h-3.5 rounded accent-[var(--accent)]"
-                        />
-                        <Avatar name={m.name} src={m.avatar} size="xs" />
-                        <span className="text-[13px] font-medium" style={{ color: "var(--text-1)" }}>
-                          {m.name.split(" ")[0]}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <button
+                ref={pickRef}
+                onClick={() => { setScope("pick"); setPickDropOpen((o) => !o); }}
+                className="flex items-center gap-1 px-3 py-2 rounded-lg text-[13px] font-semibold transition-all"
+                style={scope === "pick"
+                  ? { background: "var(--accent)", color: "#fff" }
+                  : { color: "var(--text-2)" }}>
+                {pickLabel}
+                <ChevronDown className="w-3 h-3" />
+              </button>
+              {members.length > 0 && (
+                <DropdownPortal
+                  triggerRef={pickRef}
+                  open={pickDropOpen}
+                  onClose={() => setPickDropOpen(false)}
+                  align="left"
+                  className="rounded-2xl border py-1.5 min-w-[180px]"
+                  style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", boxShadow: "var(--shadow-md, 0 8px 24px rgba(0,0,0,0.1))" }}
+                >
+                  {members.map((m) => (
+                    <label key={m.id}
+                      className="flex items-center gap-2.5 px-3.5 py-2 cursor-pointer hover:bg-[var(--hover)] transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={selectedMembers.has(m.id)}
+                        onChange={() => toggleMember(m.id)}
+                        className="w-3.5 h-3.5 rounded accent-[var(--accent)]"
+                      />
+                      <Avatar name={m.name} src={m.avatar} size="xs" />
+                      <span className="text-[13px] font-medium" style={{ color: "var(--text-1)" }}>
+                        {m.name.split(" ")[0]}
+                      </span>
+                    </label>
+                  ))}
+                </DropdownPortal>
+              )}
             </div>
           )}
           </div>
@@ -537,19 +536,30 @@ function TasksContent() {
                 </div>
               )}
               {tasks.map((task) => (
-                <div key={task.id} className="relative group">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); toggleSelect(task.id); }}
-                    className="absolute top-3 left-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
-                    style={selected.has(task.id) ? { opacity: 1 } : {}}>
-                    {selected.has(task.id)
-                      ? <CheckSquare2 className="w-5 h-5" style={{ color: "var(--accent)" }} />
-                      : <Square className="w-5 h-5" style={{ color: "var(--text-3)" }} />}
-                  </button>
-                  <div className="rounded-2xl transition-shadow"
-                    style={selected.has(task.id) ? { boxShadow: "0 0 0 2px var(--accent)" } : {}}>
-                    <TaskCard task={task} currentUserId={myId} />
+                <div key={task.id} className="flex flex-col">
+                  <div className="relative group">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleSelect(task.id); }}
+                      className="absolute top-3 left-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
+                      style={selected.has(task.id) ? { opacity: 1 } : {}}>
+                      {selected.has(task.id)
+                        ? <CheckSquare2 className="w-5 h-5" style={{ color: "var(--accent)" }} />
+                        : <Square className="w-5 h-5" style={{ color: "var(--text-3)" }} />}
+                    </button>
+                    <div className="rounded-2xl transition-shadow"
+                      style={selected.has(task.id) ? { boxShadow: "0 0 0 2px var(--accent)" } : {}}>
+                      <TaskCard task={task} currentUserId={myId} />
+                    </div>
                   </div>
+                  {/* Subtask cards — visually connected to parent */}
+                  {(task.subtasks ?? []).length > 0 && (
+                    <div className="relative ml-5 mt-1.5 flex flex-col gap-1.5 pl-4"
+                      style={{ borderLeft: "2px solid var(--border-md)" }}>
+                      {(task.subtasks ?? []).map((st) => (
+                        <SubtaskListCard key={st.id} subtask={st} parentTaskId={task.id} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

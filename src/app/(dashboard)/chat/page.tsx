@@ -10,6 +10,7 @@ import { ScrollFadeX } from "@/components/ui/ScrollFadeX";
 import { Send, MessageSquare, Users, CheckSquare, User, Paperclip } from "lucide-react";
 import type { Task } from "@/types";
 import { STATUS_COLORS } from "@/types";
+import { DropdownPortal } from "@/components/ui/DropdownPortal";
 
 interface ChatMessage {
   id: string;
@@ -69,6 +70,7 @@ export default function ChatPage() {
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<MentionInputHandle>(null);
   const lastTimestamp = useRef<string | null>(null);
+  const mentionWrapperRef = useRef<HTMLDivElement>(null);
   const myId = session?.user?.id;
   const [bgUnread, setBgUnread] = useState(0);
 
@@ -401,80 +403,84 @@ export default function ChatPage() {
             </div>
 
             {/* Input */}
-            <div className="border-t relative" style={{ borderColor: "var(--border)" }} onKeyDown={handleKeyDownPicker}>
+            <div ref={mentionWrapperRef} className="border-t" style={{ borderColor: "var(--border)" }} onKeyDown={handleKeyDownPicker}>
               {/* Unified @ mention picker */}
-              {mentionQuery !== null && (
-                <div
-                  className="absolute bottom-full left-4 right-4 mb-1 rounded-2xl border overflow-hidden z-20"
-                  style={{
-                    background: "var(--bg-card)",
-                    borderColor: "var(--border-md)",
-                    boxShadow: "0 -8px 32px rgba(0,0,0,0.12)",
-                  }}
-                >
-                  {mentionResults.length === 0 ? (
-                    <div className="px-4 py-3 text-[13px]" style={{ color: "var(--text-3)" }}>
-                      Nic nenalezeno…
-                    </div>
-                  ) : (
-                    <>
-                      {grouped.map(({ item, i, firstOfKind }) => (
-                        <div key={`${item.kind}-${item.id}`}>
-                          {firstOfKind && (
-                            <div className="px-3 pt-2.5 pb-1 flex items-center gap-1.5">
-                              {kindIcon(item.kind)}
-                              <p className="text-[10.5px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
-                                {kindLabel(item.kind)}
-                              </p>
-                            </div>
+              <DropdownPortal
+                triggerRef={mentionWrapperRef}
+                open={mentionQuery !== null}
+                onClose={() => setMentionQuery(null)}
+                anchor="top"
+                align="left"
+                className="rounded-2xl border overflow-hidden"
+                style={{
+                  background: "var(--bg-card)",
+                  borderColor: "var(--border-md)",
+                  boxShadow: "0 -8px 32px rgba(0,0,0,0.12)",
+                  right: 16,
+                }}
+              >
+                {mentionResults.length === 0 ? (
+                  <div className="px-4 py-3 text-[13px]" style={{ color: "var(--text-3)" }}>
+                    Nic nenalezeno…
+                  </div>
+                ) : (
+                  <>
+                    {grouped.map(({ item, i, firstOfKind }) => (
+                      <div key={`${item.kind}-${item.id}`}>
+                        {firstOfKind && (
+                          <div className="px-3 pt-2.5 pb-1 flex items-center gap-1.5">
+                            {kindIcon(item.kind)}
+                            <p className="text-[10.5px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
+                              {kindLabel(item.kind)}
+                            </p>
+                          </div>
+                        )}
+                        <button
+                          onMouseDown={(e) => { e.preventDefault(); selectMention(item); }}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors"
+                          style={i === mentionIdx ? { background: "var(--accent-soft)" } : { background: "transparent" }}
+                        >
+                          {item.kind === "task" && (
+                            <>
+                              <span className="w-2 h-2 rounded-full flex-shrink-0"
+                                style={{ background: (STATUS_COLORS as Record<string, string>)[item.status] ?? "#9a9aa2" }} />
+                              <span className="text-[13px] font-medium flex-1 truncate" style={{ color: "var(--text-1)" }}>
+                                {item.title}
+                              </span>
+                              {item.category && (
+                                <span className="text-[11px] flex-shrink-0" style={{ color: "var(--text-3)" }}>
+                                  {item.category.name}
+                                </span>
+                              )}
+                            </>
                           )}
-                          <button
-                            onMouseDown={(e) => { e.preventDefault(); selectMention(item); }}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors"
-                            style={i === mentionIdx ? { background: "var(--accent-soft)" } : { background: "transparent" }}
-                          >
-                            {item.kind === "task" && (
-                              <>
-                                <span className="w-2 h-2 rounded-full flex-shrink-0"
-                                  style={{ background: (STATUS_COLORS as Record<string, string>)[item.status] ?? "#9a9aa2" }} />
-                                <span className="text-[13px] font-medium flex-1 truncate" style={{ color: "var(--text-1)" }}>
-                                  {item.title}
-                                </span>
-                                {item.category && (
-                                  <span className="text-[11px] flex-shrink-0" style={{ color: "var(--text-3)" }}>
-                                    {item.category.name}
-                                  </span>
-                                )}
-                              </>
-                            )}
-                            {item.kind === "user" && (
-                              <>
-                                <Avatar name={item.name} src={item.avatar} size="xs" />
-                                <span className="text-[13px] font-medium flex-1 truncate" style={{ color: "var(--text-1)" }}>
-                                  {item.name}
-                                </span>
-                              </>
-                            )}
-                            {item.kind === "file" && (
-                              <>
-                                <Paperclip className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--text-3)" }} />
-                                <span className="text-[13px] font-medium flex-1 truncate" style={{ color: "var(--text-1)" }}>
-                                  {item.name}
-                                </span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      ))}
-                      <div className="px-3 py-1.5 border-t" style={{ borderColor: "var(--border)" }}>
-                        <p className="text-[10.5px]" style={{ color: "var(--text-3)" }}>
-                          ↑↓ navigovat · Enter vybrat · Esc zavřít
-                        </p>
+                          {item.kind === "user" && (
+                            <>
+                              <Avatar name={item.name} src={item.avatar} size="xs" />
+                              <span className="text-[13px] font-medium flex-1 truncate" style={{ color: "var(--text-1)" }}>
+                                {item.name}
+                              </span>
+                            </>
+                          )}
+                          {item.kind === "file" && (
+                            <>
+                              <Paperclip className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--text-3)" }} />
+                              <span className="text-[13px] font-medium flex-1 truncate" style={{ color: "var(--text-1)" }}>
+                                {item.name}
+                              </span>
+                            </>
+                          )}
+                        </button>
                       </div>
-                    </>
-                  )}
-                </div>
-              )}
+                    ))}
+                    <div className="px-3 py-1.5 border-t" style={{ borderColor: "var(--border)" }}>
+                      <p className="text-[10.5px]" style={{ color: "var(--text-3)" }}>
+                        ↑↓ navigovat · Enter vybrat · Esc zavřít
+                      </p>
+                    </div>
+                  </>
+                )}
+              </DropdownPortal>
 
               <div className="flex items-center gap-3 p-4">
                 <MentionInput

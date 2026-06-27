@@ -105,6 +105,7 @@ export interface SubTask {
   estimatedMinutes?: number | null;
   done: boolean;
   order: number;
+  dueDate?: Date | string | null;
   createdAt: Date | string;
   taskId: string;
   assigneeId?: string | null;

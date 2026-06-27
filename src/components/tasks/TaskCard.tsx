@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { formatDate, isOverdue } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
@@ -24,6 +24,8 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, currentUserId,
   const statuses = useStatusConfig();
   const [statusOpen, setStatusOpen] = useState(false);
   const [optimisticStatus, setOptimisticStatus] = useState<string | null>(null);
+  const [dropPos, setDropPos] = useState<{ top: number; left: number } | null>(null);
+  const statusBtnRef = useRef<HTMLButtonElement>(null);
 
   const currentStatus = optimisticStatus ?? task.status;
   const overdue = currentStatus !== "done" && isOverdue(task.dueDate);
@@ -50,6 +52,10 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, currentUserId,
   const handleStatusClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!statusOpen && statusBtnRef.current) {
+      const r = statusBtnRef.current.getBoundingClientRect();
+      setDropPos({ top: r.bottom + 4, left: r.left });
+    }
     setStatusOpen((o) => !o);
   };
 
@@ -77,8 +83,8 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, currentUserId,
   const subDone = subtasks.filter((s) => s.done).length;
 
   const StatusDropdown = () => (
-    <div className="absolute top-full left-0 mt-1 w-44 rounded-xl overflow-hidden z-50"
-      style={{ background: "var(--bg-card)", border: "1px solid var(--border-md)", boxShadow: "var(--shadow-overlay)" }}>
+    <div className="fixed w-44 rounded-xl overflow-hidden z-[9999]"
+      style={{ top: dropPos?.top, left: dropPos?.left, background: "var(--bg-card)", border: "1px solid var(--border-md)", boxShadow: "var(--shadow-overlay)" }}>
       {statuses.map((s) => {
         const isDoneLocked = s.key === "done" && lockedForDone;
         return (
@@ -225,6 +231,7 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, currentUserId,
             {/* Quick status badge — clickable */}
             <div className="relative">
               <button
+                ref={statusBtnRef}
                 onClick={handleStatusClick}
                 className="flex items-center gap-1.5 text-[11.5px] font-semibold px-2 py-1 rounded-lg transition-all hover:opacity-80"
                 style={{ color: statusCfg?.color ?? "var(--text-3)", background: `${statusCfg?.color ?? "#6B7280"}15` }}
@@ -259,12 +266,12 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, currentUserId,
           </div>
 
           {subTotal > 0 && (
-            <div className="flex items-center gap-2 mb-4">
+            <div className="mb-4 flex items-center gap-2">
               <ListChecks className="w-3.5 h-3.5 flex-shrink-0" style={{ color: subDone === subTotal ? "var(--success)" : "var(--text-3)" }} />
               <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-subtle)" }}>
                 <div className="h-full rounded-full transition-all" style={{ width: `${(subDone / subTotal) * 100}%`, background: "var(--success)" }} />
               </div>
-              <span className="text-[11.5px] font-semibold flex-shrink-0" style={{ color: "var(--text-3)" }}>{subDone}/{subTotal}</span>
+              <span className="text-[11.5px] font-semibold flex-shrink-0 tabular-nums" style={{ color: "var(--text-3)" }}>{subDone}/{subTotal}</span>
             </div>
           )}
 

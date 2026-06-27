@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTimeTracker, formatElapsed } from "@/context/TimeTrackerContext";
 import { Play, ChevronDown, Clock } from "lucide-react";
+import { DropdownPortal } from "@/components/ui/DropdownPortal";
 import type { Task } from "@/types";
 
 export function StartWorkButton() {
@@ -10,6 +11,7 @@ export function StartWorkButton() {
   const [open, setOpen] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [search, setSearch] = useState("");
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -45,8 +47,9 @@ export function StartWorkButton() {
   }
 
   return (
-    <div className="relative flex-shrink-0">
+    <div className="flex-shrink-0">
       <button
+        ref={triggerRef}
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-[13.5px] font-semibold border transition-all hover:bg-[var(--hover)]"
         style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}
@@ -57,45 +60,46 @@ export function StartWorkButton() {
         <ChevronDown className="w-3.5 h-3.5 hidden sm:block" style={{ color: "var(--text-3)" }} />
       </button>
 
-      {open && (
-        <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute top-full left-0 sm:left-auto sm:right-0 mt-2 w-72 rounded-2xl border overflow-hidden z-50 glass-strong animate-scale-in"
-            style={{ borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)" }}>
-            <div className="p-2 border-b" style={{ borderColor: "var(--border)" }}>
-              <input
-                autoFocus
-                placeholder="Hledat úkol..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full text-[13px] px-2.5 py-2 rounded-lg outline-none"
-                style={{ background: "var(--bg-subtle)", color: "var(--text-1)" }}
-              />
-            </div>
-            <div className="max-h-64 overflow-y-auto">
-              {filtered.length === 0 && (
-                <p className="text-[12.5px] text-center py-6" style={{ color: "var(--text-3)" }}>Žádné aktivní úkoly</p>
+      <DropdownPortal
+        triggerRef={triggerRef}
+        open={open}
+        onClose={() => setOpen(false)}
+        align="left"
+        className="w-72 rounded-2xl border overflow-hidden glass-strong animate-scale-in"
+        style={{ borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)" }}
+      >
+        <div className="p-2 border-b" style={{ borderColor: "var(--border)" }}>
+          <input
+            autoFocus
+            placeholder="Hledat úkol..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full text-[13px] px-2.5 py-2 rounded-lg outline-none"
+            style={{ background: "var(--bg-subtle)", color: "var(--text-1)" }}
+          />
+        </div>
+        <div className="max-h-64 overflow-y-auto">
+          {filtered.length === 0 && (
+            <p className="text-[12.5px] text-center py-6" style={{ color: "var(--text-3)" }}>Žádné aktivní úkoly</p>
+          )}
+          {filtered.map((task) => (
+            <button
+              key={task.id}
+              onClick={() => handleStart(task)}
+              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-[var(--hover)]"
+            >
+              {task.category ? (
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: task.category.color }} />
+              ) : (
+                <Clock className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--text-3)" }} />
               )}
-              {filtered.map((task) => (
-                <button
-                  key={task.id}
-                  onClick={() => handleStart(task)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-[var(--hover)]"
-                >
-                  {task.category ? (
-                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: task.category.color }} />
-                  ) : (
-                    <Clock className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--text-3)" }} />
-                  )}
-                  <span className="text-[13px] font-medium line-clamp-1" style={{ color: "var(--text-1)" }}>
-                    {task.title}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
+              <span className="text-[13px] font-medium line-clamp-1" style={{ color: "var(--text-1)" }}>
+                {task.title}
+              </span>
+            </button>
+          ))}
+        </div>
+      </DropdownPortal>
     </div>
   );
 }

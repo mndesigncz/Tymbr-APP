@@ -510,14 +510,15 @@ model TaskDependency {
 }
 
 model SubTask {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   title       String
   description String?
   hourlyRate  Float?
   estimatedMinutes Int?
-  done        Boolean  @default(false)
-  order       Int      @default(0)
-  createdAt   DateTime @default(now())
+  done        Boolean   @default(false)
+  order       Int       @default(0)
+  dueDate     DateTime?
+  createdAt   DateTime  @default(now())
 
   taskId String
   task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)

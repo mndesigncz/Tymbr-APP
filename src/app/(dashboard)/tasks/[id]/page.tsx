@@ -22,6 +22,7 @@ import {
 import { ShareSheet } from "@/components/share/ShareSheet";
 import { useSession } from "next-auth/react";
 import { useStatusConfig } from "@/hooks/useStatusConfig";
+import { DropdownPortal } from "@/components/ui/DropdownPortal";
 
 function detectMention(text: string, cursor: number): { query: string; start: number } | null {
   const before = text.slice(0, cursor);
@@ -54,6 +55,8 @@ export default function TaskDetailPage() {
   const [mention, setMention] = useState<{ query: string; start: number } | null>(null);
   const [mentionIdx, setMentionIdx] = useState(0);
   const commentRef = useRef<HTMLTextAreaElement>(null);
+  const statusBtnRef = useRef<HTMLButtonElement>(null);
+  const mentionTriggerRef = useRef<HTMLDivElement>(null);
   const [statusOpen, setStatusOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [members, setMembers] = useState<{ id: string; name: string; avatar?: string | null }[]>([]);
@@ -306,9 +309,6 @@ export default function TaskDetailPage() {
             </div>
 
             <div className="rounded-3xl border p-6" style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
-              <h3 className="text-[16px] font-bold tracking-tight mb-4" style={{ color: "var(--text-1)" }}>
-                Podúkoly
-              </h3>
               <Subtasks taskId={task.id} members={members} />
             </div>
 
@@ -345,7 +345,7 @@ export default function TaskDetailPage() {
                 <form onSubmit={handleComment} className="flex gap-3">
                   <Avatar name={session.user?.name || "?"} size="sm" className="mt-1 flex-shrink-0" />
                   <div className="flex-1 relative">
-                    <div className="relative">
+                    <div ref={mentionTriggerRef} className="relative">
                       <textarea
                         ref={commentRef}
                         placeholder="Přidat komentář… (@ pro zmínění člena)"
@@ -357,23 +357,28 @@ export default function TaskDetailPage() {
                         style={{ background: "var(--bg-subtle)", color: "var(--text-1)", borderColor: "var(--border-md)" }}
                       />
                       {/* @mention dropdown */}
-                      {mention && mentionResults.length > 0 && (
-                        <div className="absolute bottom-full left-0 mb-1 w-52 rounded-xl overflow-hidden z-50"
-                          style={{ background: "var(--bg-card)", border: "1px solid var(--border-md)", boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}>
-                          {mentionResults.map((m, i) => (
-                            <button
-                              key={m.id}
-                              type="button"
-                              onMouseDown={() => selectMention(m.name)}
-                              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[13px] transition-colors"
-                              style={{ background: i === mentionIdx ? "var(--accent-soft)" : "transparent", color: "var(--text-1)" }}
-                            >
-                              <Avatar name={m.name} src={m.avatar} size="sm" />
-                              <span className="font-medium truncate">{m.name}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                      <DropdownPortal
+                        triggerRef={mentionTriggerRef}
+                        open={!!(mention && mentionResults.length > 0)}
+                        onClose={() => setMention(null)}
+                        anchor="top"
+                        align="left"
+                        className="w-52 rounded-xl overflow-hidden"
+                        style={{ background: "var(--bg-card)", border: "1px solid var(--border-md)", boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}
+                      >
+                        {mentionResults.map((m, i) => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onMouseDown={() => selectMention(m.name)}
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[13px] transition-colors"
+                            style={{ background: i === mentionIdx ? "var(--accent-soft)" : "transparent", color: "var(--text-1)" }}
+                          >
+                            <Avatar name={m.name} src={m.avatar} size="sm" />
+                            <span className="font-medium truncate">{m.name}</span>
+                          </button>
+                        ))}
+                      </DropdownPortal>
                     </div>
                     {comment.trim() && (
                       <div className="flex justify-end mt-2">
@@ -397,54 +402,56 @@ export default function TaskDetailPage() {
               <div className="space-y-4">
                 <div>
                   <p className="text-[12px] mb-1.5" style={{ color: "var(--text-3)" }}>Status</p>
-                  <div className="relative">
-                    <button
-                      onClick={() => setStatusOpen(!statusOpen)}
-                      className="w-full flex items-center justify-between border rounded-xl px-3 py-2.5 transition-all hover:border-[var(--accent)]"
-                      style={{ background: "var(--bg-subtle)", borderColor: "var(--border-md)" }}
-                    >
-                      <StatusBadge status={task.status} />
-                      <ChevronDown className="w-4 h-4" style={{ color: "var(--text-3)" }} />
-                    </button>
-                    {statusOpen && (
-                      <div className="absolute top-full left-0 right-0 mt-1 rounded-xl overflow-hidden z-10"
-                        style={{ background: "var(--bg-card)", border: "1px solid var(--border-md)", boxShadow: "0 12px 32px rgba(0,0,0,0.12)" }}>
-                        {statuses.map((s) => {
-                          const effApproverId = (task.category as any)?.approvalEnabled
-                            ? ((task.category as any)?.approverId ?? null)
-                            : ((task as any)?.customApproverId ?? null);
-                          const approvalPending = task.approvalStatus === "pending" && !!effApproverId;
-                          const isApprover = session?.user?.id === effApproverId;
-                          const isDoneLocked = s.key === "done" && approvalPending && !isApprover;
-                          return (
-                            <button
-                              key={s.key}
-                              onClick={() => !isDoneLocked && handleStatusChange(s.key)}
-                              disabled={isDoneLocked}
-                              className="w-full flex items-center justify-between px-3 py-2.5 transition-colors text-left hover:bg-[var(--hover)] disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              <span className="flex items-center gap-2 text-[13.5px] font-medium" style={{ color: s.color }}>
-                                <span className="w-2 h-2 rounded-full" style={{ background: s.color }} />
-                                {s.label}
-                              </span>
-                              {task.status === s.key && <Check className="w-4 h-4" style={{ color: "var(--accent)" }} />}
-                              {isDoneLocked && <Lock className="w-3.5 h-3.5 opacity-40" style={{ color: "var(--text-3)" }} />}
-                            </button>
-                          );
-                        })}
-                        {(() => {
-                          const effApproverId = (task.category as any)?.approvalEnabled
-                            ? ((task.category as any)?.approverId ?? null)
-                            : ((task as any)?.customApproverId ?? null);
-                          return task.approvalStatus === "pending" && session?.user?.id !== effApproverId;
-                        })() && (
-                          <p className="px-3 py-1.5 text-[11px] border-t" style={{ color: "var(--text-3)", borderColor: "var(--border)" }}>
-                            Čeká na schválení — přesun do „Hotovo" je uzamčen
-                          </p>
-                        )}
-                      </div>
+                  <button
+                    ref={statusBtnRef}
+                    onClick={() => setStatusOpen(!statusOpen)}
+                    className="w-full flex items-center justify-between border rounded-xl px-3 py-2.5 transition-all hover:border-[var(--accent)]"
+                    style={{ background: "var(--bg-subtle)", borderColor: "var(--border-md)" }}
+                  >
+                    <StatusBadge status={task.status} />
+                    <ChevronDown className="w-4 h-4" style={{ color: "var(--text-3)" }} />
+                  </button>
+                  <DropdownPortal
+                    triggerRef={statusBtnRef}
+                    open={statusOpen}
+                    onClose={() => setStatusOpen(false)}
+                    className="w-48 rounded-xl overflow-hidden"
+                    style={{ background: "var(--bg-card)", border: "1px solid var(--border-md)", boxShadow: "0 12px 32px rgba(0,0,0,0.12)" }}
+                  >
+                    {statuses.map((s) => {
+                      const effApproverId = (task.category as any)?.approvalEnabled
+                        ? ((task.category as any)?.approverId ?? null)
+                        : ((task as any)?.customApproverId ?? null);
+                      const approvalPending = task.approvalStatus === "pending" && !!effApproverId;
+                      const isApprover = session?.user?.id === effApproverId;
+                      const isDoneLocked = s.key === "done" && approvalPending && !isApprover;
+                      return (
+                        <button
+                          key={s.key}
+                          onClick={() => !isDoneLocked && handleStatusChange(s.key)}
+                          disabled={isDoneLocked}
+                          className="w-full flex items-center justify-between px-3 py-2.5 transition-colors text-left hover:bg-[var(--hover)] disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <span className="flex items-center gap-2 text-[13.5px] font-medium" style={{ color: s.color }}>
+                            <span className="w-2 h-2 rounded-full" style={{ background: s.color }} />
+                            {s.label}
+                          </span>
+                          {task.status === s.key && <Check className="w-4 h-4" style={{ color: "var(--accent)" }} />}
+                          {isDoneLocked && <Lock className="w-3.5 h-3.5 opacity-40" style={{ color: "var(--text-3)" }} />}
+                        </button>
+                      );
+                    })}
+                    {(() => {
+                      const effApproverId = (task.category as any)?.approvalEnabled
+                        ? ((task.category as any)?.approverId ?? null)
+                        : ((task as any)?.customApproverId ?? null);
+                      return task.approvalStatus === "pending" && session?.user?.id !== effApproverId;
+                    })() && (
+                      <p className="px-3 py-1.5 text-[11px] border-t" style={{ color: "var(--text-3)", borderColor: "var(--border)" }}>
+                        Čeká na schválení — přesun do „Hotovo" je uzamčen
+                      </p>
                     )}
-                  </div>
+                  </DropdownPortal>
                 </div>
 
                 {task.category && (

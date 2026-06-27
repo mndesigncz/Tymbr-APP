@@ -19,7 +19,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: "Podúkol nenalezen" }, { status: 404 });
   }
   const body = await req.json();
-  const { title, done, description, hourlyRate, assigneeId, estimatedMinutes } = body;
+  const { title, done, description, hourlyRate, assigneeId, estimatedMinutes, dueDate } = body;
 
   const subtask = await prisma.subTask.update({
     where: { id },
@@ -30,6 +30,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...(hourlyRate !== undefined && { hourlyRate: hourlyRate ? Number(hourlyRate) : null }),
       ...(assigneeId !== undefined && { assigneeId: assigneeId || null }),
       ...(estimatedMinutes !== undefined && { estimatedMinutes: estimatedMinutes ? Math.round(Number(estimatedMinutes)) : null }),
+      ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),
     },
     include: { assignee: { select: { id: true, name: true, avatar: true } } },
   });
