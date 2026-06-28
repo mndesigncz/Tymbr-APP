@@ -9,9 +9,16 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Neautorizováno" }, { status: 401 });
 
   const userId = session.user.id;
-  const teamId = (session.user as any).teamId as string | undefined;
+  const teamId = (session.user as any).teamId as string | null | undefined;
 
-  // Notes accessible to the user: own notes + notes where collaborator + team-visible notes
+  // Notes accessible to the user:
+  //   1. own notes (createdById)
+  //   2. notes where they are an explicit collaborator
+  //   3. team notes — but ONLY when the note's team is the user's active team
+  //      AND the user is genuinely a member of that team. The membership check
+  //      (EXISTS against TeamMember) is the defensive guarantee: even if the
+  //      session's teamId were stale or spoofed, a note from a team the user
+  //      doesn't actually belong to can never appear here.
   const notes = await prisma.$queryRaw<any[]>`
     SELECT DISTINCT n.id, n.title, n.content, n.color, n.pinned, n.visibility,
                     n."createdAt", n."updatedAt", n."teamId", n."createdById",
@@ -22,7 +29,15 @@ export async function GET() {
     WHERE
       n."createdById" = ${userId}
       OR nc."userId" = ${userId}
-      OR (n.visibility = 'team' AND n."teamId" = ${teamId ?? ""})
+      OR (
+        n.visibility = 'team'
+        AND n."teamId" IS NOT NULL
+        AND n."teamId" = ${teamId ?? null}
+        AND EXISTS (
+          SELECT 1 FROM "TeamMember" tm
+          WHERE tm."userId" = ${userId} AND tm."teamId" = n."teamId"
+        )
+      )
     ORDER BY n.pinned DESC, n."updatedAt" DESC
   `;
 

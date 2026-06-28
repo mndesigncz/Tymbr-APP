@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
-async function canAccess(noteId: string, userId: string, teamId: string | undefined) {
+async function canAccess(noteId: string, userId: string, teamId: string | null | undefined) {
+  // A team note is only accessible when it belongs to the user's active team
+  // AND the user is genuinely a member of that team (EXISTS against TeamMember).
+  // This makes cross-team access structurally impossible even with a stale or
+  // spoofed session teamId.
   const rows = await prisma.$queryRaw<any[]>`
     SELECT n.id, n."createdById", n.visibility, n."teamId"
     FROM "Note" n
@@ -11,7 +15,15 @@ async function canAccess(noteId: string, userId: string, teamId: string | undefi
       AND (
         n."createdById" = ${userId}
         OR nc."userId" = ${userId}
-        OR (n.visibility = 'team' AND n."teamId" = ${teamId ?? ""})
+        OR (
+          n.visibility = 'team'
+          AND n."teamId" IS NOT NULL
+          AND n."teamId" = ${teamId ?? null}
+          AND EXISTS (
+            SELECT 1 FROM "TeamMember" tm
+            WHERE tm."userId" = ${userId} AND tm."teamId" = n."teamId"
+          )
+        )
       )
     LIMIT 1
   `;
