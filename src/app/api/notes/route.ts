@@ -11,14 +11,15 @@ export async function GET() {
   const userId = session.user.id;
   const teamId = (session.user as any).teamId as string | null | undefined;
 
-  // Notes accessible to the user:
-  //   1. own notes (createdById)
-  //   2. notes where they are an explicit collaborator
-  //   3. team notes — but ONLY when the note's team is the user's active team
-  //      AND the user is genuinely a member of that team. The membership check
-  //      (EXISTS against TeamMember) is the defensive guarantee: even if the
-  //      session's teamId were stale or spoofed, a note from a team the user
-  //      doesn't actually belong to can never appear here.
+  // A note is visible to the user only when ONE of these holds:
+  //   1. It's their own NON-team note (private, or an orphaned team note with
+  //      no teamId). Crucially, a team note is NOT shown to its creator just
+  //      because they made it — team notes follow the team, not authorship, so
+  //      a note created for team A never appears while the user is in team B.
+  //   2. They are an explicit collaborator on the note.
+  //   3. It's a team note whose team is the user's ACTIVE team and the user is
+  //      genuinely a member of that team (EXISTS against TeamMember — defends
+  //      against a stale/spoofed session teamId).
   const notes = await prisma.$queryRaw<any[]>`
     SELECT DISTINCT n.id, n.title, n.content, n.color, n.pinned, n.visibility,
                     n."createdAt", n."updatedAt", n."teamId", n."createdById",
@@ -27,7 +28,7 @@ export async function GET() {
     JOIN "User" u ON u.id = n."createdById"
     LEFT JOIN "NoteCollaborator" nc ON nc."noteId" = n.id AND nc."userId" = ${userId}
     WHERE
-      n."createdById" = ${userId}
+      (n."createdById" = ${userId} AND (n.visibility <> 'team' OR n."teamId" IS NULL))
       OR nc."userId" = ${userId}
       OR (
         n.visibility = 'team'
