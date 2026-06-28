@@ -46,7 +46,8 @@ export async function GET(req: NextRequest) {
       select: { user: { select: { id: true, name: true, email: true, avatar: true } }, role: true },
       take: 4,
     }),
-    // Notes — private notes only to creator/collaborators
+    // Notes — team notes only when the user truly belongs to the team;
+    // private notes only to creator/collaborators.
     prisma.note.findMany({
       where: {
         teamId,
@@ -54,7 +55,10 @@ export async function GET(req: NextRequest) {
           { OR: [{ title: contains }, { content: contains }] },
           {
             OR: [
-              { visibility: { not: "private" } },
+              {
+                visibility: { not: "private" },
+                team: { members: { some: { userId } } },
+              },
               { createdById: userId },
               { collaborators: { some: { userId } } },
             ],
