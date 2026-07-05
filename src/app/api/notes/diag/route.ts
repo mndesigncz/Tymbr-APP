@@ -21,9 +21,14 @@ export async function GET() {
   });
 
   // every note the user can currently see, with its real team + creator info
+  // and WHY it is visible (creator / collaborator / active-team match)
   const visible = await prisma.$queryRaw<any[]>`
     SELECT n.id, n.title, n.visibility, n."teamId", n."createdById",
-           t.name AS "teamName", u.name AS "creatorName"
+           t.name AS "teamName", u.name AS "creatorName",
+           EXISTS (
+             SELECT 1 FROM "NoteCollaborator" nc2
+             WHERE nc2."noteId" = n.id AND nc2."userId" = ${userId}
+           ) AS "iAmCollaborator"
     FROM "Note" n
     JOIN "User" u ON u.id = n."createdById"
     LEFT JOIN "Team" t ON t.id = n."teamId"
@@ -53,6 +58,19 @@ export async function GET() {
     ORDER BY count DESC
   `;
 
+  // how many NoteCollaborator rows reference me, and against which notes/creators
+  const myCollabs = await prisma.$queryRaw<any[]>`
+    SELECT nc."noteId", n.title, n.visibility, n."teamId", cu.name AS "noteCreator"
+    FROM "NoteCollaborator" nc
+    JOIN "Note" n ON n.id = nc."noteId"
+    JOIN "User" cu ON cu.id = n."createdById"
+    WHERE nc."userId" = ${userId}
+    LIMIT 50
+  `;
+  const totalCollabRows = await prisma.$queryRaw<any[]>`
+    SELECT COUNT(*)::int AS count FROM "NoteCollaborator"
+  `;
+
   return NextResponse.json({
     me: { userId, sessionTeamId, teamRole },
     memberships: memberships.map((m) => ({ teamId: m.teamId, teamName: m.team?.name, role: m.role })),
@@ -65,7 +83,27 @@ export async function GET() {
       belongsToMyActiveTeam: n.teamId === sessionTeamId,
       createdBy: n.creatorName,
       iAmCreator: n.createdById === userId,
+      iAmCollaborator: n.iAmCollaborator,
+      matchReason:
+        n.createdById === userId && (n.visibility !== "team" || n.teamId === null)
+          ? "creator-own-nonteam"
+          : n.iAmCollaborator
+            ? "collaborator"
+            : n.visibility === "team" && n.teamId === sessionTeamId
+              ? "active-team"
+              : "??? UNEXPECTED",
     })),
+    myCollaborations: {
+      countForMe: myCollabs.length,
+      totalRowsInTable: totalCollabRows[0]?.count ?? 0,
+      rows: myCollabs.map((c) => ({
+        noteId: c.noteId,
+        title: (c.title || "").slice(0, 40),
+        visibility: c.visibility,
+        teamId: c.teamId,
+        noteCreator: c.noteCreator,
+      })),
+    },
     allNotesByTeam: byTeam,
   });
 }
