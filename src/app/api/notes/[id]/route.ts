@@ -3,34 +3,25 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 
 async function canAccess(noteId: string, userId: string, teamId: string | null | undefined) {
-  // Access rules mirror the list query:
-  //   - a NON-team note (private/orphaned) is reachable by its creator or an
-  //     explicit collaborator, from any active team;
-  //   - a team note is reachable only when it belongs to the user's active team
-  //     AND the user is a real member of that team OR an explicit collaborator —
-  //     shared team notes follow the team, so they're reachable only while the
-  //     user is active in that team. This makes cross-team access impossible even
-  //     with a stale or spoofed session teamId.
+  // Mirrors the list query: a note is bound to the team it was created in, so it
+  // is reachable only when it belongs to the user's active team (or is a legacy
+  // note with no team) AND the user created it, is an explicit collaborator, or
+  // is a real member of that team for a team-visible note.
   const rows = await prisma.$queryRaw<any[]>`
     SELECT n.id, n."createdById", n.visibility, n."teamId"
     FROM "Note" n
     LEFT JOIN "NoteCollaborator" nc ON nc."noteId" = n.id AND nc."userId" = ${userId}
     WHERE n.id = ${noteId}
+      AND (n."teamId" = ${teamId ?? null} OR n."teamId" IS NULL)
       AND (
-        (
-          (n."createdById" = ${userId} OR nc."userId" = ${userId})
-          AND (n.visibility <> 'team' OR n."teamId" IS NULL)
-        )
+        n."createdById" = ${userId}
+        OR nc."userId" = ${userId}
         OR (
           n.visibility = 'team'
           AND n."teamId" IS NOT NULL
-          AND n."teamId" = ${teamId ?? null}
-          AND (
-            nc."userId" = ${userId}
-            OR EXISTS (
-              SELECT 1 FROM "TeamMember" tm
-              WHERE tm."userId" = ${userId} AND tm."teamId" = n."teamId"
-            )
+          AND EXISTS (
+            SELECT 1 FROM "TeamMember" tm
+            WHERE tm."userId" = ${userId} AND tm."teamId" = n."teamId"
           )
         )
       )
@@ -98,15 +89,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if ("color" in body)      { updates.push(`color = $${idx++}`);      values.push(body.color ?? null); }
   if ("pinned" in body)     { updates.push(`pinned = $${idx++}`);     values.push(!!body.pinned); }
   if ("visibility" in body) {
+    // A note stays bound to the team it was created in — toggling private/team
+    // only changes who inside that team can see it, never the owning team. A
+    // legacy note with no team adopts the editor's active team on first change
+    // so it becomes properly scoped going forward.
     updates.push(`visibility = $${idx++}`);
     values.push(body.visibility);
-    // Sync teamId when visibility changes
-    if (body.visibility === "team") {
-      updates.push(`"teamId" = $${idx++}`);
-      values.push(teamId ?? null);
-    } else {
-      updates.push(`"teamId" = $${idx++}`);
-      values.push(null);
+    if (teamId) {
+      updates.push(`"teamId" = COALESCE("teamId", $${idx++})`);
+      values.push(teamId);
     }
   }
 

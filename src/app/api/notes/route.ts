@@ -11,16 +11,15 @@ export async function GET() {
   const userId = session.user.id;
   const teamId = (session.user as any).teamId as string | null | undefined;
 
-  // A note is visible to the user only when ONE of these holds:
-  //   1. It's a NON-team note (private, or orphaned with no teamId) and the user
-  //      is its creator OR an explicit collaborator — these follow the person and
-  //      are visible from any active team.
-  //   2. It's a team note whose team is the user's ACTIVE team, and the user is
-  //      either a real member of that team OR an explicit collaborator on the
-  //      note. Team notes follow the team: a shared team note only appears while
-  //      the user is active in that team (private shares stay always-visible via
-  //      rule 1). The membership/collaborator + active-team check makes cross-team
-  //      visibility impossible even with a stale/spoofed session teamId.
+  // Every note is bound to the team it was created in. A note is visible only
+  // when it belongs to the user's ACTIVE team (or is a legacy note with no team
+  // — kept visible to its creator/collaborators so nothing is orphaned), AND the
+  // user has a right to it there:
+  //   - they created it, or
+  //   - they are an explicit collaborator, or
+  //   - it's team-visible and they are a real member of that team.
+  // Because the team gate applies to private and shared notes alike, a note made
+  // in team A never appears while the user is active in team B.
   const notes = await prisma.$queryRaw<any[]>`
     SELECT DISTINCT n.id, n.title, n.content, n.color, n.pinned, n.visibility,
                     n."createdAt", n."updatedAt", n."teamId", n."createdById",
@@ -29,17 +28,14 @@ export async function GET() {
     JOIN "User" u ON u.id = n."createdById"
     LEFT JOIN "NoteCollaborator" nc ON nc."noteId" = n.id AND nc."userId" = ${userId}
     WHERE
-      (
-        (n."createdById" = ${userId} OR nc."userId" = ${userId})
-        AND (n.visibility <> 'team' OR n."teamId" IS NULL)
-      )
-      OR (
-        n.visibility = 'team'
-        AND n."teamId" IS NOT NULL
-        AND n."teamId" = ${teamId ?? null}
-        AND (
-          nc."userId" = ${userId}
-          OR EXISTS (
+      (n."teamId" = ${teamId ?? null} OR n."teamId" IS NULL)
+      AND (
+        n."createdById" = ${userId}
+        OR nc."userId" = ${userId}
+        OR (
+          n.visibility = 'team'
+          AND n."teamId" IS NOT NULL
+          AND EXISTS (
             SELECT 1 FROM "TeamMember" tm
             WHERE tm."userId" = ${userId} AND tm."teamId" = n."teamId"
           )
@@ -60,6 +56,9 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { title = "", content = "", color, visibility = "private" } = body;
 
+  // Every note is bound to the team it was created in — even private ones.
+  // This scopes the note (and any collaborators) to that team's context: a
+  // private note made in team A is only ever visible while active in team A.
   const rows = await prisma.$queryRaw<any[]>`
     INSERT INTO "Note" (id, title, content, color, pinned, visibility, "createdAt", "updatedAt", "teamId", "createdById")
     VALUES (
@@ -70,7 +69,7 @@ export async function POST(req: NextRequest) {
       false,
       ${visibility},
       NOW(), NOW(),
-      ${visibility === "team" && teamId ? teamId : null},
+      ${teamId ?? null},
       ${userId}
     )
     RETURNING *
