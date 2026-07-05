@@ -4,29 +4,33 @@ import { getSession } from "@/lib/auth";
 
 async function canAccess(noteId: string, userId: string, teamId: string | null | undefined) {
   // Access rules mirror the list query:
-  //   - the creator can access their own NON-team note (private/orphaned), but a
-  //     team note follows its team, not authorship — so it's reachable only while
-  //     the user is active in that team;
-  //   - explicit collaborators always have access;
-  //   - a team note is accessible only when it belongs to the user's active team
-  //     AND the user is genuinely a member of that team (EXISTS against
-  //     TeamMember), making cross-team access impossible even with a stale or
-  //     spoofed session teamId.
+  //   - a NON-team note (private/orphaned) is reachable by its creator or an
+  //     explicit collaborator, from any active team;
+  //   - a team note is reachable only when it belongs to the user's active team
+  //     AND the user is a real member of that team OR an explicit collaborator —
+  //     shared team notes follow the team, so they're reachable only while the
+  //     user is active in that team. This makes cross-team access impossible even
+  //     with a stale or spoofed session teamId.
   const rows = await prisma.$queryRaw<any[]>`
     SELECT n.id, n."createdById", n.visibility, n."teamId"
     FROM "Note" n
     LEFT JOIN "NoteCollaborator" nc ON nc."noteId" = n.id AND nc."userId" = ${userId}
     WHERE n.id = ${noteId}
       AND (
-        (n."createdById" = ${userId} AND (n.visibility <> 'team' OR n."teamId" IS NULL))
-        OR nc."userId" = ${userId}
+        (
+          (n."createdById" = ${userId} OR nc."userId" = ${userId})
+          AND (n.visibility <> 'team' OR n."teamId" IS NULL)
+        )
         OR (
           n.visibility = 'team'
           AND n."teamId" IS NOT NULL
           AND n."teamId" = ${teamId ?? null}
-          AND EXISTS (
-            SELECT 1 FROM "TeamMember" tm
-            WHERE tm."userId" = ${userId} AND tm."teamId" = n."teamId"
+          AND (
+            nc."userId" = ${userId}
+            OR EXISTS (
+              SELECT 1 FROM "TeamMember" tm
+              WHERE tm."userId" = ${userId} AND tm."teamId" = n."teamId"
+            )
           )
         )
       )
