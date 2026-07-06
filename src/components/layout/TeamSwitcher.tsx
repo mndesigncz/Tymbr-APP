@@ -47,12 +47,17 @@ export function TeamSwitcher() {
         className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl transition-all hover:bg-[var(--hover)] disabled:opacity-60"
         style={{ background: "var(--bg-card)", boxShadow: "var(--shadow-sm)" }}
       >
-        <div
-          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-white text-[13px] font-bold"
-          style={{ background: color }}
-        >
-          {current ? current.name.charAt(0).toUpperCase() : <Users className="w-3.5 h-3.5" />}
-        </div>
+        {current?.logo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={current.logo} alt="" className="w-7 h-7 rounded-lg object-cover flex-shrink-0" />
+        ) : (
+          <div
+            className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-white text-[13px] font-bold"
+            style={{ background: color }}
+          >
+            {current ? current.name.charAt(0).toUpperCase() : <Users className="w-3.5 h-3.5" />}
+          </div>
+        )}
         <div className="flex-1 min-w-0 text-left">
           <p className="text-[13px] font-semibold truncate" style={{ color: "var(--text-1)" }}>{label}</p>
           {current && (

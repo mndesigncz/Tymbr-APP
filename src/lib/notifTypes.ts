@@ -10,6 +10,7 @@ export type NotifType =
   | "event_assigned"
   | "mention"
   | "direct_message"
+  | "chat_message"
   | "invitation"
   | "member_joined"
   | "content_assigned"
@@ -31,6 +32,7 @@ export const DEFAULT_NOTIF_PREFS: Record<string, { inApp: boolean; push: boolean
   event_assigned:            { inApp: true,  push: true  },
   mention:                   { inApp: true,  push: true  },
   direct_message:            { inApp: true,  push: true  },
+  chat_message:              { inApp: true,  push: true  },
   invitation:                { inApp: true,  push: true  },
   member_joined:             { inApp: false, push: false },
   content_assigned:          { inApp: true,  push: true  },
@@ -76,6 +78,7 @@ export const NOTIF_CATEGORIES: NotifCategory[] = [
     types: [
       { key: "mention",        label: "Zmínění",       description: "Někdo tě zmínil v chatu nebo komentáři", icon: "🔔" },
       { key: "direct_message", label: "Přímé zprávy",  description: "Nová přímá zpráva od člena týmu",         icon: "✉️" },
+      { key: "chat_message",   label: "Zprávy v chatu", description: "Nová zpráva v týmovém chatu",            icon: "💬" },
     ],
   },
   {

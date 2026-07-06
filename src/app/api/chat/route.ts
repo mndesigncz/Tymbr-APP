@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
     const senderName = userRows[0]?.name ?? "Někdo";
     void createNotifications([{
       userId: recipientId,
-      type: "mention",
+      type: "direct_message",
       title: `${senderName} ti napsal(a) přímou zprávu`,
       body: content.trim().slice(0, 100),
       url: "/chat",
@@ -131,12 +131,28 @@ export async function POST(req: NextRequest) {
 
   // Notify @mentioned users in team chat (skip self)
   const mentionedIds = parseMentionedUserIds(content.trim()).filter((id) => id !== session.user.id);
+  const senderName = (message.user as any)?.name ?? "Někdo";
   if (mentionedIds.length > 0) {
-    const senderName = (message.user as any)?.name ?? "Někdo";
     void createNotifications(mentionedIds.map((uid) => ({
       userId: uid,
       type: "mention" as const,
       title: `${senderName} tě zmínil(a) v chatu`,
+      body: content.trim().slice(0, 100),
+      url: "/chat",
+    })));
+  }
+
+  // Notify the rest of the team about the new message (mentions already got a
+  // stronger notification above; per-user prefs for "chat_message" can mute this).
+  const members = await prisma.teamMember.findMany({
+    where: { teamId, userId: { notIn: [session.user.id, ...mentionedIds] } },
+    select: { userId: true },
+  });
+  if (members.length > 0) {
+    void createNotifications(members.map((m) => ({
+      userId: m.userId,
+      type: "chat_message" as const,
+      title: `${senderName} napsal(a) do chatu`,
       body: content.trim().slice(0, 100),
       url: "/chat",
     })));
