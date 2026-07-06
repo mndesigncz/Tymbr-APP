@@ -10,7 +10,7 @@ import { parsePermissions, canSeeTab, isManager, canSeeFinance } from "@/lib/rol
 import {
   LayoutDashboard, CheckSquare, Calendar, MessageSquare,
   CircleEllipsis, FolderOpen, Clock, Settings, Users, Webhook, Megaphone, X, BookOpen, Palmtree,
-  Briefcase, Contact, FileText,
+  Briefcase, Contact, FileText, Gauge,
 } from "lucide-react";
 
 const navItems = [
@@ -37,6 +37,7 @@ const moreSections = [
     items: [
       { href: "/vacation",          icon: Palmtree, label: "Dovolená",       permKey: "vacation", managerOnly: false },
       { href: "/invoices",          icon: FileText, label: "Fakturace",      permKey: null,       managerOnly: false, financeOnly: true },
+      { href: "/capacity",          icon: Gauge,    label: "Vytížení",       permKey: null,       managerOnly: false, financeOnly: true },
       { href: "/settings/team",     icon: Users,    label: "Nastavení týmu", permKey: null,       managerOnly: true  },
       { href: "/settings/webhooks", icon: Webhook,  label: "Integrace",      permKey: null,       managerOnly: true  },
     ],
