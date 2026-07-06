@@ -24,6 +24,7 @@ interface NavItem {
   label: string;
   permKey?: string;
   financeOnly?: boolean;
+  managerOnly?: boolean;
   badge?: "chat";
 }
 
@@ -31,7 +32,6 @@ interface NavGroup {
   key: string;
   label: string;
   icon: React.ElementType;
-  managerOnly?: boolean;
   items: NavItem[];
 }
 
@@ -40,6 +40,7 @@ const primaryItems: NavItem[] = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Přehled",  permKey: "dashboard" },
   { href: "/tasks",     icon: CheckSquare,     label: "Úkoly",    permKey: "tasks" },
   { href: "/calendar",  icon: Calendar,        label: "Kalendář", permKey: "calendar" },
+  { href: "/notes",     icon: BookOpen,        label: "Poznámky", permKey: "notes" },
   { href: "/chat",      icon: MessageSquare,   label: "Chat",     permKey: "chat", badge: "chat" },
 ];
 
@@ -48,12 +49,9 @@ const navGroups: NavGroup[] = [
   {
     key: "tools", label: "Nástroje", icon: Wrench,
     items: [
-      { href: "/notes",      icon: BookOpen,   label: "Poznámky",     permKey: "notes" },
-      { href: "/files",      icon: FolderOpen, label: "Soubory",      permKey: "files" },
-      { href: "/content",    icon: Megaphone,  label: "Content plán", permKey: "content" },
-      { href: "/vacation",   icon: Palmtree,   label: "Dovolená",     permKey: "vacation" },
-      { href: "/time",       icon: Clock,      label: "Výkazy",       permKey: "time" },
-      { href: "/categories", icon: Tag,        label: "Funkce",       permKey: "categories" },
+      { href: "/files",    icon: FolderOpen, label: "Soubory",      permKey: "files" },
+      { href: "/content",  icon: Megaphone,  label: "Content plán", permKey: "content" },
+      { href: "/vacation", icon: Palmtree,   label: "Dovolená",     permKey: "vacation" },
     ],
   },
   {
@@ -61,15 +59,17 @@ const navGroups: NavGroup[] = [
     items: [
       { href: "/projects", icon: Briefcase, label: "Projekty",  permKey: "projects" },
       { href: "/clients",  icon: Contact,   label: "Klienti",   permKey: "clients" },
+      { href: "/time",     icon: Clock,     label: "Výkazy",    permKey: "time" },
       { href: "/invoices", icon: FileText,  label: "Fakturace", permKey: "invoices", financeOnly: true },
       { href: "/capacity", icon: Gauge,     label: "Vytížení",  permKey: "capacity", financeOnly: true },
     ],
   },
   {
-    key: "settings", label: "Nastavení", icon: Settings, managerOnly: true,
+    key: "settings", label: "Nastavení", icon: Settings,
     items: [
-      { href: "/settings/team",     icon: Settings2, label: "Nastavení týmu" },
-      { href: "/settings/webhooks", icon: Webhook,   label: "Integrace" },
+      { href: "/categories",        icon: Tag,       label: "Funkce",         permKey: "categories" },
+      { href: "/settings/team",     icon: Settings2, label: "Nastavení týmu", managerOnly: true },
+      { href: "/settings/webhooks", icon: Webhook,   label: "Integrace",      managerOnly: true },
     ],
   },
 ];
@@ -84,14 +84,15 @@ export function Sidebar() {
   const isManagerUser = isManager(userRole as any);
 
   const canSeeItem = (item: NavItem) =>
-    item.financeOnly ? canSeeFinance(userRole as any) : canSeeTab(item.permKey ?? "", userRole, perms);
+    item.managerOnly ? isManagerUser
+    : item.financeOnly ? canSeeFinance(userRole as any)
+    : canSeeTab(item.permKey ?? "", userRole, perms);
 
   const visiblePrimary = primaryItems.filter(canSeeItem);
 
   // Only keep groups that have at least one visible item for this user/role.
   const visibleGroups = navGroups
-    .filter((g) => !g.managerOnly || isManagerUser)
-    .map((g) => ({ ...g, items: g.managerOnly ? g.items : g.items.filter(canSeeItem) }))
+    .map((g) => ({ ...g, items: g.items.filter(canSeeItem) }))
     .filter((g) => g.items.length > 0);
 
   const isGroupActive = (g: NavGroup) =>
