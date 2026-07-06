@@ -21,9 +21,9 @@ export async function GET() {
   const g = guard(session);
   if (g instanceof NextResponse) return g;
 
+  const team = await prisma.team.findUnique({ where: { id: g.teamId }, select: { name: true, logo: true } });
   let billing = await prisma.teamBilling.findUnique({ where: { teamId: g.teamId } });
   if (!billing) {
-    const team = await prisma.team.findUnique({ where: { id: g.teamId }, select: { name: true } });
     billing = await prisma.teamBilling.create({
       data: {
         teamId: g.teamId,
@@ -32,7 +32,8 @@ export async function GET() {
       },
     });
   }
-  return NextResponse.json(billing);
+  // The team logo (a data URL) rides along so invoices can be branded.
+  return NextResponse.json({ ...billing, logoUrl: team?.logo ?? null });
 }
 
 // PUT /api/billing — update settings
