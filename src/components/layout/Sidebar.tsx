@@ -14,7 +14,7 @@ import { parsePermissions, canSeeTab, isManager, canSeeFinance } from "@/lib/rol
 import {
   LayoutDashboard, CheckSquare, Tag, LogOut, Settings,
   Clock, Users, MessageSquare, ChevronDown, Settings2, FolderOpen, Webhook,
-  Calendar, Megaphone, BookOpen, Palmtree, Briefcase, Contact, FileText,
+  Calendar, Megaphone, BookOpen, Palmtree, Briefcase, Contact, FileText, Gauge,
 } from "lucide-react";
 
 const topItems = [
@@ -34,6 +34,7 @@ const teamItems = [
   { href: "/content",  icon: Megaphone,     label: "Content plán", permKey: "content",  financeOnly: false },
   { href: "/vacation", icon: Palmtree,      label: "Dovolená",     permKey: "vacation", financeOnly: false },
   { href: "/invoices", icon: FileText,      label: "Fakturace",    permKey: "invoices", financeOnly: true  },
+  { href: "/capacity", icon: Gauge,         label: "Vytížení",     permKey: "capacity", financeOnly: true  },
 ];
 
 // Settings items are manager-only (gated by role, not permissions)

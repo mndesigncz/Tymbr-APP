@@ -11,14 +11,14 @@ import {
 import { cs } from "date-fns/locale";
 import {
   ChevronLeft, ChevronRight, Plus, CalendarDays, Clock,
-  CheckSquare, Calendar as CalendarIcon, Lock, Users, MapPin, RefreshCw,
+  CheckSquare, Calendar as CalendarIcon, Lock, Users, MapPin, RefreshCw, Palmtree,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { Avatar } from "@/components/ui/Avatar";
 import { EventForm } from "./EventForm";
 import { isOverdue } from "@/lib/utils";
-import type { CalendarEvent, Task } from "@/types";
+import type { CalendarEvent, Task, Vacation } from "@/types";
 
 type Scope = "all" | "personal" | "team";
 type RangeMode = "day" | "week" | "month" | "custom";
@@ -38,9 +38,18 @@ function taskColor(t: Task) {
 }
 
 // Unified item shape for grid + agenda
+const VACATION_COLOR = "#0EA5E9";
+const VACATION_LABELS: Record<string, string> = { vacation: "Dovolená", sick: "Nemoc", personal: "Volno" };
+
 type DayItem =
   | { kind: "event"; date: Date; color: string; data: CalendarEvent }
-  | { kind: "task"; date: Date; color: string; data: Task };
+  | { kind: "task"; date: Date; color: string; data: Task }
+  | { kind: "vacation"; date: Date; color: string; data: Vacation };
+
+function itemTitle(it: DayItem): string {
+  if (it.kind === "vacation") return `${it.data.user?.name ?? "Člen"} · ${VACATION_LABELS[it.data.type] ?? "Dovolená"}`;
+  return it.data.title;
+}
 
 export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
   const searchParams = useSearchParams();
@@ -58,6 +67,7 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
 
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [vacations, setVacations] = useState<Vacation[]>([]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
@@ -95,6 +105,20 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
   }, [fetchFrom, fetchTo, scope]);
 
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
+
+  // Approved team absences shown as all-day bars
+  useEffect(() => {
+    const params = new URLSearchParams({
+      status: "approved",
+      from: fetchFrom.toISOString(),
+      to: fetchTo.toISOString(),
+    });
+    fetch(`/api/vacations?${params}`)
+      .then((r) => r.json())
+      .then((d) => setVacations(Array.isArray(d) ? d : []))
+      .catch(() => setVacations([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchFrom.getTime(), fetchTo.getTime()]);
 
   useEffect(() => {
     fetch("/api/tasks")
@@ -152,8 +176,13 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
         }
       }
     }
+    for (const v of vacations) {
+      if (new Date(v.startDate) <= endOfDay(day) && new Date(v.endDate) >= startOfDay(day)) {
+        out.push({ kind: "vacation", date: new Date(v.startDate), color: VACATION_COLOR, data: v });
+      }
+    }
     return out.sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, [events, tasks, showEvents, showTasks]);
+  }, [events, tasks, vacations, showEvents, showTasks]);
 
   // Agenda: all items within [rangeFrom, rangeTo], grouped by day
   const agendaGroups = useMemo(() => {
@@ -172,6 +201,12 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
         if (t.dueDate && within(new Date(t.dueDate))) {
           items.push({ kind: "task", date: new Date(t.dueDate), color: taskColor(t), data: t });
         }
+      }
+    }
+    for (const v of vacations) {
+      const s2 = new Date(v.startDate), e2 = new Date(v.endDate);
+      if (s2 <= rangeTo && e2 >= rangeFrom) {
+        items.push({ kind: "vacation", date: s2 < rangeFrom ? rangeFrom : s2, color: VACATION_COLOR, data: v });
       }
     }
     items.sort((a, b) => a.date.getTime() - b.date.getTime());
@@ -360,10 +395,10 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
                           background: selected ? "rgba(255,255,255,0.22)" : `color-mix(in srgb, ${it.color} 15%, transparent)`,
                           color: selected ? "#fff" : "var(--text-1)",
                         }}
-                        title={it.kind === "event" ? it.data.title : it.data.title}>
+                        title={itemTitle(it)}>
                         <span className="inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle"
                           style={{ background: selected ? "#fff" : it.color }} />
-                        {it.kind === "event" ? it.data.title : it.data.title}
+                        {itemTitle(it)}
                       </span>
                     ))}
                     {items.length > 2 && (
@@ -477,7 +512,7 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
                           )}
                         </div>
                       </button>
-                    ) : (
+                    ) : it.kind === "task" ? (
                       <Link key={"t" + it.data.id + idx} href={`/tasks/${it.data.id}`}
                         className="flex items-start gap-3 px-3 py-2.5 rounded-2xl transition-colors hover:bg-[var(--hover)]">
                         <CheckSquare className="w-3.5 h-3.5 mt-1 flex-shrink-0" style={{ color: it.color }} />
@@ -491,6 +526,27 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
                               {it.data.status !== "done" && isOverdue(it.data.dueDate) ? "Po termínu" : STATUS_LABELS[it.data.status] ?? it.data.status}
                             </span>
                             <span className="text-[11px]" style={{ color: "var(--text-3)" }}>Úkol</span>
+                          </div>
+                        </div>
+                      </Link>
+                    ) : (
+                      <Link key={"v" + it.data.id + idx} href="/vacation"
+                        className="flex items-start gap-3 px-3 py-2.5 rounded-2xl transition-colors hover:bg-[var(--hover)]"
+                        style={{ background: "color-mix(in srgb, #0EA5E9 6%, transparent)" }}>
+                        <Palmtree className="w-3.5 h-3.5 mt-1 flex-shrink-0" style={{ color: it.color }} />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[13.5px] font-semibold leading-snug flex items-center gap-2" style={{ color: "var(--text-1)" }}>
+                            {it.data.user && <Avatar name={it.data.user.name} src={it.data.user.avatar} size="xs" />}
+                            {it.data.user?.name ?? "Člen"}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-md"
+                              style={{ background: `color-mix(in srgb, ${it.color} 14%, transparent)`, color: it.color }}>
+                              {VACATION_LABELS[it.data.type] ?? "Dovolená"}
+                            </span>
+                            <span className="text-[11px]" style={{ color: "var(--text-3)" }}>
+                              {format(new Date(it.data.startDate), "d. M.")} – {format(new Date(it.data.endDate), "d. M.")}
+                            </span>
                           </div>
                         </div>
                       </Link>
