@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { randomBytes } from "crypto";
 
-export type ShareResourceType = "note" | "task" | "event";
+export type ShareResourceType = "note" | "task" | "event" | "project";
 
 export function isShareResourceType(v: unknown): v is ShareResourceType {
-  return v === "note" || v === "task" || v === "event";
+  return v === "note" || v === "task" || v === "event" || v === "project";
 }
 
 /** URL-safe random token for a public share link. */
@@ -32,6 +32,15 @@ export async function canShareResource(
       WHERE n.id = ${resourceId}
         AND (n."createdById" = ${userId} OR nc."userId" = ${userId}
              OR (n.visibility = 'team' AND n."teamId" = ${tid}))
+      LIMIT 1`;
+    return rows.length > 0;
+  }
+
+  if (type === "project") {
+    // Any member of the project's team can share it with the client.
+    const rows = await prisma.$queryRaw<any[]>`
+      SELECT p.id FROM "Project" p
+      WHERE p.id = ${resourceId} AND p."teamId" = ${tid}
       LIMIT 1`;
     return rows.length > 0;
   }
@@ -85,6 +94,23 @@ export async function loadSharedByToken(token: string): Promise<SharedPayload | 
       SELECT id, title, content, color, "updatedAt" FROM "Note" WHERE id = ${link.resourceId} LIMIT 1`;
     if (!rows[0]) return null;
     return { type, sharedBy, resource: rows[0] };
+  }
+
+  if (type === "project") {
+    // Client-facing read-only view: progress + task board WITHOUT any
+    // financial data (rates, budgets, expenses stay internal).
+    const rows = await prisma.$queryRaw<any[]>`
+      SELECT p.id, p.name, p.description, p.status, p.color, p."startDate", p.deadline,
+             c.name AS "clientName"
+      FROM "Project" p
+      LEFT JOIN "Client" c ON c.id = p."clientId"
+      WHERE p.id = ${link.resourceId} LIMIT 1`;
+    if (!rows[0]) return null;
+    const tasks = await prisma.$queryRaw<any[]>`
+      SELECT id, title, status, "dueDate", "completedAt"
+      FROM "Task" WHERE "projectId" = ${link.resourceId} AND visibility <> 'private'
+      ORDER BY "createdAt" ASC`;
+    return { type, sharedBy, resource: { ...rows[0], tasks } };
   }
 
   if (type === "task") {

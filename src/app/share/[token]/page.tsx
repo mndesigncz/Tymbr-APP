@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import {
-  Lock, Calendar, MapPin, CheckSquare, Clock, Coins, BookOpen,
+  Lock, Calendar, MapPin, CheckSquare, Clock, Coins, BookOpen, Briefcase, Check,
 } from "lucide-react";
 import {
   STATUS_LABELS, STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS,
@@ -13,7 +13,7 @@ import {
 import { formatCZK, formatDuration } from "@/lib/pricing";
 
 interface SharedPayload {
-  type: "note" | "task" | "event";
+  type: "note" | "task" | "event" | "project";
   sharedBy: { name: string; avatar: string | null };
   resource: any;
 }
@@ -79,6 +79,7 @@ export default function SharePage() {
           {data.type === "note" && <SharedNote resource={data.resource} />}
           {data.type === "task" && <SharedTask resource={data.resource} />}
           {data.type === "event" && <SharedEvent resource={data.resource} />}
+          {data.type === "project" && <SharedProject resource={data.resource} />}
 
           {/* Shared by footer */}
           <div className="flex items-center justify-center gap-2 mt-6 text-[12.5px]" style={{ color: "var(--text-3)" }}>
@@ -242,6 +243,97 @@ function SharedEvent({ resource }: { resource: any }) {
           <p className="text-[14.5px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--text-2)" }}>
             {resource.description}
           </p>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+const PROJECT_STATUS: Record<string, { label: string; color: string }> = {
+  active:   { label: "Aktivní",     color: "#3B82F6" },
+  on_hold:  { label: "Pozastaveno", color: "#F59E0B" },
+  done:     { label: "Dokončeno",   color: "#22C55E" },
+  archived: { label: "Archiv",      color: "#6B7280" },
+};
+
+function SharedProject({ resource }: { resource: any }) {
+  const st = PROJECT_STATUS[resource.status] ?? PROJECT_STATUS.active;
+  const tasks: { id: string; title: string; status: string }[] = resource.tasks ?? [];
+  const done = tasks.filter((t) => t.status === "done").length;
+  const pct = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
+  const accent = resource.color || "var(--accent)";
+  return (
+    <Card accent={resource.color || undefined}>
+      <div className="px-7 pt-6 flex items-center gap-2" style={{ color: "var(--text-3)" }}>
+        <Briefcase className="w-4 h-4" />
+        <span className="text-[11.5px] font-semibold uppercase tracking-widest">Projekt</span>
+      </div>
+      <div className="px-7 py-5">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <h1 className="text-[26px] font-bold leading-tight" style={{ color: "var(--text-1)" }}>{resource.name}</h1>
+            {resource.clientName && (
+              <p className="text-[13px] mt-1" style={{ color: "var(--text-3)" }}>pro {resource.clientName}</p>
+            )}
+          </div>
+          <span className="text-[12px] font-semibold px-2.5 py-1 rounded-lg flex-shrink-0"
+            style={{ color: st.color, background: `${st.color}18` }}>
+            {st.label}
+          </span>
+        </div>
+
+        {resource.description && (
+          <p className="text-[14px] mt-4 leading-relaxed whitespace-pre-wrap" style={{ color: "var(--text-2)" }}>
+            {resource.description}
+          </p>
+        )}
+
+        {resource.deadline && (
+          <p className="flex items-center gap-1.5 text-[13px] mt-4" style={{ color: "var(--text-3)" }}>
+            <Calendar className="w-4 h-4" />
+            Termín dokončení: {new Date(resource.deadline).toLocaleDateString("cs-CZ", { day: "numeric", month: "long", year: "numeric" })}
+          </p>
+        )}
+
+        {/* Progress */}
+        <div className="mt-6">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[12.5px] font-semibold" style={{ color: "var(--text-2)" }}>Postup prací</span>
+            <span className="text-[12.5px] font-bold tabular-nums" style={{ color: accent }}>{pct} %</span>
+          </div>
+          <div className="h-2.5 rounded-full overflow-hidden" style={{ background: "var(--bg-subtle)" }}>
+            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: accent }} />
+          </div>
+          <p className="text-[11.5px] mt-1.5" style={{ color: "var(--text-3)" }}>
+            {done} z {tasks.length} úkolů dokončeno
+          </p>
+        </div>
+
+        {/* Task list */}
+        {tasks.length > 0 && (
+          <div className="mt-6 space-y-1.5">
+            {tasks.map((t) => {
+              const isDone = t.status === "done";
+              return (
+                <div key={t.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl"
+                  style={{ background: isDone ? "color-mix(in srgb, #22C55E 6%, transparent)" : "var(--bg-subtle)" }}>
+                  <span className="w-[17px] h-[17px] rounded-md flex items-center justify-center flex-shrink-0 border"
+                    style={isDone
+                      ? { background: "#22C55E", borderColor: "#22C55E" }
+                      : { borderColor: "var(--border-md)", background: "transparent" }}>
+                    {isDone && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                  </span>
+                  <span className="text-[13px] font-medium flex-1 min-w-0 truncate"
+                    style={{ color: isDone ? "var(--text-3)" : "var(--text-1)", textDecoration: isDone ? "line-through" : undefined }}>
+                    {t.title}
+                  </span>
+                  <span className="text-[11px] flex-shrink-0" style={{ color: STATUS_COLORS[t.status as TaskStatus] ?? "var(--text-3)" }}>
+                    {STATUS_LABELS[t.status as TaskStatus] ?? t.status}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     </Card>
