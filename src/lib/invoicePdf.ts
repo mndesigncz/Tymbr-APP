@@ -1,6 +1,12 @@
 import type { Invoice, TeamBilling } from "@/types";
 import { czAccountToIban, buildSpayd } from "@/lib/invoice";
 
+// Brand palette — a single decent orange accent over near-black ink on paper.
+const ORANGE: [number, number, number] = [247, 89, 47];
+const INK: [number, number, number] = [26, 26, 28];
+const GRAY: [number, number, number] = [140, 140, 148];
+const LINE: [number, number, number] = [226, 226, 230];
+
 // jsPDF's built-in Helvetica has no Czech glyphs — we embed DejaVu Sans from
 // /public/fonts at runtime. If the font can't be fetched, we fall back to
 // Helvetica and strip diacritics so the PDF never renders mojibake.
@@ -21,10 +27,7 @@ async function registerCzechFont(doc: any): Promise<boolean> {
       }
       return btoa(bin);
     };
-    const [regular, bold] = await Promise.all([
-      load("DejaVuSans.ttf"),
-      load("DejaVuSans-Bold.ttf"),
-    ]);
+    const [regular, bold] = await Promise.all([load("DejaVuSans.ttf"), load("DejaVuSans-Bold.ttf")]);
     doc.addFileToVFS("DejaVuSans.ttf", regular);
     doc.addFont("DejaVuSans.ttf", "DejaVu", "normal");
     doc.addFileToVFS("DejaVuSans-Bold.ttf", bold);
@@ -38,136 +41,190 @@ async function registerCzechFont(doc: any): Promise<boolean> {
 function fmtDate(d: Date | string): string {
   return new Date(d).toLocaleDateString("cs-CZ", { day: "numeric", month: "numeric", year: "numeric" });
 }
-
 function fmtMoney(n: number): string {
   return `${n.toLocaleString("cs-CZ", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kč`;
 }
 
+function imgFormat(dataUrl: string): string {
+  const m = /^data:image\/(png|jpe?g)/i.exec(dataUrl);
+  return m && /jpe?g/i.test(m[1]) ? "JPEG" : "PNG";
+}
+function loadImage(dataUrl: string): Promise<{ w: number; h: number } | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ w: img.naturalWidth || 1, h: img.naturalHeight || 1 });
+    img.onerror = () => resolve(null);
+    img.src = dataUrl;
+  });
+}
+
 export async function downloadInvoicePdf(invoice: Invoice, billing: TeamBilling) {
-  const [{ jsPDF }, { default: autoTable }] = await Promise.all([
-    import("jspdf"),
-    import("jspdf-autotable"),
-  ]);
-  const doc = new jsPDF();
+  const { jsPDF } = await import("jspdf");
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
   const W = doc.internal.pageSize.getWidth();
+  const M = 16;
+  const right = W - M;
 
   const hasCzech = await registerCzechFont(doc);
   const FONT = hasCzech ? "DejaVu" : "helvetica";
-  const ascii = (v: string | null | undefined) => (hasCzech ? (v ?? "") : stripDiacritics(v));
+  const t = (v: string | null | undefined) => (hasCzech ? (v ?? "") : stripDiacritics(v));
+  const set = (weight: "normal" | "bold", size: number, color: [number, number, number] = INK) => {
+    doc.setFont(FONT, weight);
+    doc.setFontSize(size);
+    doc.setTextColor(color[0], color[1], color[2]);
+  };
+  const rule = (yy: number, color: [number, number, number] = LINE, x0 = M, x1 = right, w = 0.3) => {
+    doc.setDrawColor(color[0], color[1], color[2]);
+    doc.setLineWidth(w);
+    doc.line(x0, yy, x1, yy);
+  };
 
-  // Header
-  doc.setFontSize(22);
-  doc.setFont(FONT, "bold");
-  doc.text(`Faktura ${ascii(invoice.number)}`, 14, 20);
+  /* ── Header: logo + supplier brand (left), FAKTURA + number (right) ── */
+  let brandX = M;
+  if (billing.logoUrl) {
+    const dim = await loadImage(billing.logoUrl);
+    if (dim) {
+      const h = 13;
+      const w = Math.min(45, (h * dim.w) / dim.h);
+      try {
+        doc.addImage(billing.logoUrl, imgFormat(billing.logoUrl), M, 15, w, h);
+        brandX = M + w + 5;
+      } catch { /* unsupported image — skip, keep brandX */ }
+    }
+  }
+  set("bold", 14);
+  doc.text(t(billing.supplierName) || " ", brandX, 24);
+
+  set("bold", 26);
+  doc.text("FAKTURA", right, 24, { align: "right" });
+  set("bold", 11, ORANGE);
+  doc.text(`#${t(invoice.number)}`, right, 31, { align: "right" });
   if (invoice.status === "draft") {
-    doc.setFontSize(10);
-    doc.setTextColor(230, 80, 40);
-    doc.text("KONCEPT", W - 14, 20, { align: "right" });
-    doc.setTextColor(0);
+    set("bold", 8, GRAY);
+    doc.text("KONCEPT", right, 36, { align: "right" });
   }
 
-  // Supplier / customer blocks
-  doc.setFontSize(9);
-  doc.setFont(FONT, "bold");
-  doc.text("DODAVATEL", 14, 34);
-  doc.text(ascii("ODBĚRATEL"), W / 2 + 4, 34);
-  doc.setFont(FONT, "normal");
+  let y = 46;
+  rule(y);
+  y += 8;
+
+  /* ── Parties ── */
+  const colR = 108;
+  set("bold", 7.5, GRAY);
+  doc.text("DODAVATEL", M, y);
+  doc.text(t("ODBĚRATEL"), colR, y);
 
   const supplier = [
-    ascii(billing.supplierName),
-    ...ascii(billing.address).split("\n"),
-    billing.ico ? `IČO: ${ascii(billing.ico)}` : "",
-    billing.dic ? `DIČ: ${ascii(billing.dic)}` : (billing.vatPayer ? "" : ascii("Není plátce DPH")),
+    t(billing.supplierName),
+    ...t(billing.address).split("\n"),
+    billing.ico ? `IČO: ${t(billing.ico)}` : "",
+    billing.dic ? `DIČ: ${t(billing.dic)}` : (billing.vatPayer ? "" : t("Neplátce DPH")),
   ].filter(Boolean);
   const c = invoice.client;
   const customer = [
-    ascii(c?.name),
-    ascii(c?.contactName),
-    ...ascii(c?.address).split("\n"),
-    c?.ico ? `IČO: ${ascii(c.ico)}` : "",
-    c?.dic ? `DIČ: ${ascii(c.dic)}` : "",
+    t(c?.name),
+    t(c?.contactName),
+    ...t(c?.address).split("\n"),
+    c?.ico ? `IČO: ${t(c.ico)}` : "",
+    c?.dic ? `DIČ: ${t(c.dic)}` : "",
   ].filter(Boolean);
 
-  supplier.forEach((line, i) => doc.text(line, 14, 40 + i * 4.5));
-  customer.forEach((line, i) => doc.text(line, W / 2 + 4, 40 + i * 4.5));
+  set("normal", 9.5);
+  supplier.forEach((l, i) => doc.text(l!, M, y + 6 + i * 4.6));
+  customer.forEach((l, i) => doc.text(l!, colR, y + 6 + i * 4.6));
 
-  // Dates & payment info
-  const infoY = 40 + Math.max(supplier.length, customer.length) * 4.5 + 6;
-  const info: [string, string][] = [
-    [ascii("Datum vystavení:"), fmtDate(invoice.issueDate)],
-    [ascii("Datum splatnosti:"), fmtDate(invoice.dueDate)],
-    ...(billing.bankAccount ? [[ascii("Bankovní účet:"), ascii(billing.bankAccount)] as [string, string]] : []),
-    ...(invoice.variableSymbol ? [[ascii("Variabilní symbol:"), invoice.variableSymbol] as [string, string]] : []),
+  y += 6 + Math.max(supplier.length, customer.length) * 4.6 + 8;
+
+  /* ── Dates row ── */
+  set("normal", 8.5, GRAY);
+  const dateBits = [
+    `${t("Vystaveno")}: ${fmtDate(invoice.issueDate)}`,
+    `${t("Splatnost")}: ${fmtDate(invoice.dueDate)}`,
+    ...(invoice.variableSymbol ? [`${t("VS")}: ${invoice.variableSymbol}`] : []),
   ];
-  doc.setFontSize(9);
-  info.forEach(([k, v], i) => {
-    doc.setFont(FONT, "normal");
-    doc.text(k, 14, infoY + i * 4.5);
-    doc.setFont(FONT, "bold");
-    doc.text(v, 55, infoY + i * 4.5);
-  });
+  doc.text(dateBits.join("     "), M, y);
+  y += 9;
 
-  // Items table
-  const tableY = infoY + info.length * 4.5 + 6;
-  autoTable(doc, {
-    startY: tableY,
-    head: [[ascii("Položka"), ascii("Množství"), "MJ", "Cena/MJ", "Celkem"]],
-    body: (invoice.items ?? []).map((i) => [
-      ascii(i.description),
-      String(i.quantity),
-      ascii(i.unit),
-      ascii(fmtMoney(i.unitPrice)),
-      ascii(fmtMoney(i.quantity * i.unitPrice)),
-    ]),
-    styles: { fontSize: 9, cellPadding: 3, font: FONT },
-    headStyles: { fillColor: [247, 89, 47], textColor: 255, fontStyle: "bold" },
-    columnStyles: { 1: { halign: "right" }, 3: { halign: "right" }, 4: { halign: "right" } },
-  });
+  /* ── Items ── */
+  set("bold", 13);
+  doc.text(t("Popis"), M, y);
+  y += 3;
+  rule(y);
+  y += 7;
 
-  // Totals
-  let y = (doc as any).lastAutoTable.finalY + 8;
-  doc.setFontSize(10);
-  const totalLine = (label: string, value: string, bold = false) => {
-    doc.setFont(FONT, bold ? "bold" : "normal");
-    doc.text(label, W - 80, y);
-    doc.text(ascii(value), W - 14, y, { align: "right" });
-    y += 5.5;
+  for (const it of invoice.items ?? []) {
+    const lineTotal = it.quantity * it.unitPrice;
+    const hasSub = it.quantity !== 1 || (it.unit && it.unit !== "ks");
+    set("normal", 10.5);
+    doc.text(t(it.description), M, y, { maxWidth: 120 });
+    set("bold", 10.5);
+    doc.text(t(fmtMoney(lineTotal)), right, y, { align: "right" });
+    if (hasSub) {
+      set("normal", 8, GRAY);
+      doc.text(`${it.quantity} ${t(it.unit)} × ${t(fmtMoney(it.unitPrice))}`, M, y + 4);
+    }
+    const bottom = y + (hasSub ? 7 : 3.5);
+    rule(bottom);
+    y = bottom + 6;
+  }
+
+  /* ── Totals (right block; label + value never overlap) ── */
+  y += 2;
+  const valX = right;
+  const lblX = right - 42;
+  const totalRow = (label: string, value: string, size: number, labelColor: [number, number, number], valueColor: [number, number, number], bold = false) => {
+    set(bold ? "bold" : "normal", size, labelColor);
+    doc.text(label, lblX, y, { align: "right" });
+    set(bold ? "bold" : "normal", size, valueColor);
+    doc.text(value, valX, y, { align: "right" });
+    y += size * 0.62 + 2;
   };
   if (invoice.vatRate > 0) {
-    totalLine(ascii("Základ daně:"), fmtMoney(invoice.subtotal));
-    totalLine(`DPH ${invoice.vatRate} %:`, fmtMoney(invoice.vatAmount));
+    totalRow(t("Základ daně"), t(fmtMoney(invoice.subtotal)), 9.5, GRAY, INK);
+    totalRow(`${t("DPH")} ${invoice.vatRate} %`, t(fmtMoney(invoice.vatAmount)), 9.5, GRAY, INK);
+    y += 1;
+    rule(y - 3, LINE, lblX - 20, valX, 0.3);
   }
-  doc.setFontSize(12);
-  totalLine(ascii("Celkem k úhradě:"), fmtMoney(invoice.total), true);
+  totalRow(t("Celkem k úhradě"), t(fmtMoney(invoice.total)), 13, INK, ORANGE, true);
+  y += 2;
 
-  // QR payment (SPAYD) when we can derive an IBAN
+  /* ── Payment (with QR) + Terms ── */
+  let bottomY = Math.max(y + 6, 232);
+  // QR payment (SPAYD) when a Czech account converts to IBAN
   const iban = billing.bankAccount ? czAccountToIban(billing.bankAccount) : null;
+  let payTextX = M;
   if (iban && invoice.total > 0) {
     try {
       const QRCode = (await import("qrcode")).default;
-      const spayd = buildSpayd({
-        iban,
-        amount: invoice.total,
-        vs: invoice.variableSymbol,
-        message: ascii(`Faktura ${invoice.number}`),
-      });
-      const qrDataUrl = await QRCode.toDataURL(spayd, { margin: 1, width: 240 });
-      y += 4;
-      doc.addImage(qrDataUrl, "PNG", 14, y - 12, 34, 34);
-      doc.setFontSize(8);
-      doc.setFont(FONT, "normal");
-      doc.text("QR platba", 14, y + 26);
-    } catch {
-      // QR is best-effort — the invoice is complete without it.
-    }
+      const spayd = buildSpayd({ iban, amount: invoice.total, vs: invoice.variableSymbol, message: t(`Faktura ${invoice.number}`) });
+      const url = await QRCode.toDataURL(spayd, { margin: 0, width: 240 });
+      doc.addImage(url, "PNG", M, bottomY, 26, 26);
+      payTextX = M + 31;
+    } catch { /* QR best-effort */ }
   }
 
-  // Notes
-  const noteY = Math.max(y + 34, (doc as any).lastAutoTable.finalY + 50);
-  doc.setFontSize(8.5);
-  doc.setFont(FONT, "normal");
-  const notes = [ascii(invoice.note), ascii(billing.footerNote)].filter(Boolean);
-  notes.forEach((n, i) => doc.text(n!, 14, noteY + i * 4.5, { maxWidth: W - 28 }));
+  set("bold", 10);
+  doc.text(t("Platební údaje"), payTextX, bottomY + 3);
+  set("normal", 9, INK);
+  const payLines = [
+    billing.bankAccount ? `${t("Účet")}: ${t(billing.bankAccount)}` : "",
+    iban ? `IBAN: ${iban}` : "",
+    invoice.variableSymbol ? `${t("VS")}: ${invoice.variableSymbol}` : "",
+  ].filter(Boolean);
+  payLines.forEach((l, i) => doc.text(l!, payTextX, bottomY + 9 + i * 4.6));
+
+  const terms = [t(invoice.note), t(billing.footerNote)].filter(Boolean) as string[];
+  if (terms.length) {
+    set("bold", 10);
+    doc.text(t("Poznámka"), colR, bottomY + 3);
+    set("normal", 9, GRAY);
+    let ty = bottomY + 9;
+    for (const term of terms) {
+      const wrapped = doc.splitTextToSize(term, right - colR);
+      doc.text(wrapped, colR, ty);
+      ty += wrapped.length * 4.6 + 2;
+    }
+  }
 
   doc.save(`faktura-${invoice.number}.pdf`);
 }
