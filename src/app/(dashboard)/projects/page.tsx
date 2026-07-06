@@ -9,8 +9,9 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import {
-  Plus, Briefcase, Calendar, Trash2, Pencil, Contact, CheckSquare,
+  Plus, Briefcase, Calendar, Trash2, Pencil, Contact, CheckSquare, Share2,
 } from "lucide-react";
+import { ShareSheet } from "@/components/share/ShareSheet";
 import { formatDate, isOverdue } from "@/lib/utils";
 import { formatCZK } from "@/lib/pricing";
 import type { Project, ProjectStatus, Client } from "@/types";
@@ -34,6 +35,7 @@ function ProjectsContent() {
   const [filter, setFilter] = useState<"running" | ProjectStatus>("running");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Project | null>(null);
+  const [sharing, setSharing] = useState<Project | null>(null);
   const [prefillClientId, setPrefillClientId] = useState("");
 
   const load = useCallback(async () => {
@@ -131,6 +133,10 @@ function ProjectsContent() {
                       </span>
                     </Link>
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                      <button onClick={() => setSharing(p)} className="p-1.5 rounded-lg transition-colors hover:bg-[var(--hover)]"
+                        title="Sdílet s klientem" style={{ color: "var(--text-3)" }}>
+                        <Share2 className="w-3.5 h-3.5" />
+                      </button>
                       <button onClick={() => setEditing(p)} className="p-1.5 rounded-lg transition-colors hover:bg-[var(--hover)]"
                         title="Upravit" style={{ color: "var(--text-3)" }}>
                         <Pencil className="w-3.5 h-3.5" />
@@ -205,6 +211,18 @@ function ProjectsContent() {
           </div>
         )}
       </div>
+
+      <Modal open={!!sharing} onClose={() => setSharing(null)} title={`Sdílet projekt s klientem`}>
+        {sharing && (
+          <div className="pt-1">
+            <p className="text-[12.5px] mb-3" style={{ color: "var(--text-3)" }}>
+              Klient přes odkaz uvidí postup projektu a stav úkolů — bez cen, sazeb a interních dat.
+            </p>
+            <ShareSheet resourceType="project" resourceId={sharing.id}
+              chatMessage={`📋 Projekt ${sharing.name}`} />
+          </div>
+        )}
+      </Modal>
 
       <Modal
         open={formOpen || !!editing}
