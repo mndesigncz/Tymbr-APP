@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { Gauge, Palmtree, AlertTriangle, Clock, TrendingUp } from "lucide-react";
 import { canSeeFinance } from "@/lib/roles";
 import { formatDate } from "@/lib/utils";
+import { TimeReports } from "@/components/time/TimeReports";
 import type { VacationType } from "@/types";
 
 interface CapacityRow {
@@ -41,7 +42,7 @@ export default function CapacityPage() {
   const role = (session?.user as any)?.teamRole as string | null;
   const hasAccess = canSeeFinance(role as any);
 
-  const [tab, setTab] = useState<"capacity" | "analytics">("capacity");
+  const [tab, setTab] = useState<"capacity" | "analytics" | "timesheets">("capacity");
   const [rows, setRows] = useState<CapacityRow[]>([]);
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,7 +68,8 @@ export default function CapacityPage() {
   useEffect(() => {
     if (!hasAccess) return;
     if (tab === "capacity") loadCapacity();
-    else loadAnalytics();
+    else if (tab === "analytics") loadAnalytics();
+    // "timesheets" tab renders <TimeReports> which loads its own data
   }, [hasAccess, tab, loadCapacity, loadAnalytics]);
 
   if (!hasAccess) {
@@ -90,7 +92,7 @@ export default function CapacityPage() {
       <div className="px-4 sm:px-6 lg:px-8 pt-2 pb-12 space-y-5">
         <div className="flex items-center gap-1 p-1 rounded-xl border w-fit"
           style={{ background: "var(--bg-card)", borderColor: "var(--border-md)" }}>
-          {([["capacity", "Vytížení týmu"], ["analytics", "Analytika"]] as const).map(([k, label]) => (
+          {([["capacity", "Vytížení týmu"], ["analytics", "Analytika"], ["timesheets", "Výkazy"]] as const).map(([k, label]) => (
             <button key={k} onClick={() => setTab(k)}
               className="px-3.5 py-2 rounded-lg text-[13px] font-semibold transition-all"
               style={tab === k ? { background: "var(--accent)", color: "#fff" } : { color: "var(--text-2)" }}>
@@ -99,7 +101,11 @@ export default function CapacityPage() {
           ))}
         </div>
 
-        {loading ? (
+        {tab === "timesheets" ? (
+          <div className="-mx-4 sm:-mx-6 lg:-mx-8 -mt-2">
+            <TimeReports embedded />
+          </div>
+        ) : loading ? (
           <div className="flex items-center justify-center py-24">
             <div className="w-7 h-7 border-[2.5px] rounded-full animate-spin"
               style={{ borderColor: "var(--accent)", borderTopColor: "transparent" }} />

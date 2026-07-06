@@ -29,7 +29,6 @@ const moreSections = [
       { href: "/notes",    icon: BookOpen,   label: "Poznámky",     permKey: "notes",      managerOnly: false },
       { href: "/content",  icon: Megaphone,  label: "Content plán", permKey: "content",    managerOnly: false },
       { href: "/files",    icon: FolderOpen, label: "Soubory",      permKey: "files",      managerOnly: false },
-      { href: "/time",     icon: Clock,      label: "Výkazy",       permKey: "time",       managerOnly: false },
     ],
   },
   {
