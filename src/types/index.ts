@@ -190,6 +190,55 @@ export interface Project {
   _count?: { tasks: number };
 }
 
+export interface TeamBilling {
+  id: string;
+  supplierName: string;
+  address?: string | null;
+  ico?: string | null;
+  dic?: string | null;
+  bankAccount?: string | null;
+  vatPayer: boolean;
+  vatRate: number;
+  invoicePrefix: string;
+  nextNumber: number;
+  dueDays: number;
+  footerNote?: string | null;
+  teamId: string;
+}
+
+export type InvoiceStatus = "draft" | "issued" | "paid";
+
+export interface InvoiceItem {
+  id?: string;
+  description: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  order?: number;
+}
+
+export interface Invoice {
+  id: string;
+  number: string;
+  status: InvoiceStatus;
+  issueDate: Date | string;
+  dueDate: Date | string;
+  paidAt?: Date | string | null;
+  subtotal: number;
+  vatRate: number;
+  vatAmount: number;
+  total: number;
+  variableSymbol?: string | null;
+  note?: string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  teamId: string;
+  clientId: string;
+  client?: Client;
+  createdById: string;
+  items?: InvoiceItem[];
+}
+
 export type VacationType = "vacation" | "sick" | "personal";
 export type VacationStatus = "pending" | "approved" | "rejected";
 

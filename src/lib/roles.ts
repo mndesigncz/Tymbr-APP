@@ -2,7 +2,7 @@
 // Managers (owner / admin) can see other members' stats and use admin features;
 // regular members are limited to their own data.
 
-export type TeamRole = "owner" | "admin" | "member" | null | undefined;
+export type TeamRole = "owner" | "admin" | "member" | "finance" | null | undefined;
 
 export function isManager(role: TeamRole): boolean {
   return role === "owner" || role === "admin";
@@ -10,6 +10,15 @@ export function isManager(role: TeamRole): boolean {
 
 export function isOwner(role: TeamRole): boolean {
   return role === "owner";
+}
+
+/**
+ * Finance access: managers plus the dedicated "finance" role (Finanční
+ * manažer) — a member-level role that can additionally see billing data
+ * and issue invoices.
+ */
+export function canSeeFinance(role: TeamRole): boolean {
+  return isManager(role) || role === "finance";
 }
 
 // All nav sections that can be granted/revoked for regular members.

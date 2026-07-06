@@ -10,11 +10,11 @@ import { Avatar } from "@/components/ui/Avatar";
 import { TimeTracker } from "./TimeTracker";
 import { TeamSwitcher } from "./TeamSwitcher";
 import { useChatUnread } from "@/hooks/useChatUnread";
-import { parsePermissions, canSeeTab, isManager } from "@/lib/roles";
+import { parsePermissions, canSeeTab, isManager, canSeeFinance } from "@/lib/roles";
 import {
   LayoutDashboard, CheckSquare, Tag, LogOut, Settings,
   Clock, Users, MessageSquare, ChevronDown, Settings2, FolderOpen, Webhook,
-  Calendar, Megaphone, BookOpen, Palmtree, Briefcase, Contact,
+  Calendar, Megaphone, BookOpen, Palmtree, Briefcase, Contact, FileText,
 } from "lucide-react";
 
 const topItems = [
@@ -29,10 +29,11 @@ const topItems = [
 ];
 
 const teamItems = [
-  { href: "/chat",     icon: MessageSquare, label: "Chat",         permKey: "chat"     },
-  { href: "/files",    icon: FolderOpen,    label: "Soubory",      permKey: "files"    },
-  { href: "/content",  icon: Megaphone,     label: "Content plán", permKey: "content"  },
-  { href: "/vacation", icon: Palmtree,      label: "Dovolená",     permKey: "vacation" },
+  { href: "/chat",     icon: MessageSquare, label: "Chat",         permKey: "chat",     financeOnly: false },
+  { href: "/files",    icon: FolderOpen,    label: "Soubory",      permKey: "files",    financeOnly: false },
+  { href: "/content",  icon: Megaphone,     label: "Content plán", permKey: "content",  financeOnly: false },
+  { href: "/vacation", icon: Palmtree,      label: "Dovolená",     permKey: "vacation", financeOnly: false },
+  { href: "/invoices", icon: FileText,      label: "Fakturace",    permKey: "invoices", financeOnly: true  },
 ];
 
 // Settings items are manager-only (gated by role, not permissions)
@@ -51,7 +52,8 @@ export function Sidebar() {
   const isManagerUser = isManager(userRole as any);
 
   const visibleTopItems = topItems.filter(({ permKey }) => canSeeTab(permKey, userRole, perms));
-  const visibleTeamItems = teamItems.filter(({ permKey }) => canSeeTab(permKey, userRole, perms));
+  const visibleTeamItems = teamItems.filter(({ permKey, financeOnly }) =>
+    financeOnly ? canSeeFinance(userRole as any) : canSeeTab(permKey, userRole, perms));
   const visibleSettingsItems = isManagerUser ? settingsItems : [];
 
   const teamActive = visibleTeamItems.some(

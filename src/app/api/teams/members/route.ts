@@ -40,7 +40,7 @@ export async function PATCH(req: NextRequest) {
   const body = await req.json();
   const { userId, role, permissions } = body;
   if (!userId) return NextResponse.json({ error: "userId je povinný" }, { status: 400 });
-  if (role !== undefined && !["admin", "member"].includes(role)) {
+  if (role !== undefined && !["admin", "member", "finance"].includes(role)) {
     return NextResponse.json({ error: "Neplatná role" }, { status: 400 });
   }
   if (role === undefined && permissions === undefined) {

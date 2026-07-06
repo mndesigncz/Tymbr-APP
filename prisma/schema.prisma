@@ -46,6 +46,7 @@ model User {
   approvedVacations    Vacation[]     @relation("VacationApprover")
   clientsCreated       Client[]       @relation("ClientCreator")
   projectsCreated      Project[]      @relation("ProjectCreator")
+  invoicesCreated      Invoice[]      @relation("InvoiceCreator")
 }
 
 model Notification {
@@ -96,6 +97,8 @@ model Team {
   vacations      Vacation[]
   clients        Client[]
   projects       Project[]
+  billing        TeamBilling?
+  invoices       Invoice[]
 
   @@index([ownerId])
   @@index([parentId])
@@ -476,6 +479,7 @@ model Client {
   createdBy   User   @relation("ClientCreator", fields: [createdById], references: [id])
 
   projects Project[]
+  invoices Invoice[]
 
   @@index([teamId])
   @@index([stage])
@@ -506,6 +510,71 @@ model Project {
 
   @@index([teamId])
   @@index([clientId])
+}
+
+// Supplier & invoicing settings — one row per team, managed by finance roles.
+model TeamBilling {
+  id            String  @id @default(cuid())
+  supplierName  String  @default("")
+  address       String?
+  ico           String?
+  dic           String?
+  bankAccount   String? // e.g. "123456789/0100"
+  vatPayer      Boolean @default(false)
+  vatRate       Float   @default(21)
+  invoicePrefix String  @default("") // e.g. "2026" → 2026001
+  nextNumber    Int     @default(1)
+  dueDays       Int     @default(14)
+  footerNote    String?
+
+  teamId String @unique
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+}
+
+model Invoice {
+  id             String    @id @default(cuid())
+  number         String
+  status         String    @default("draft") // draft | issued | paid
+  issueDate      DateTime  @default(now())
+  dueDate        DateTime
+  paidAt         DateTime?
+  subtotal       Float     @default(0)
+  vatRate        Float     @default(0)
+  vatAmount      Float     @default(0)
+  total          Float     @default(0)
+  variableSymbol String?
+  note           String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  createdById String
+  createdBy   User   @relation("InvoiceCreator", fields: [createdById], references: [id])
+
+  items InvoiceItem[]
+
+  @@index([teamId])
+  @@index([clientId])
+  @@index([status])
+}
+
+model InvoiceItem {
+  id          String @id @default(cuid())
+  description String
+  quantity    Float  @default(1)
+  unit        String @default("ks") // ks | h | ...
+  unitPrice   Float  @default(0)
+  order       Int    @default(0)
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
 }
 
 model Event {

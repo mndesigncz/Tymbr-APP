@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     if (!name?.trim() || !email?.trim() || !password) {
       return NextResponse.json({ error: "Vyplňte všechna povinná pole" }, { status: 400 });
     }
-    if (!["admin", "member"].includes(role)) {
+    if (!["admin", "member", "finance"].includes(role)) {
       return NextResponse.json({ error: "Neplatná role" }, { status: 400 });
     }
 

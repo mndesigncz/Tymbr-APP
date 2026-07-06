@@ -6,11 +6,11 @@ import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { useChatUnread } from "@/hooks/useChatUnread";
-import { parsePermissions, canSeeTab, isManager } from "@/lib/roles";
+import { parsePermissions, canSeeTab, isManager, canSeeFinance } from "@/lib/roles";
 import {
   LayoutDashboard, CheckSquare, Calendar, MessageSquare,
   CircleEllipsis, FolderOpen, Clock, Settings, Users, Webhook, Megaphone, X, BookOpen, Palmtree,
-  Briefcase, Contact,
+  Briefcase, Contact, FileText,
 } from "lucide-react";
 
 const navItems = [
@@ -36,6 +36,7 @@ const moreSections = [
     label: "Tým",
     items: [
       { href: "/vacation",          icon: Palmtree, label: "Dovolená",       permKey: "vacation", managerOnly: false },
+      { href: "/invoices",          icon: FileText, label: "Fakturace",      permKey: null,       managerOnly: false, financeOnly: true },
       { href: "/settings/team",     icon: Users,    label: "Nastavení týmu", permKey: null,       managerOnly: true  },
       { href: "/settings/webhooks", icon: Webhook,  label: "Integrace",      permKey: null,       managerOnly: true  },
     ],
@@ -64,7 +65,8 @@ export function BottomNav() {
   const visibleMoreSections = moreSections
     .map((section) => ({
       ...section,
-      items: section.items.filter(({ permKey, managerOnly }) => {
+      items: section.items.filter(({ permKey, managerOnly, financeOnly }: any) => {
+        if (financeOnly) return canSeeFinance(userRole as any);
         if (managerOnly) return isManager(userRole as any);
         if (permKey) return canSeeTab(permKey, userRole, perms);
         return true;

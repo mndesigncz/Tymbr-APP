@@ -54,6 +54,7 @@ function fileToLogoDataUrl(file: File, size = 128): Promise<string> {
 const ROLE_OPTIONS = [
   { value: "owner", label: "Vlastník" },
   { value: "admin", label: "Admin" },
+  { value: "finance", label: "Finanční manažer" },
   { value: "member", label: "Člen" },
 ];
 
@@ -333,7 +334,7 @@ function CreateUserModal({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
-  const [role, setRole] = useState<"admin" | "member">("member");
+  const [role, setRole] = useState<"admin" | "member" | "finance">("member");
   const [perms, setPerms] = useState<string[]>(ALL_TAB_KEYS);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
