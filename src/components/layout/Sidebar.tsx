@@ -13,34 +13,64 @@ import { useChatUnread } from "@/hooks/useChatUnread";
 import { parsePermissions, canSeeTab, isManager, canSeeFinance } from "@/lib/roles";
 import {
   LayoutDashboard, CheckSquare, Tag, LogOut, Settings,
-  Clock, Users, MessageSquare, ChevronDown, Settings2, FolderOpen, Webhook,
+  Users, MessageSquare, ChevronDown, Settings2, FolderOpen, Webhook,
   Calendar, Megaphone, BookOpen, Palmtree, Briefcase, Contact, FileText, Gauge,
+  Boxes, Wrench,
 } from "lucide-react";
 
-const topItems = [
-  { href: "/dashboard",  icon: LayoutDashboard, label: "Přehled",    permKey: "dashboard"  },
-  { href: "/tasks",      icon: CheckSquare,     label: "Úkoly",      permKey: "tasks"      },
-  { href: "/projects",   icon: Briefcase,       label: "Projekty",   permKey: "projects"   },
-  { href: "/clients",    icon: Contact,         label: "Klienti",    permKey: "clients"    },
-  { href: "/calendar",   icon: Calendar,        label: "Kalendář",   permKey: "calendar"   },
-  { href: "/notes",      icon: BookOpen,        label: "Poznámky",   permKey: "notes"      },
-  { href: "/categories", icon: Tag,             label: "Funkce",     permKey: "categories" },
-  { href: "/time",       icon: Clock,           label: "Výkazy",     permKey: "time"       },
+interface NavItem {
+  href: string;
+  icon: React.ElementType;
+  label: string;
+  permKey?: string;
+  financeOnly?: boolean;
+  managerOnly?: boolean;
+  badge?: "chat";
+}
+
+interface NavGroup {
+  key: string;
+  label: string;
+  icon: React.ElementType;
+  items: NavItem[];
+}
+
+// Daily drivers — always flat at the top.
+const primaryItems: NavItem[] = [
+  { href: "/dashboard", icon: LayoutDashboard, label: "Přehled",  permKey: "dashboard" },
+  { href: "/tasks",     icon: CheckSquare,     label: "Úkoly",    permKey: "tasks" },
+  { href: "/calendar",  icon: Calendar,        label: "Kalendář", permKey: "calendar" },
+  { href: "/notes",     icon: BookOpen,        label: "Poznámky", permKey: "notes" },
+  { href: "/chat",      icon: MessageSquare,   label: "Chat",     permKey: "chat", badge: "chat" },
 ];
 
-const teamItems = [
-  { href: "/chat",     icon: MessageSquare, label: "Chat",         permKey: "chat",     financeOnly: false },
-  { href: "/files",    icon: FolderOpen,    label: "Soubory",      permKey: "files",    financeOnly: false },
-  { href: "/content",  icon: Megaphone,     label: "Content plán", permKey: "content",  financeOnly: false },
-  { href: "/vacation", icon: Palmtree,      label: "Dovolená",     permKey: "vacation", financeOnly: false },
-  { href: "/invoices", icon: FileText,      label: "Fakturace",    permKey: "invoices", financeOnly: true  },
-  { href: "/capacity", icon: Gauge,         label: "Vytížení",     permKey: "capacity", financeOnly: true  },
-];
-
-// Settings items are manager-only (gated by role, not permissions)
-const settingsItems = [
-  { href: "/settings/team",     icon: Settings2, label: "Nastavení týmu" },
-  { href: "/settings/webhooks", icon: Webhook,   label: "Integrace"      },
+// Everything else lives in collapsible groups so the sidebar stays scannable.
+const navGroups: NavGroup[] = [
+  {
+    key: "tools", label: "Nástroje", icon: Wrench,
+    items: [
+      { href: "/files",    icon: FolderOpen, label: "Soubory",      permKey: "files" },
+      { href: "/content",  icon: Megaphone,  label: "Content plán", permKey: "content" },
+      { href: "/vacation", icon: Palmtree,   label: "Dovolená",     permKey: "vacation" },
+    ],
+  },
+  {
+    key: "business", label: "Zakázky", icon: Boxes,
+    items: [
+      { href: "/projects", icon: Briefcase, label: "Projekty",  permKey: "projects" },
+      { href: "/clients",  icon: Contact,   label: "Klienti",   permKey: "clients" },
+      { href: "/invoices", icon: FileText,  label: "Fakturace", permKey: "invoices", financeOnly: true },
+      { href: "/capacity", icon: Gauge,     label: "Vytížení",  permKey: "capacity", financeOnly: true },
+    ],
+  },
+  {
+    key: "settings", label: "Nastavení", icon: Settings,
+    items: [
+      { href: "/categories",        icon: Tag,       label: "Funkce",         permKey: "categories" },
+      { href: "/settings/team",     icon: Settings2, label: "Nastavení týmu", managerOnly: true },
+      { href: "/settings/webhooks", icon: Webhook,   label: "Integrace",      managerOnly: true },
+    ],
+  },
 ];
 
 export function Sidebar() {
@@ -52,29 +82,39 @@ export function Sidebar() {
   const perms = parsePermissions((session?.user as any)?.permissions);
   const isManagerUser = isManager(userRole as any);
 
-  const visibleTopItems = topItems.filter(({ permKey }) => canSeeTab(permKey, userRole, perms));
-  const visibleTeamItems = teamItems.filter(({ permKey, financeOnly }) =>
-    financeOnly ? canSeeFinance(userRole as any) : canSeeTab(permKey, userRole, perms));
-  const visibleSettingsItems = isManagerUser ? settingsItems : [];
+  const canSeeItem = (item: NavItem) =>
+    item.managerOnly ? isManagerUser
+    : item.financeOnly ? canSeeFinance(userRole as any)
+    : canSeeTab(item.permKey ?? "", userRole, perms);
 
-  const teamActive = visibleTeamItems.some(
-    ({ href }) => pathname === href || pathname.startsWith(href)
-  );
-  const settingsActive = visibleSettingsItems.some(
-    ({ href }) => pathname === href || pathname.startsWith(href)
-  );
-  const [teamOpen, setTeamOpen] = useState(teamActive);
-  const [settingsOpen, setSettingsOpen] = useState(settingsActive);
+  const visiblePrimary = primaryItems.filter(canSeeItem);
+
+  // Only keep groups that have at least one visible item for this user/role.
+  const visibleGroups = navGroups
+    .map((g) => ({ ...g, items: g.items.filter(canSeeItem) }))
+    .filter((g) => g.items.length > 0);
+
+  const isGroupActive = (g: NavGroup) =>
+    g.items.some(({ href }) => pathname === href || pathname.startsWith(href));
+
+  // Collapsed/expanded state persists per-device; a group auto-opens when the
+  // current route lives inside it.
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("noisium:navGroups") ?? "{}");
+      if (saved && typeof saved === "object") setOpenGroups(saved);
+    } catch { /* ignore */ }
+  }, []);
+  const toggleGroup = (key: string) =>
+    setOpenGroups((prev) => {
+      const next = { ...prev, [key]: !(prev[key] ?? false) };
+      try { localStorage.setItem("noisium:navGroups", JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (teamActive) setTeamOpen(true);
-  }, [teamActive]);
-
-  useEffect(() => {
-    if (settingsActive) setSettingsOpen(true);
-  }, [settingsActive]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -138,79 +178,47 @@ export function Sidebar() {
       {/* Team switcher */}
       <TeamSwitcher />
 
-      {/* Navigation */}
-      <nav className="flex-1 mt-3 space-y-1">
-        {visibleTopItems.map(({ href, icon, label }) => renderLink(href, icon, label))}
-
-        {/* Collapsible Tým group — hidden when no team items visible */}
-        {visibleTeamItems.length > 0 && (
-          <div>
-            <button
-              onClick={() => setTeamOpen((o) => !o)}
-              className={cn(
-                "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-[14px] font-medium transition-all",
-                !teamActive && "hover:bg-[var(--hover)]"
-              )}
-              style={teamActive
-                ? { background: "var(--bg-card)", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
-                : { color: "var(--text-2)" }
-              }
-            >
-              <Users className="w-[18px] h-[18px] flex-shrink-0"
-                style={{ color: teamActive ? "var(--accent)" : "var(--text-2)" }} />
-              <span className="flex-1 text-left">Tým</span>
-              <ChevronDown
-                className="w-[14px] h-[14px] transition-transform"
-                style={{
-                  color: teamActive ? "var(--accent)" : "var(--text-3)",
-                  transform: teamOpen ? "rotate(180deg)" : "rotate(0deg)",
-                }}
-              />
-            </button>
-            {teamOpen && (
-              <div className="mt-1 space-y-1">
-                {visibleTeamItems.map(({ href, icon, label }) =>
-                  renderLink(href, icon, label, true, href === "/chat" && chatUnread)
-                )}
-              </div>
-            )}
-          </div>
+      {/* Navigation — scrolls independently when it overflows */}
+      <nav className="flex-1 min-h-0 overflow-y-auto no-scrollbar mt-3 space-y-1">
+        {visiblePrimary.map((item) =>
+          renderLink(item.href, item.icon, item.label, false, item.badge === "chat" && chatUnread)
         )}
 
-        {/* Collapsible Nastavení group — manager only */}
-        {visibleSettingsItems.length > 0 && (
-          <div>
-            <button
-              onClick={() => setSettingsOpen((o) => !o)}
-              className={cn(
-                "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-[14px] font-medium transition-all",
-                !settingsActive && "hover:bg-[var(--hover)]"
-              )}
-              style={settingsActive
-                ? { background: "var(--bg-card)", color: "var(--text-1)", boxShadow: "var(--shadow-sm)" }
-                : { color: "var(--text-2)" }
-              }
-            >
-              <Settings className="w-[18px] h-[18px] flex-shrink-0"
-                style={{ color: settingsActive ? "var(--accent)" : "var(--text-2)" }} />
-              <span className="flex-1 text-left">Nastavení</span>
-              <ChevronDown
-                className="w-[14px] h-[14px] transition-transform"
-                style={{
-                  color: settingsActive ? "var(--accent)" : "var(--text-3)",
-                  transform: settingsOpen ? "rotate(180deg)" : "rotate(0deg)",
-                }}
-              />
-            </button>
-            {settingsOpen && (
-              <div className="mt-1 space-y-1">
-                {visibleSettingsItems.map(({ href, icon, label }) =>
-                  renderLink(href, icon, label, true)
+        {visibleGroups.map((group) => {
+          const active = isGroupActive(group);
+          // A group is open when explicitly toggled, or (untouched) when it holds the active route.
+          const open = openGroups[group.key] ?? active;
+          const GroupIcon = group.icon;
+          return (
+            <div key={group.key} className="pt-1">
+              <button
+                onClick={() => toggleGroup(group.key)}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-2xl transition-all hover:bg-[var(--hover)]"
+              >
+                <GroupIcon className="w-[15px] h-[15px] flex-shrink-0"
+                  style={{ color: active ? "var(--accent)" : "var(--text-3)" }} />
+                <span className="flex-1 text-left text-[11.5px] font-semibold uppercase tracking-wider"
+                  style={{ color: active ? "var(--accent)" : "var(--text-3)" }}>
+                  {group.label}
+                </span>
+                {!open && group.items.some((i) => i.badge === "chat" && chatUnread) && (
+                  <span className="w-2 h-2 rounded-full bg-red-500 mr-1" />
                 )}
-              </div>
-            )}
-          </div>
-        )}
+                <ChevronDown
+                  className="w-[14px] h-[14px] transition-transform"
+                  style={{ color: "var(--text-3)", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
+                />
+              </button>
+              {open && (
+                <div className="mt-1 space-y-1">
+                  {group.items.map((item) =>
+                    renderLink(item.href, item.icon, item.label, true, item.badge === "chat" && chatUnread)
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </nav>
 
       {/* Time tracker widget */}
