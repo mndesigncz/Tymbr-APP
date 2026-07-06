@@ -12,7 +12,7 @@ import {
   Circle, Flag, CalendarRange, Tag, Users, Repeat,
   CheckSquare, Star, Target, Zap, AlertTriangle, FileText, Package,
   FolderOpen, Globe, Home, MessageSquare, Settings2, Wrench, Heart,
-  Briefcase, BookOpen, Bell, PenLine, UserCheck,
+  Briefcase, BookOpen, Bell, PenLine, UserCheck, Palmtree,
 } from "lucide-react";
 import type { Task, Category, User, Vacation } from "@/types";
 import { useStatusConfig } from "@/hooks/useStatusConfig";
@@ -567,7 +567,7 @@ export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCanc
       {vacationConflicts.length > 0 && (
         <div className="flex items-start gap-2.5 px-3.5 py-2.5 rounded-xl border"
           style={{ background: "color-mix(in srgb, #F59E0B 8%, transparent)", borderColor: "color-mix(in srgb, #F59E0B 35%, transparent)" }}>
-          <span className="text-[15px] leading-none mt-0.5">🏖️</span>
+          <Palmtree className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "#F59E0B" }} />
           <div className="text-[12.5px] leading-relaxed" style={{ color: "var(--text-2)" }}>
             {vacationConflicts.map((c) => (
               <div key={c.id}>

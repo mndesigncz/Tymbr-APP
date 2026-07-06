@@ -21,16 +21,16 @@ const topItems = [
   { href: "/dashboard",  icon: LayoutDashboard, label: "Přehled",    permKey: "dashboard"  },
   { href: "/tasks",      icon: CheckSquare,     label: "Úkoly",      permKey: "tasks"      },
   { href: "/calendar",   icon: Calendar,        label: "Kalendář",   permKey: "calendar"   },
-  { href: "/vacation",   icon: Palmtree,        label: "Dovolená",   permKey: "vacation"   },
   { href: "/notes",      icon: BookOpen,        label: "Poznámky",   permKey: "notes"      },
   { href: "/categories", icon: Tag,             label: "Funkce",     permKey: "categories" },
   { href: "/time",       icon: Clock,           label: "Výkazy",     permKey: "time"       },
 ];
 
 const teamItems = [
-  { href: "/chat",    icon: MessageSquare, label: "Chat",         permKey: "chat"    },
-  { href: "/files",   icon: FolderOpen,    label: "Soubory",      permKey: "files"   },
-  { href: "/content", icon: Megaphone,     label: "Content plán", permKey: "content" },
+  { href: "/chat",     icon: MessageSquare, label: "Chat",         permKey: "chat"     },
+  { href: "/files",    icon: FolderOpen,    label: "Soubory",      permKey: "files"    },
+  { href: "/content",  icon: Megaphone,     label: "Content plán", permKey: "content"  },
+  { href: "/vacation", icon: Palmtree,      label: "Dovolená",     permKey: "vacation" },
 ];
 
 // Settings items are manager-only (gated by role, not permissions)

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { createNotifications } from "@/lib/notify";
+import { isOwner } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,7 @@ export async function POST(req: NextRequest) {
 
   const userId = session.user.id as string;
   const teamId = (session.user as any).teamId as string | undefined;
+  const teamRole = (session.user as any).teamRole as string | null;
   if (!teamId) return NextResponse.json({ error: "Nejprve si vytvoř tým" }, { status: 400 });
 
   const body = await req.json();
@@ -67,27 +69,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Konec nesmí být před začátkem" }, { status: 400 });
   }
 
+  // The team owner holds the highest rank — their leave needs no approval.
+  const autoApproved = isOwner(teamRole as any);
+
   const vacation = await prisma.vacation.create({
-    data: { type, startDate, endDate, note, userId, teamId, approvalStatus: "pending" },
+    data: {
+      type, startDate, endDate, note, userId, teamId,
+      approvalStatus: autoApproved ? "approved" : "pending",
+      approvedById: autoApproved ? userId : null,
+    },
     include: vacationInclude,
   });
 
-  // Notify team managers (owner / admin), excluding the requester.
-  const managers = await prisma.teamMember.findMany({
-    where: { teamId, role: { in: ["owner", "admin"] }, userId: { not: userId } },
-    select: { userId: true },
-  });
-  if (managers.length) {
-    const label = TYPE_LABELS[type] ?? "Dovolenou";
-    void createNotifications(
-      managers.map((m) => ({
-        userId: m.userId,
-        type: "vacation_requested" as const,
-        title: `${vacation.user.name} žádá o schválení: ${label}`,
-        body: formatRange(startDate, endDate),
-        url: "/vacation",
-      }))
-    );
+  // Only request approval when it isn't auto-approved: notify team managers.
+  if (!autoApproved) {
+    const managers = await prisma.teamMember.findMany({
+      where: { teamId, role: { in: ["owner", "admin"] }, userId: { not: userId } },
+      select: { userId: true },
+    });
+    if (managers.length) {
+      const label = TYPE_LABELS[type] ?? "Dovolenou";
+      void createNotifications(
+        managers.map((m) => ({
+          userId: m.userId,
+          type: "vacation_requested" as const,
+          title: `${vacation.user.name} žádá o schválení: ${label}`,
+          body: formatRange(startDate, endDate),
+          url: "/vacation",
+        }))
+      );
+    }
   }
 
   return NextResponse.json(vacation, { status: 201 });

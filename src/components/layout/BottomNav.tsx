@@ -23,7 +23,6 @@ const moreSections = [
   {
     label: "Práce",
     items: [
-      { href: "/vacation", icon: Palmtree,   label: "Dovolená",     permKey: "vacation",   managerOnly: false },
       { href: "/notes",    icon: BookOpen,   label: "Poznámky",     permKey: "notes",      managerOnly: false },
       { href: "/content",  icon: Megaphone,  label: "Content plán", permKey: "content",    managerOnly: false },
       { href: "/files",    icon: FolderOpen, label: "Soubory",      permKey: "files",      managerOnly: false },
@@ -33,8 +32,9 @@ const moreSections = [
   {
     label: "Tým",
     items: [
-      { href: "/settings/team",     icon: Users,    label: "Nastavení týmu", permKey: null, managerOnly: true  },
-      { href: "/settings/webhooks", icon: Webhook,  label: "Integrace",      permKey: null, managerOnly: true  },
+      { href: "/vacation",          icon: Palmtree, label: "Dovolená",       permKey: "vacation", managerOnly: false },
+      { href: "/settings/team",     icon: Users,    label: "Nastavení týmu", permKey: null,       managerOnly: true  },
+      { href: "/settings/webhooks", icon: Webhook,  label: "Integrace",      permKey: null,       managerOnly: true  },
     ],
   },
   {

@@ -6,15 +6,16 @@ import { Header } from "@/components/layout/Header";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
-import { Palmtree, Plus, Check, X, Trash2, Calendar, Clock } from "lucide-react";
+import { Palmtree, Plus, Check, X, Trash2, Calendar, Clock, Thermometer, Coffee } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { isManager } from "@/lib/roles";
 import { formatDate } from "@/lib/utils";
 import type { Vacation, VacationType } from "@/types";
 
-const TYPES: { key: VacationType; label: string; color: string; emoji: string }[] = [
-  { key: "vacation", label: "Dovolená", color: "#0EA5E9", emoji: "🏖️" },
-  { key: "sick",     label: "Nemoc",    color: "#EF4444", emoji: "🤒" },
-  { key: "personal", label: "Volno",    color: "#8B5CF6", emoji: "☕" },
+const TYPES: { key: VacationType; label: string; color: string; Icon: LucideIcon }[] = [
+  { key: "vacation", label: "Dovolená", color: "#0EA5E9", Icon: Palmtree },
+  { key: "sick",     label: "Nemoc",    color: "#EF4444", Icon: Thermometer },
+  { key: "personal", label: "Volno",    color: "#8B5CF6", Icon: Coffee },
 ];
 const typeInfo = (t: string) => TYPES.find((x) => x.key === t) ?? TYPES[0];
 
@@ -161,9 +162,9 @@ export default function VacationPage() {
                         <p className="text-[13.5px] font-semibold truncate" style={{ color: "var(--text-1)" }}>
                           {v.user?.name ?? "—"}
                         </p>
-                        <span className="inline-flex items-center gap-1 text-[11.5px] font-medium px-1.5 py-0.5 rounded-md mt-0.5"
+                        <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold px-1.5 py-0.5 rounded-md mt-0.5"
                           style={{ color: ti.color, background: `${ti.color}18` }}>
-                          {ti.emoji} {ti.label}
+                          <ti.Icon className="w-3 h-3" /> {ti.label}
                         </span>
                       </div>
                     </div>
@@ -269,11 +270,11 @@ function VacationForm({ onCancel, onSaved }: { onCancel: () => void; onSaved: ()
         <div className="grid grid-cols-3 gap-2">
           {TYPES.map((t) => (
             <button key={t.key} type="button" onClick={() => setType(t.key)}
-              className="flex flex-col items-center gap-1 py-2.5 rounded-xl border text-[12.5px] font-semibold transition-all"
+              className="flex flex-col items-center gap-1.5 py-3 rounded-xl border text-[12.5px] font-semibold transition-all"
               style={type === t.key
                 ? { borderColor: t.color, background: `${t.color}12`, color: t.color }
                 : { borderColor: "var(--border-md)", background: "var(--bg-subtle)", color: "var(--text-2)" }}>
-              <span className="text-[18px]">{t.emoji}</span>
+              <t.Icon className="w-[18px] h-[18px]" />
               {t.label}
             </button>
           ))}
