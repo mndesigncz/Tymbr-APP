@@ -14,7 +14,7 @@ import {
   FolderOpen, Globe, Home, MessageSquare, Settings2, Wrench, Heart,
   Briefcase, BookOpen, Bell, PenLine, UserCheck, Palmtree,
 } from "lucide-react";
-import type { Task, Category, User, Vacation } from "@/types";
+import type { Task, Category, User, Vacation, Project } from "@/types";
 import { useStatusConfig } from "@/hooks/useStatusConfig";
 import { usePriorityConfig } from "@/hooks/usePriorityConfig";
 import { useTimeTracker } from "@/context/TimeTrackerContext";
@@ -117,6 +117,7 @@ export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCanc
 
   const [assigneeSearch, setAssigneeSearch] = useState("");
   const [vacations, setVacations] = useState<Vacation[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
 
   const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<string[]>(
     () => task?.assignees?.map((a) => a.id) ?? (task?.assigneeId ? [task.assigneeId] : [])
@@ -130,6 +131,7 @@ export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCanc
     dueDate: task?.dueDate ? new Date(task.dueDate).toISOString().slice(0, 10) : "",
     startDate: task?.startDate ? new Date(task.startDate).toISOString().slice(0, 10) : "",
     categoryId: task?.categoryId || "",
+    projectId: task?.projectId || "",
     hourlyRate: task?.hourlyRate ? String(task.hourlyRate) : "",
     estimatedHours: minutesToHours(task?.estimatedMinutes),
     expenses: task?.expenses ? String(task.expenses) : "",
@@ -144,11 +146,13 @@ export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCanc
       fetch("/api/users").then((r) => r.json()),
       fetch("/api/task-templates").then((r) => r.json()),
       fetch("/api/vacations?status=approved").then((r) => r.json()),
-    ]).then(([cats, usrs, tmpl, vacs]) => {
+      fetch("/api/projects").then((r) => r.json()),
+    ]).then(([cats, usrs, tmpl, vacs, projs]) => {
       setCategories(Array.isArray(cats) ? cats : []);
       setUsers(Array.isArray(usrs) ? usrs : []);
       setTemplates(Array.isArray(tmpl) ? tmpl : []);
       setVacations(Array.isArray(vacs) ? vacs : []);
+      setProjects(Array.isArray(projs) ? projs : []);
     });
   }, []);
 
@@ -228,6 +232,7 @@ export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCanc
     recurring: form.recurring || "none",
     icon: form.icon || null,
     customApproverId: form.customApproverId || null,
+    projectId: form.projectId || null,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -578,8 +583,21 @@ export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCanc
         </div>
       )}
 
-      {/* Category + Recurring */}
+      {/* Project + Category + Recurring */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {projects.length > 0 && (
+          <Select
+            label="Projekt"
+            value={form.projectId}
+            onChange={set("projectId")}
+            options={[
+              { value: "", label: "Bez projektu" },
+              ...projects
+                .filter((p) => p.status === "active" || p.status === "on_hold" || p.id === form.projectId)
+                .map((p) => ({ value: p.id, label: p.client ? `${p.name} · ${p.client.name}` : p.name })),
+            ]}
+          />
+        )}
         <Select label="Kategorie" options={catOptions} value={form.categoryId} onChange={set("categoryId")} placeholder="Žádná" />
         <Select
           label="Opakování"

@@ -87,7 +87,9 @@ function TasksContent() {
     status: searchParams.get("status") || "",
     priority: "",
     categoryId: searchParams.get("categoryId") || "",
+    projectId: searchParams.get("projectId") || "",
   });
+  const [projectName, setProjectName] = useState<string | null>(null);
   const [categories, setCategories] = useState<{ id: string; name: string; color: string }[]>([]);
   const [members, setMembers] = useState<{ id: string; name: string; avatar?: string | null }[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
@@ -126,6 +128,7 @@ function TasksContent() {
       if (filters.status) params.set("status", filters.status);
       if (filters.priority) params.set("priority", filters.priority);
       if (filters.categoryId) params.set("categoryId", filters.categoryId);
+      if (filters.projectId) params.set("projectId", filters.projectId);
 
       if (scope === "pick" && selectedMembers.size > 0) {
         params.set("assigneeIds", [...selectedMembers].join(","));
@@ -178,6 +181,7 @@ function TasksContent() {
       params.set("completedTo", to.toISOString());
       if (filters.search) params.set("search", filters.search);
       if (filters.categoryId) params.set("categoryId", filters.categoryId);
+      if (filters.projectId) params.set("projectId", filters.projectId);
       const res = await fetch(`/api/tasks?${params}`);
       const text = await res.text();
       let data: any;
@@ -191,7 +195,7 @@ function TasksContent() {
     } finally {
       setLoading(false);
     }
-  }, [dateRange, customFrom, customTo, filters.search, filters.categoryId]);
+  }, [dateRange, customFrom, customTo, filters.search, filters.categoryId, filters.projectId]);
 
   useEffect(() => {
     if (sessionStatus === "loading") return;
@@ -209,6 +213,14 @@ function TasksContent() {
     fetch("/api/categories").then((r) => r.json()).then((d) => setCategories(Array.isArray(d) ? d : []));
     fetch("/api/users").then((r) => r.json()).then((d) => setMembers(Array.isArray(d) ? d : []));
   }, []);
+
+  // Resolve project name for the active project filter chip
+  useEffect(() => {
+    if (!filters.projectId) { setProjectName(null); return; }
+    fetch(`/api/projects/${filters.projectId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setProjectName(d?.name ?? null));
+  }, [filters.projectId]);
 
   const handleStatusChange = async (taskId: string, newStatus: string) => {
     const res = await fetch(`/api/tasks/${taskId}`, {
@@ -424,6 +436,20 @@ function TasksContent() {
                 <Input type="date" label="Do" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
               </div>
             )}
+          </div>
+        )}
+
+        {/* Active project filter chip */}
+        {filters.projectId && (
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12.5px] font-semibold border"
+              style={{ background: "var(--accent-soft)", color: "var(--accent)", borderColor: "var(--accent)" }}>
+              Projekt: {projectName ?? "…"}
+              <button onClick={() => setFilters((f) => ({ ...f, projectId: "" }))}
+                className="ml-0.5 transition-opacity hover:opacity-70" aria-label="Zrušit filtr projektu">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </span>
           </div>
         )}
 

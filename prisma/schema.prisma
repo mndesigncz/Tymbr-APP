@@ -44,6 +44,8 @@ model User {
   customApproverTasks  Task[]         @relation("TaskCustomApprover")
   vacations            Vacation[]     @relation("VacationUser")
   approvedVacations    Vacation[]     @relation("VacationApprover")
+  clientsCreated       Client[]       @relation("ClientCreator")
+  projectsCreated      Project[]      @relation("ProjectCreator")
 }
 
 model Notification {
@@ -92,6 +94,8 @@ model Team {
   contentPosts   ContentPost[]
   notes          Note[]
   vacations      Vacation[]
+  clients        Client[]
+  projects       Project[]
 
   @@index([ownerId])
   @@index([parentId])
@@ -412,6 +416,9 @@ model Task {
   categoryId String?
   category   Category? @relation(fields: [categoryId], references: [id])
 
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
   createdById String
   createdBy   User   @relation("TaskCreator", fields: [createdById], references: [id])
 
@@ -444,6 +451,61 @@ model Task {
   @@index([teamId, completedAt])
   @@index([approvedById])
   @@index([customApproverId])
+  @@index([projectId])
+}
+
+model Client {
+  id          String   @id @default(cuid())
+  name        String
+  contactName String?
+  email       String?
+  phone       String?
+  website     String?
+  address     String?
+  ico         String?
+  dic         String?
+  note        String?
+  stage       String   @default("lead") // lead | negotiation | active | inactive | lost
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  createdById String
+  createdBy   User   @relation("ClientCreator", fields: [createdById], references: [id])
+
+  projects Project[]
+
+  @@index([teamId])
+  @@index([stage])
+}
+
+model Project {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  status      String    @default("active") // active | on_hold | done | archived
+  color       String?
+  budget      Float?
+  startDate   DateTime?
+  deadline    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  createdById String
+  createdBy   User   @relation("ProjectCreator", fields: [createdById], references: [id])
+
+  tasks Task[]
+
+  @@index([teamId])
+  @@index([clientId])
 }
 
 model Event {

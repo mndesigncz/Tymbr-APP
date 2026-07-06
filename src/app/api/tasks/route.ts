@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 const taskInclude = {
   category: true,
+  project: { select: { id: true, name: true, color: true } },
   createdBy: { select: { id: true, name: true, email: true, avatar: true } },
   assignee: { select: { id: true, name: true, email: true, avatar: true } },
   subtasks: {
@@ -72,6 +73,8 @@ export async function GET(req: NextRequest) {
       where.status = status;
     }
     if (categoryId) where.categoryId = categoryId;
+    const projectId = searchParams.get("projectId");
+    if (projectId) where.projectId = projectId;
     const assigneeIds = searchParams.get("assigneeIds");
     if (assigneeIds) {
       where.assigneeId = { in: assigneeIds.split(",").map((s) => s.trim()) };
@@ -118,6 +121,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { title, description, status, priority, dueDate, startDate, categoryId, hourlyRate, recurring, icon, estimatedMinutes, expenses } = body;
     const customApproverId: string | null = body.customApproverId || null;
+    const projectId: string | null = body.projectId || null;
     // assigneeIds: new multi-assignee array; assigneeId: legacy single
     const assigneeIds: string[] = Array.isArray(body.assigneeIds) ? body.assigneeIds.filter(Boolean) : [];
     if (!assigneeIds.length && body.assigneeId) assigneeIds.push(body.assigneeId);
@@ -134,7 +138,7 @@ export async function POST(req: NextRequest) {
     const rows = await prisma.$queryRaw<any[]>`
       INSERT INTO "Task" (
         id, title, description, status, priority, "dueDate", "startDate",
-        "categoryId", "assigneeId", "hourlyRate", "estimatedMinutes", "expenses", "completedAt",
+        "categoryId", "projectId", "assigneeId", "hourlyRate", "estimatedMinutes", "expenses", "completedAt",
         "createdById", "teamId", recurring, icon, "customApproverId", "createdAt", "updatedAt"
       )
       VALUES (
@@ -146,6 +150,7 @@ export async function POST(req: NextRequest) {
         ${dueDate ? new Date(dueDate) : null},
         ${startDate ? new Date(startDate) : null},
         ${categoryId || null},
+        ${projectId},
         ${primaryAssigneeId},
         ${hourlyRate ? Number(hourlyRate) : null},
         ${estimatedMinutes ? Math.round(Number(estimatedMinutes)) : null},

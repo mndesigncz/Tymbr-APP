@@ -75,6 +75,8 @@ export interface Task {
   teamId?: string | null;
   categoryId?: string | null;
   category?: Category | null;
+  projectId?: string | null;
+  project?: { id: string; name: string; color?: string | null } | null;
   createdById: string;
   createdBy?: User;
   assigneeId?: string | null;
@@ -143,6 +145,49 @@ export interface CalendarEvent {
   assignees?: User[];
   recurring?: string | null;
   recurringUntil?: Date | string | null;
+}
+
+export type ClientStage = "lead" | "negotiation" | "active" | "inactive" | "lost";
+
+export interface Client {
+  id: string;
+  name: string;
+  contactName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  address?: string | null;
+  ico?: string | null;
+  dic?: string | null;
+  note?: string | null;
+  stage: ClientStage;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  teamId: string;
+  createdById: string;
+  projects?: Project[];
+  _count?: { projects: number };
+}
+
+export type ProjectStatus = "active" | "on_hold" | "done" | "archived";
+
+export interface Project {
+  id: string;
+  name: string;
+  description?: string | null;
+  status: ProjectStatus;
+  color?: string | null;
+  budget?: number | null;
+  startDate?: Date | string | null;
+  deadline?: Date | string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  teamId: string;
+  clientId?: string | null;
+  client?: { id: string; name: string; stage?: string } | null;
+  createdById: string;
+  tasks?: { id: string; status: string }[];
+  _count?: { tasks: number };
 }
 
 export type VacationType = "vacation" | "sick" | "personal";
