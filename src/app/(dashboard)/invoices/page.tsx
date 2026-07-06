@@ -492,6 +492,29 @@ function BillingSettings({
         Příští faktura: <strong>{form.invoicePrefix}{String(Number(form.nextNumber) || 1).padStart(3, "0")}</strong>
       </p>
 
+      {billing.inboundToken && (
+        <div className="rounded-xl border px-4 py-3 space-y-1.5"
+          style={{ background: "var(--bg-subtle)", borderColor: "var(--border-md)" }}>
+          <p className="text-[13px] font-semibold" style={{ color: "var(--text-1)" }}>Automatické párování plateb</p>
+          <p className="text-[12px] leading-relaxed" style={{ color: "var(--text-3)" }}>
+            Přepošli bankovní e-maily o přijaté platbě (přes Zapier/Make/e-mail pravidlo) jako POST na tuto adresu.
+            Platba se podle variabilního symbolu a částky sama spáruje a faktura se označí jako zaplacená.
+          </p>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 text-[11px] px-2 py-1.5 rounded-lg border truncate"
+              style={{ background: "var(--bg-card)", borderColor: "var(--border)", color: "var(--text-2)" }}>
+              {typeof window !== "undefined" ? `${window.location.origin}/api/inbound/payments?token=${billing.inboundToken}` : ""}
+            </code>
+            <button type="button"
+              onClick={() => navigator.clipboard?.writeText(`${window.location.origin}/api/inbound/payments?token=${billing.inboundToken}`)}
+              className="text-[12px] font-semibold px-2.5 py-1.5 rounded-lg border transition-all hover:bg-[var(--hover)] flex-shrink-0"
+              style={{ borderColor: "var(--border-md)", color: "var(--text-2)" }}>
+              Kopírovat
+            </button>
+          </div>
+        </div>
+      )}
+
       <div>
         <label className="text-[12px] font-semibold mb-1.5 block" style={{ color: "var(--text-2)" }}>Patička faktury</label>
         <textarea value={form.footerNote} onChange={set("footerNote")} rows={2}

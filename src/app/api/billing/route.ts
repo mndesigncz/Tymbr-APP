@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { canSeeFinance } from "@/lib/roles";
+import { randomBytes } from "crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,14 @@ export async function GET() {
       },
     });
   }
+  // Inbound payment webhook token — generated lazily on first read.
+  if (!billing.inboundToken) {
+    billing = await prisma.teamBilling.update({
+      where: { teamId: g.teamId },
+      data: { inboundToken: randomBytes(18).toString("base64url") },
+    });
+  }
+
   // The team logo (a data URL) rides along so invoices can be branded.
   return NextResponse.json({ ...billing, logoUrl: team?.logo ?? null });
 }

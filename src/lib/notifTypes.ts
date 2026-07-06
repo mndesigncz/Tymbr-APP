@@ -16,6 +16,8 @@ export type NotifType =
   | "vacation_requested"
   | "vacation_approved"
   | "vacation_rejected"
+  | "invoice_overdue"
+  | "invoice_paid"
   | "comment"        // legacy alias → task_comment
   | "status_change"; // legacy alias → task_status
 
@@ -37,6 +39,8 @@ export const DEFAULT_NOTIF_PREFS: Record<string, { inApp: boolean; push: boolean
   vacation_requested:        { inApp: true,  push: true  },
   vacation_approved:         { inApp: true,  push: true  },
   vacation_rejected:         { inApp: true,  push: true  },
+  invoice_overdue:           { inApp: true,  push: true  },
+  invoice_paid:              { inApp: true,  push: true  },
 };
 
 export interface NotifTypeInfo {
@@ -89,6 +93,13 @@ export const NOTIF_CATEGORIES: NotifCategory[] = [
     label: "Obsah",
     types: [
       { key: "content_assigned", label: "Přiřazení obsahu", description: "Byl/a jsi přiřazen/a k obsahu v content plánu", icon: "📣" },
+    ],
+  },
+  {
+    label: "Fakturace",
+    types: [
+      { key: "invoice_overdue", label: "Faktura po splatnosti", description: "Vystavená faktura překročila splatnost", icon: "⏰" },
+      { key: "invoice_paid",    label: "Faktura zaplacena",     description: "Platba byla automaticky spárována",       icon: "💰" },
     ],
   },
   {
