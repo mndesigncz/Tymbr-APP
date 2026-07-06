@@ -319,34 +319,51 @@ function InvoiceEditor({
         </>
       )}
 
-      {/* Items */}
+      {/* Items — table-like grid on ≥sm, stacked cards on mobile */}
       <div className="space-y-2">
         <div className="hidden sm:grid grid-cols-[1fr_70px_60px_100px_90px_28px] gap-2 px-1 text-[10.5px] font-semibold uppercase tracking-wide"
           style={{ color: "var(--text-3)" }}>
           <span>Položka</span><span>Množ.</span><span>MJ</span><span>Cena/MJ</span><span className="text-right">Celkem</span><span />
         </div>
         {items.map((it, idx) => (
-          <div key={idx} className="grid grid-cols-2 sm:grid-cols-[1fr_70px_60px_100px_90px_28px] gap-2 items-center">
+          <div key={idx}
+            className="rounded-xl border p-3 space-y-2 sm:rounded-none sm:border-0 sm:p-0 sm:space-y-0 sm:grid sm:grid-cols-[1fr_70px_60px_100px_90px_28px] sm:gap-2 sm:items-center"
+            style={{ borderColor: "var(--border)", background: "var(--bg-card)" }}>
             <input value={it.description} onChange={(e) => setItem(idx, { description: e.target.value })}
-              placeholder="Popis položky" className="col-span-2 sm:col-span-1 text-[13px] rounded-lg px-2.5 py-2 border outline-none"
+              placeholder="Popis položky" className="w-full text-[13px] rounded-lg px-2.5 py-2 border outline-none"
               style={{ background: "var(--bg-subtle)", borderColor: "var(--border-md)", color: "var(--text-1)" }} />
-            <input type="number" value={it.quantity} min="0" step="0.25"
-              onChange={(e) => setItem(idx, { quantity: Number(e.target.value) })}
-              className="text-[13px] rounded-lg px-2 py-2 border outline-none tabular-nums"
-              style={{ background: "var(--bg-subtle)", borderColor: "var(--border-md)", color: "var(--text-1)" }} />
-            <input value={it.unit} onChange={(e) => setItem(idx, { unit: e.target.value })}
-              className="text-[13px] rounded-lg px-2 py-2 border outline-none"
-              style={{ background: "var(--bg-subtle)", borderColor: "var(--border-md)", color: "var(--text-1)" }} />
-            <input type="number" value={it.unitPrice} min="0" step="10"
-              onChange={(e) => setItem(idx, { unitPrice: Number(e.target.value) })}
-              className="text-[13px] rounded-lg px-2 py-2 border outline-none tabular-nums"
-              style={{ background: "var(--bg-subtle)", borderColor: "var(--border-md)", color: "var(--text-1)" }} />
-            <span className="text-[13px] font-semibold tabular-nums text-right" style={{ color: "var(--text-1)" }}>
-              {money(it.quantity * it.unitPrice)}
-            </span>
-            <button onClick={() => removeItem(idx)} className="p-1 rounded hover:text-red-500" style={{ color: "var(--text-3)" }}>
-              <X className="w-3.5 h-3.5" />
-            </button>
+            <div className="grid grid-cols-3 gap-2 sm:contents">
+              <div className="sm:contents">
+                <label className="text-[10px] font-semibold uppercase tracking-wide block mb-0.5 sm:hidden" style={{ color: "var(--text-3)" }}>Množ.</label>
+                <input type="number" value={it.quantity} min="0" step="0.25" inputMode="decimal"
+                  onChange={(e) => setItem(idx, { quantity: Number(e.target.value) })}
+                  className="w-full text-[13px] rounded-lg px-2 py-2 border outline-none tabular-nums"
+                  style={{ background: "var(--bg-subtle)", borderColor: "var(--border-md)", color: "var(--text-1)" }} />
+              </div>
+              <div className="sm:contents">
+                <label className="text-[10px] font-semibold uppercase tracking-wide block mb-0.5 sm:hidden" style={{ color: "var(--text-3)" }}>MJ</label>
+                <input value={it.unit} onChange={(e) => setItem(idx, { unit: e.target.value })}
+                  className="w-full text-[13px] rounded-lg px-2 py-2 border outline-none"
+                  style={{ background: "var(--bg-subtle)", borderColor: "var(--border-md)", color: "var(--text-1)" }} />
+              </div>
+              <div className="sm:contents">
+                <label className="text-[10px] font-semibold uppercase tracking-wide block mb-0.5 sm:hidden" style={{ color: "var(--text-3)" }}>Cena/MJ</label>
+                <input type="number" value={it.unitPrice} min="0" step="10" inputMode="decimal"
+                  onChange={(e) => setItem(idx, { unitPrice: Number(e.target.value) })}
+                  className="w-full text-[13px] rounded-lg px-2 py-2 border outline-none tabular-nums"
+                  style={{ background: "var(--bg-subtle)", borderColor: "var(--border-md)", color: "var(--text-1)" }} />
+              </div>
+            </div>
+            <div className="flex items-center justify-between sm:contents">
+              <span className="text-[13px] font-semibold tabular-nums sm:text-right" style={{ color: "var(--text-1)" }}>
+                {money(it.quantity * it.unitPrice)}
+              </span>
+              <button onClick={() => removeItem(idx)}
+                className="flex items-center gap-1 text-[12px] p-1 rounded hover:text-red-500 sm:justify-self-end"
+                style={{ color: "var(--text-3)" }}>
+                <X className="w-3.5 h-3.5" /><span className="sm:hidden">Odebrat</span>
+              </button>
+            </div>
           </div>
         ))}
         <button onClick={addItem}
