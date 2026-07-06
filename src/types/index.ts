@@ -205,6 +205,7 @@ export interface TeamBilling {
   footerNote?: string | null;
   teamId: string;
   logoUrl?: string | null;
+  inboundToken?: string | null;
 }
 
 export type InvoiceStatus = "draft" | "issued" | "paid";
