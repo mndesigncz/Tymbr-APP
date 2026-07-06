@@ -34,6 +34,8 @@ interface TaskTemplate {
 }
 
 interface DraftSubtask {
+  dueDate: string;
+  assigneeId: string;
   title: string;
   description: string;
   hourlyRate: string;
@@ -103,7 +105,6 @@ export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCanc
   const [error, setError] = useState("");
   const [draftSubtasks, setDraftSubtasks] = useState<DraftSubtask[]>([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
-  const [expandedSubtask, setExpandedSubtask] = useState<number | null>(null);
 
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
   const iconPickerRef = useRef<HTMLButtonElement>(null);
@@ -171,7 +172,7 @@ export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCanc
       recurring: "none",
     }));
     if (Array.isArray(t.subtasks)) {
-      setDraftSubtasks(t.subtasks.map((st) => ({ title: st.title, description: st.description || "", hourlyRate: st.hourlyRate || "", estimatedHours: "" })));
+      setDraftSubtasks(t.subtasks.map((st) => ({ title: st.title, description: st.description || "", hourlyRate: st.hourlyRate || "", estimatedHours: "", dueDate: "", assigneeId: "" })));
     }
     setSelectedAssigneeIds([]);
     setTemplateOpen(false);
@@ -258,13 +259,13 @@ export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCanc
       const saved: Task = await res.json();
       if (!task && draftSubtasks.length > 0) {
         await Promise.all(
-          draftSubtasks.map((st, i) =>
+          draftSubtasks.filter((st) => st.title.trim()).map((st, i) =>
             fetch(`/api/tasks/${saved.id}/subtasks`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ title: st.title, order: i, estimatedMinutes: hoursToMinutes(st.estimatedHours) }),
+              body: JSON.stringify({ title: st.title.trim(), order: i, estimatedMinutes: hoursToMinutes(st.estimatedHours) }),
             }).then(async (r) => {
-              if (r.ok && (st.description || st.hourlyRate)) {
+              if (r.ok && (st.description || st.hourlyRate || st.dueDate || st.assigneeId)) {
                 const created = await r.json();
                 await fetch(`/api/subtasks/${created.id}`, {
                   method: "PATCH",
@@ -272,6 +273,8 @@ export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCanc
                   body: JSON.stringify({
                     description: st.description || null,
                     hourlyRate: st.hourlyRate ? Number(st.hourlyRate) : null,
+                    dueDate: st.dueDate || null,
+                    assigneeId: st.assigneeId || null,
                   }),
                 });
               }
@@ -318,13 +321,12 @@ export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCanc
 
   const addDraftSubtask = () => {
     if (!newSubtaskTitle.trim()) return;
-    setDraftSubtasks((prev) => [...prev, { title: newSubtaskTitle.trim(), description: "", hourlyRate: "", estimatedHours: "" }]);
+    setDraftSubtasks((prev) => [...prev, { title: newSubtaskTitle.trim(), description: "", hourlyRate: "", estimatedHours: "", dueDate: "", assigneeId: "" }]);
     setNewSubtaskTitle("");
   };
 
   const removeDraftSubtask = (i: number) => {
     setDraftSubtasks((prev) => prev.filter((_, idx) => idx !== i));
-    if (expandedSubtask === i) setExpandedSubtask(null);
   };
 
   const updateDraftSubtask = (i: number, field: keyof DraftSubtask, value: string) => {
@@ -735,63 +737,66 @@ export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCanc
           <FieldLabel>Podúkoly</FieldLabel>
           <div className="space-y-1.5">
             {draftSubtasks.map((st, i) => (
-              <div key={i} className="rounded-xl border overflow-hidden"
+              <div key={i} className="rounded-xl border p-3 space-y-2"
                 style={{ borderColor: "var(--border-md)", background: "var(--bg-subtle)" }}>
-                <div className="flex items-center gap-2 px-3 py-2">
-                  <span className="flex-1 text-[13px] font-medium truncate" style={{ color: "var(--text-1)" }}>
-                    {st.title}
-                  </span>
-                  <button type="button" onClick={() => setExpandedSubtask(expandedSubtask === i ? null : i)}
-                    className="text-[11px] px-2 py-0.5 rounded-lg transition-colors hover:bg-[var(--hover)]"
-                    style={{ color: "var(--text-3)" }}>
-                    {expandedSubtask === i ? "Skrýt" : "Upravit"}
-                  </button>
+                {/* Everything editable inline while the task is being created */}
+                <div className="flex items-center gap-2">
+                  <input
+                    value={st.title}
+                    onChange={(e) => updateDraftSubtask(i, "title", e.target.value)}
+                    placeholder="Název podúkolu"
+                    className="flex-1 text-[13px] font-medium rounded-lg px-2.5 py-1.5 outline-none border"
+                    style={{ background: "var(--bg-card)", color: "var(--text-1)", borderColor: "var(--border-md)" }}
+                  />
                   <button type="button" onClick={() => removeDraftSubtask(i)}
-                    className="p-1 rounded-lg transition-colors hover:bg-[var(--danger-soft)]"
+                    className="p-1 rounded-lg transition-colors hover:bg-[var(--danger-soft)] flex-shrink-0"
                     style={{ color: "var(--text-3)" }} aria-label="Odebrat podúkol">
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                {expandedSubtask === i && (
-                  <div className="px-3 pb-3 space-y-2 border-t" style={{ borderColor: "var(--border)" }}>
-                    <textarea
-                      value={st.description}
-                      onChange={(e) => updateDraftSubtask(i, "description", e.target.value)}
-                      placeholder="Popis podúkolu..."
-                      rows={2}
-                      className="w-full text-[12.5px] rounded-lg px-2.5 py-2 resize-none outline-none mt-2 border"
-                      style={{ background: "var(--bg-card)", color: "var(--text-1)", borderColor: "var(--border-md)" }}
-                    />
-                    <div className="flex flex-wrap items-center gap-3">
-                      <div className="flex items-center gap-2">
-                        <label className="text-[11.5px]" style={{ color: "var(--text-3)" }}>Sazba (Kč/h):</label>
-                        <input
-                          type="number"
-                          value={st.hourlyRate}
-                          onChange={(e) => updateDraftSubtask(i, "hourlyRate", e.target.value)}
-                          placeholder="Výchozí"
-                          min="0"
-                          step="10"
-                          className="w-24 text-[12.5px] rounded-lg px-2 py-1 outline-none border"
-                          style={{ background: "var(--bg-card)", color: "var(--text-1)", borderColor: "var(--border-md)" }}
-                        />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <label className="text-[11.5px]" style={{ color: "var(--text-3)" }}>Čas (h):</label>
-                        <input
-                          type="number"
-                          value={st.estimatedHours}
-                          onChange={(e) => updateDraftSubtask(i, "estimatedHours", e.target.value)}
-                          placeholder="0"
-                          min="0"
-                          step="0.5"
-                          className="w-20 text-[12.5px] rounded-lg px-2 py-1 outline-none border"
-                          style={{ background: "var(--bg-card)", color: "var(--text-1)", borderColor: "var(--border-md)" }}
-                        />
-                      </div>
-                    </div>
+                <textarea
+                  value={st.description}
+                  onChange={(e) => updateDraftSubtask(i, "description", e.target.value)}
+                  placeholder="Popis podúkolu..."
+                  rows={2}
+                  className="w-full text-[12.5px] rounded-lg px-2.5 py-2 resize-none outline-none border"
+                  style={{ background: "var(--bg-card)", color: "var(--text-1)", borderColor: "var(--border-md)" }}
+                />
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div>
+                    <label className="text-[10.5px] font-semibold uppercase tracking-wide block mb-0.5" style={{ color: "var(--text-3)" }}>Termín</label>
+                    <input type="date" value={st.dueDate}
+                      onChange={(e) => updateDraftSubtask(i, "dueDate", e.target.value)}
+                      className="w-full text-[12px] rounded-lg px-2 py-1.5 outline-none border"
+                      style={{ background: "var(--bg-card)", color: "var(--text-1)", borderColor: "var(--border-md)" }} />
                   </div>
-                )}
+                  <div>
+                    <label className="text-[10.5px] font-semibold uppercase tracking-wide block mb-0.5" style={{ color: "var(--text-3)" }}>Přiřadit</label>
+                    <select value={st.assigneeId}
+                      onChange={(e) => updateDraftSubtask(i, "assigneeId", e.target.value)}
+                      className="w-full text-[12px] rounded-lg px-2 py-1.5 outline-none border"
+                      style={{ background: "var(--bg-card)", color: "var(--text-1)", borderColor: "var(--border-md)" }}>
+                      <option value="">Nikdo</option>
+                      {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10.5px] font-semibold uppercase tracking-wide block mb-0.5" style={{ color: "var(--text-3)" }}>Sazba (Kč/h)</label>
+                    <input type="number" value={st.hourlyRate}
+                      onChange={(e) => updateDraftSubtask(i, "hourlyRate", e.target.value)}
+                      placeholder="Výchozí" min="0" step="10"
+                      className="w-full text-[12px] rounded-lg px-2 py-1.5 outline-none border"
+                      style={{ background: "var(--bg-card)", color: "var(--text-1)", borderColor: "var(--border-md)" }} />
+                  </div>
+                  <div>
+                    <label className="text-[10.5px] font-semibold uppercase tracking-wide block mb-0.5" style={{ color: "var(--text-3)" }}>Čas (h)</label>
+                    <input type="number" value={st.estimatedHours}
+                      onChange={(e) => updateDraftSubtask(i, "estimatedHours", e.target.value)}
+                      placeholder="0" min="0" step="0.5"
+                      className="w-full text-[12px] rounded-lg px-2 py-1.5 outline-none border"
+                      style={{ background: "var(--bg-card)", color: "var(--text-1)", borderColor: "var(--border-md)" }} />
+                  </div>
+                </div>
               </div>
             ))}
           </div>

@@ -17,6 +17,7 @@ export async function GET() {
         select: {
           id: true,
           name: true,
+          logo: true,
           parentId: true,
           parent: { select: { name: true } },
           _count: { select: { members: true } },
@@ -29,6 +30,7 @@ export async function GET() {
   const teams = memberships.map((m) => ({
     id: m.team.id,
     name: m.team.name,
+    logo: m.team.logo ?? null,
     role: m.role,
     memberCount: m.team._count.members,
     parentId: m.team.parentId ?? null,

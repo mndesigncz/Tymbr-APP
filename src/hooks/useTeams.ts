@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 export interface TeamSummary {
   id: string;
   name: string;
+  logo?: string | null;
   role: string;
   memberCount: number;
   parentId?: string | null;
