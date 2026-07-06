@@ -5,7 +5,7 @@ import Link from "next/link";
 import { formatDate, isOverdue } from "@/lib/utils";
 import { Avatar } from "@/components/ui/Avatar";
 import { PriorityBadge } from "./PriorityBadge";
-import { Calendar, MessageSquare, Play, AlertTriangle, ListChecks, ChevronRight, RefreshCw, Lock } from "lucide-react";
+import { Calendar, MessageSquare, Play, AlertTriangle, ListChecks, ChevronRight, RefreshCw, Lock, Briefcase } from "lucide-react";
 import type { Task } from "@/types";
 import { useTimeTracker } from "@/context/TimeTrackerContext";
 import { useStatusConfig } from "@/hooks/useStatusConfig";
@@ -247,6 +247,13 @@ export function TaskCard({ task, compact, urgent, showUrgentMark, currentUserId,
                 style={{ color: task.category.color, background: `${task.category.color}14` }}>
                 <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: task.category.color }} />
                 {task.category.name}
+              </span>
+            )}
+            {task.project && (
+              <span className="inline-flex items-center gap-1 text-[11.5px] font-medium px-2 py-1 rounded-lg"
+                style={{ color: task.project.color ?? "var(--text-2)", background: `${task.project.color ?? "#6B7280"}14` }}>
+                <Briefcase className="w-3 h-3 flex-shrink-0" />
+                {task.project.name}
               </span>
             )}
             {task.recurring && task.recurring !== "none" && (

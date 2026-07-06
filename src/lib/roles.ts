@@ -25,6 +25,8 @@ export const MEMBER_NAV_TABS = [
   { key: "content",    label: "Content plán", href: "/content"    },
   { key: "notes",      label: "Poznámky",     href: "/notes"      },
   { key: "vacation",   label: "Dovolená",     href: "/vacation"   },
+  { key: "projects",   label: "Projekty",     href: "/projects"   },
+  { key: "clients",    label: "Klienti",      href: "/clients"    },
 ] as const;
 
 export type NavTabKey = (typeof MEMBER_NAV_TABS)[number]["key"];

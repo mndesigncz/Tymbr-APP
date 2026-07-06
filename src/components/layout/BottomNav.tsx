@@ -10,6 +10,7 @@ import { parsePermissions, canSeeTab, isManager } from "@/lib/roles";
 import {
   LayoutDashboard, CheckSquare, Calendar, MessageSquare,
   CircleEllipsis, FolderOpen, Clock, Settings, Users, Webhook, Megaphone, X, BookOpen, Palmtree,
+  Briefcase, Contact,
 } from "lucide-react";
 
 const navItems = [
@@ -23,6 +24,8 @@ const moreSections = [
   {
     label: "Práce",
     items: [
+      { href: "/projects", icon: Briefcase,  label: "Projekty",     permKey: "projects",   managerOnly: false },
+      { href: "/clients",  icon: Contact,    label: "Klienti",      permKey: "clients",    managerOnly: false },
       { href: "/notes",    icon: BookOpen,   label: "Poznámky",     permKey: "notes",      managerOnly: false },
       { href: "/content",  icon: Megaphone,  label: "Content plán", permKey: "content",    managerOnly: false },
       { href: "/files",    icon: FolderOpen, label: "Soubory",      permKey: "files",      managerOnly: false },

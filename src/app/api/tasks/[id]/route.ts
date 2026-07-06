@@ -10,6 +10,7 @@ const taskInclude = {
   category: {
     include: { approver: { select: { id: true, name: true, avatar: true } } },
   },
+  project: { select: { id: true, name: true, color: true } },
   createdBy: { select: { id: true, name: true, email: true, avatar: true } },
   assignee: { select: { id: true, name: true, email: true, avatar: true } },
   approvedBy: { select: { id: true, name: true, avatar: true } },
@@ -76,6 +77,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const body = await req.json();
     const { title, description, status, priority, dueDate, startDate, categoryId, hourlyRate, visibility, recurring, icon, estimatedMinutes, expenses } = body;
     const customApproverId = "customApproverId" in body ? (body.customApproverId || null) : undefined;
+    const projectId = "projectId" in body ? (body.projectId || null) : undefined;
 
     // Resolve assigneeIds array
     const hasAssigneeIds = "assigneeIds" in body;
@@ -162,6 +164,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         ...(estimatedMinutes !== undefined && { estimatedMinutes: estimatedMinutes ? Math.round(Number(estimatedMinutes)) : null }),
         ...(expenses !== undefined && { expenses: expenses ? Number(expenses) : null }),
         ...(customApproverId !== undefined && { customApproverId }),
+        ...(projectId !== undefined && { projectId }),
         ...completedAtUpdate,
       },
       include: taskInclude,
