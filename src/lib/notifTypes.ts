@@ -13,6 +13,9 @@ export type NotifType =
   | "invitation"
   | "member_joined"
   | "content_assigned"
+  | "vacation_requested"
+  | "vacation_approved"
+  | "vacation_rejected"
   | "comment"        // legacy alias → task_comment
   | "status_change"; // legacy alias → task_status
 
@@ -31,6 +34,9 @@ export const DEFAULT_NOTIF_PREFS: Record<string, { inApp: boolean; push: boolean
   invitation:                { inApp: true,  push: true  },
   member_joined:             { inApp: false, push: false },
   content_assigned:          { inApp: true,  push: true  },
+  vacation_requested:        { inApp: true,  push: true  },
+  vacation_approved:         { inApp: true,  push: true  },
+  vacation_rejected:         { inApp: true,  push: true  },
 };
 
 export interface NotifTypeInfo {
@@ -83,6 +89,14 @@ export const NOTIF_CATEGORIES: NotifCategory[] = [
     label: "Obsah",
     types: [
       { key: "content_assigned", label: "Přiřazení obsahu", description: "Byl/a jsi přiřazen/a k obsahu v content plánu", icon: "📣" },
+    ],
+  },
+  {
+    label: "Dovolená",
+    types: [
+      { key: "vacation_requested", label: "Žádost o dovolenou", description: "Člen týmu žádá o schválení dovolené", icon: "🏖️" },
+      { key: "vacation_approved",  label: "Dovolená schválena",  description: "Tvoje dovolená byla schválena",         icon: "✅" },
+      { key: "vacation_rejected",  label: "Dovolená zamítnuta",  description: "Tvoje dovolená byla zamítnuta",         icon: "❌" },
     ],
   },
 ];

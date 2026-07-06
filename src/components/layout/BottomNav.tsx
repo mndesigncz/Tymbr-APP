@@ -9,7 +9,7 @@ import { useChatUnread } from "@/hooks/useChatUnread";
 import { parsePermissions, canSeeTab, isManager } from "@/lib/roles";
 import {
   LayoutDashboard, CheckSquare, Calendar, MessageSquare,
-  CircleEllipsis, FolderOpen, Clock, Settings, Users, Webhook, Megaphone, X, BookOpen,
+  CircleEllipsis, FolderOpen, Clock, Settings, Users, Webhook, Megaphone, X, BookOpen, Palmtree,
 } from "lucide-react";
 
 const navItems = [
@@ -32,8 +32,9 @@ const moreSections = [
   {
     label: "Tým",
     items: [
-      { href: "/settings/team",     icon: Users,    label: "Nastavení týmu", permKey: null, managerOnly: true  },
-      { href: "/settings/webhooks", icon: Webhook,  label: "Integrace",      permKey: null, managerOnly: true  },
+      { href: "/vacation",          icon: Palmtree, label: "Dovolená",       permKey: "vacation", managerOnly: false },
+      { href: "/settings/team",     icon: Users,    label: "Nastavení týmu", permKey: null,       managerOnly: true  },
+      { href: "/settings/webhooks", icon: Webhook,  label: "Integrace",      permKey: null,       managerOnly: true  },
     ],
   },
   {

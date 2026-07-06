@@ -14,7 +14,7 @@ import { parsePermissions, canSeeTab, isManager } from "@/lib/roles";
 import {
   LayoutDashboard, CheckSquare, Tag, LogOut, Settings,
   Clock, Users, MessageSquare, ChevronDown, Settings2, FolderOpen, Webhook,
-  Calendar, Megaphone, BookOpen,
+  Calendar, Megaphone, BookOpen, Palmtree,
 } from "lucide-react";
 
 const topItems = [
@@ -27,9 +27,10 @@ const topItems = [
 ];
 
 const teamItems = [
-  { href: "/chat",    icon: MessageSquare, label: "Chat",         permKey: "chat"    },
-  { href: "/files",   icon: FolderOpen,    label: "Soubory",      permKey: "files"   },
-  { href: "/content", icon: Megaphone,     label: "Content plán", permKey: "content" },
+  { href: "/chat",     icon: MessageSquare, label: "Chat",         permKey: "chat"     },
+  { href: "/files",    icon: FolderOpen,    label: "Soubory",      permKey: "files"    },
+  { href: "/content",  icon: Megaphone,     label: "Content plán", permKey: "content"  },
+  { href: "/vacation", icon: Palmtree,      label: "Dovolená",     permKey: "vacation" },
 ];
 
 // Settings items are manager-only (gated by role, not permissions)

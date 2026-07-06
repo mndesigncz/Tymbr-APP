@@ -145,6 +145,25 @@ export interface CalendarEvent {
   recurringUntil?: Date | string | null;
 }
 
+export type VacationType = "vacation" | "sick" | "personal";
+export type VacationStatus = "pending" | "approved" | "rejected";
+
+export interface Vacation {
+  id: string;
+  type: VacationType;
+  startDate: Date | string;
+  endDate: Date | string;
+  note?: string | null;
+  approvalStatus: VacationStatus;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+  userId: string;
+  teamId: string;
+  approvedById?: string | null;
+  user?: { id: string; name: string; avatar?: string | null };
+  approvedBy?: { id: string; name: string; avatar?: string | null } | null;
+}
+
 export type ContentPlatform = "instagram" | "facebook" | "tiktok" | "linkedin" | "x" | "youtube" | "newsletter" | "other";
 export type ContentStatus = "idea" | "draft" | "scheduled" | "published";
 
