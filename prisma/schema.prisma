@@ -42,6 +42,8 @@ model User {
   approvalCategories   Category[]     @relation("CategoryApprover")
   approvedTasks        Task[]         @relation("TaskApprover")
   customApproverTasks  Task[]         @relation("TaskCustomApprover")
+  vacations            Vacation[]     @relation("VacationUser")
+  approvedVacations    Vacation[]     @relation("VacationApprover")
 }
 
 model Notification {
@@ -89,9 +91,34 @@ model Team {
   events         Event[]
   contentPosts   ContentPost[]
   notes          Note[]
+  vacations      Vacation[]
 
   @@index([ownerId])
   @@index([parentId])
+}
+
+model Vacation {
+  id             String   @id @default(cuid())
+  type           String   @default("vacation") // vacation | sick | personal
+  startDate      DateTime
+  endDate        DateTime
+  note           String?
+  approvalStatus String   @default("pending") // pending | approved | rejected
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  userId String
+  user   User   @relation("VacationUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  approvedById String?
+  approvedBy   User?  @relation("VacationApprover", fields: [approvedById], references: [id])
+
+  @@index([teamId])
+  @@index([userId])
+  @@index([startDate])
 }
 
 model Note {

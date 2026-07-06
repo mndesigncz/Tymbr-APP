@@ -14,13 +14,14 @@ import { parsePermissions, canSeeTab, isManager } from "@/lib/roles";
 import {
   LayoutDashboard, CheckSquare, Tag, LogOut, Settings,
   Clock, Users, MessageSquare, ChevronDown, Settings2, FolderOpen, Webhook,
-  Calendar, Megaphone, BookOpen,
+  Calendar, Megaphone, BookOpen, Palmtree,
 } from "lucide-react";
 
 const topItems = [
   { href: "/dashboard",  icon: LayoutDashboard, label: "Přehled",    permKey: "dashboard"  },
   { href: "/tasks",      icon: CheckSquare,     label: "Úkoly",      permKey: "tasks"      },
   { href: "/calendar",   icon: Calendar,        label: "Kalendář",   permKey: "calendar"   },
+  { href: "/vacation",   icon: Palmtree,        label: "Dovolená",   permKey: "vacation"   },
   { href: "/notes",      icon: BookOpen,        label: "Poznámky",   permKey: "notes"      },
   { href: "/categories", icon: Tag,             label: "Funkce",     permKey: "categories" },
   { href: "/time",       icon: Clock,           label: "Výkazy",     permKey: "time"       },

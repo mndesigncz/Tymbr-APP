@@ -14,11 +14,12 @@ import {
   FolderOpen, Globe, Home, MessageSquare, Settings2, Wrench, Heart,
   Briefcase, BookOpen, Bell, PenLine, UserCheck,
 } from "lucide-react";
-import type { Task, Category, User } from "@/types";
+import type { Task, Category, User, Vacation } from "@/types";
 import { useStatusConfig } from "@/hooks/useStatusConfig";
 import { usePriorityConfig } from "@/hooks/usePriorityConfig";
 import { useTimeTracker } from "@/context/TimeTrackerContext";
 import { computeEstimate, formatCZK, formatDuration, hoursToMinutes, minutesToHours } from "@/lib/pricing";
+import { formatDate } from "@/lib/utils";
 import { DropdownPortal } from "@/components/ui/DropdownPortal";
 
 interface TaskTemplate {
@@ -115,6 +116,7 @@ export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCanc
   const templateRef = useRef<HTMLButtonElement>(null);
 
   const [assigneeSearch, setAssigneeSearch] = useState("");
+  const [vacations, setVacations] = useState<Vacation[]>([]);
 
   const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<string[]>(
     () => task?.assignees?.map((a) => a.id) ?? (task?.assigneeId ? [task.assigneeId] : [])
@@ -141,10 +143,12 @@ export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCanc
       fetch("/api/categories").then((r) => r.json()),
       fetch("/api/users").then((r) => r.json()),
       fetch("/api/task-templates").then((r) => r.json()),
-    ]).then(([cats, usrs, tmpl]) => {
+      fetch("/api/vacations?status=approved").then((r) => r.json()),
+    ]).then(([cats, usrs, tmpl, vacs]) => {
       setCategories(Array.isArray(cats) ? cats : []);
       setUsers(Array.isArray(usrs) ? usrs : []);
       setTemplates(Array.isArray(tmpl) ? tmpl : []);
+      setVacations(Array.isArray(vacs) ? vacs : []);
     });
   }, []);
 
@@ -327,6 +331,23 @@ export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCanc
   const selectedCategory = categories.find((c) => c.id === form.categoryId);
   const showCustomApprover = !selectedCategory?.approvalEnabled;
   const TaskIcon = form.icon ? ICON_MAP[form.icon] : null;
+
+  // Soft warning: any selected assignee on approved leave on the task's due date.
+  const vacationConflicts = form.dueDate
+    ? vacations
+        .filter((v) => {
+          if (!selectedAssigneeIds.includes(v.userId)) return false;
+          const due = form.dueDate; // yyyy-mm-dd
+          const start = new Date(v.startDate).toISOString().slice(0, 10);
+          const end = new Date(v.endDate).toISOString().slice(0, 10);
+          return due >= start && due <= end;
+        })
+        .map((v) => {
+          const u = users.find((x) => x.id === v.userId);
+          const label = v.type === "sick" ? "nemoc" : v.type === "personal" ? "volno" : "dovolenou";
+          return { id: v.id, name: u?.name ?? "Člen", label, start: v.startDate, end: v.endDate };
+        })
+    : [];
 
   const filteredUsers = assigneeSearch.trim()
     ? users.filter((u) =>
@@ -541,6 +562,21 @@ export function TaskForm({ task, defaultStatus, initialValues, onSuccess, onCanc
           </div>
         </div>
       </div>
+
+      {/* Vacation conflict — soft warning, does not block saving */}
+      {vacationConflicts.length > 0 && (
+        <div className="flex items-start gap-2.5 px-3.5 py-2.5 rounded-xl border"
+          style={{ background: "color-mix(in srgb, #F59E0B 8%, transparent)", borderColor: "color-mix(in srgb, #F59E0B 35%, transparent)" }}>
+          <span className="text-[15px] leading-none mt-0.5">🏖️</span>
+          <div className="text-[12.5px] leading-relaxed" style={{ color: "var(--text-2)" }}>
+            {vacationConflicts.map((c) => (
+              <div key={c.id}>
+                <strong style={{ color: "var(--text-1)" }}>{c.name}</strong> má v termínu splnění {c.label} ({formatDate(c.start)}{new Date(c.start).toDateString() !== new Date(c.end).toDateString() && <> – {formatDate(c.end)}</>}).
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Category + Recurring */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

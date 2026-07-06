@@ -9,7 +9,7 @@ import { useChatUnread } from "@/hooks/useChatUnread";
 import { parsePermissions, canSeeTab, isManager } from "@/lib/roles";
 import {
   LayoutDashboard, CheckSquare, Calendar, MessageSquare,
-  CircleEllipsis, FolderOpen, Clock, Settings, Users, Webhook, Megaphone, X, BookOpen,
+  CircleEllipsis, FolderOpen, Clock, Settings, Users, Webhook, Megaphone, X, BookOpen, Palmtree,
 } from "lucide-react";
 
 const navItems = [
@@ -23,6 +23,7 @@ const moreSections = [
   {
     label: "Práce",
     items: [
+      { href: "/vacation", icon: Palmtree,   label: "Dovolená",     permKey: "vacation",   managerOnly: false },
       { href: "/notes",    icon: BookOpen,   label: "Poznámky",     permKey: "notes",      managerOnly: false },
       { href: "/content",  icon: Megaphone,  label: "Content plán", permKey: "content",    managerOnly: false },
       { href: "/files",    icon: FolderOpen, label: "Soubory",      permKey: "files",      managerOnly: false },
