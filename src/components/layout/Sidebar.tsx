@@ -37,13 +37,25 @@ interface NavGroup {
 
 // Daily drivers — always flat at the top.
 const primaryItems: NavItem[] = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Přehled", permKey: "dashboard" },
-  { href: "/tasks",     icon: CheckSquare,     label: "Úkoly",   permKey: "tasks" },
-  { href: "/chat",      icon: MessageSquare,   label: "Chat",    permKey: "chat", badge: "chat" },
+  { href: "/dashboard", icon: LayoutDashboard, label: "Přehled",  permKey: "dashboard" },
+  { href: "/tasks",     icon: CheckSquare,     label: "Úkoly",    permKey: "tasks" },
+  { href: "/calendar",  icon: Calendar,        label: "Kalendář", permKey: "calendar" },
+  { href: "/chat",      icon: MessageSquare,   label: "Chat",     permKey: "chat", badge: "chat" },
 ];
 
 // Everything else lives in collapsible groups so the sidebar stays scannable.
 const navGroups: NavGroup[] = [
+  {
+    key: "tools", label: "Nástroje", icon: Wrench,
+    items: [
+      { href: "/notes",      icon: BookOpen,   label: "Poznámky",     permKey: "notes" },
+      { href: "/files",      icon: FolderOpen, label: "Soubory",      permKey: "files" },
+      { href: "/content",    icon: Megaphone,  label: "Content plán", permKey: "content" },
+      { href: "/vacation",   icon: Palmtree,   label: "Dovolená",     permKey: "vacation" },
+      { href: "/time",       icon: Clock,      label: "Výkazy",       permKey: "time" },
+      { href: "/categories", icon: Tag,        label: "Funkce",       permKey: "categories" },
+    ],
+  },
   {
     key: "business", label: "Zakázky", icon: Boxes,
     items: [
@@ -51,18 +63,6 @@ const navGroups: NavGroup[] = [
       { href: "/clients",  icon: Contact,   label: "Klienti",   permKey: "clients" },
       { href: "/invoices", icon: FileText,  label: "Fakturace", permKey: "invoices", financeOnly: true },
       { href: "/capacity", icon: Gauge,     label: "Vytížení",  permKey: "capacity", financeOnly: true },
-    ],
-  },
-  {
-    key: "tools", label: "Nástroje", icon: Wrench,
-    items: [
-      { href: "/calendar",   icon: Calendar,   label: "Kalendář",     permKey: "calendar" },
-      { href: "/notes",      icon: BookOpen,   label: "Poznámky",     permKey: "notes" },
-      { href: "/files",      icon: FolderOpen, label: "Soubory",      permKey: "files" },
-      { href: "/content",    icon: Megaphone,  label: "Content plán", permKey: "content" },
-      { href: "/vacation",   icon: Palmtree,   label: "Dovolená",     permKey: "vacation" },
-      { href: "/time",       icon: Clock,      label: "Výkazy",       permKey: "time" },
-      { href: "/categories", icon: Tag,        label: "Funkce",       permKey: "categories" },
     ],
   },
   {
