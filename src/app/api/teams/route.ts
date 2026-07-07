@@ -19,9 +19,13 @@ export async function GET() {
     include: {
       owner: { select: { id: true, name: true, email: true, avatar: true } },
       members: {
-        include: { user: { select: { id: true, name: true, email: true, avatar: true } } },
+        include: {
+          user: { select: { id: true, name: true, email: true, avatar: true } },
+          customRole: { select: { id: true, name: true, color: true, finance: true } },
+        },
         orderBy: { joinedAt: "asc" },
       },
+      customRoles: { orderBy: { createdAt: "asc" } },
       invitations: {
         where: { acceptedAt: null },
         orderBy: { createdAt: "desc" },

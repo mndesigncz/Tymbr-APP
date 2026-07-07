@@ -38,24 +38,44 @@ export async function PATCH(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { userId, role, permissions } = body;
+  const { userId, role, permissions, customRoleId } = body;
   if (!userId) return NextResponse.json({ error: "userId je povinný" }, { status: 400 });
   if (role !== undefined && !["admin", "member", "finance"].includes(role)) {
     return NextResponse.json({ error: "Neplatná role" }, { status: 400 });
   }
-  if (role === undefined && permissions === undefined) {
-    return NextResponse.json({ error: "role nebo permissions jsou povinné" }, { status: 400 });
+  if (role === undefined && permissions === undefined && customRoleId === undefined) {
+    return NextResponse.json({ error: "role, permissions nebo customRoleId jsou povinné" }, { status: 400 });
   }
 
   const team = await prisma.team.findUnique({ where: { id: teamId }, select: { ownerId: true } });
-  if (role !== undefined && team?.ownerId === userId) {
+  if ((role !== undefined || customRoleId !== undefined) && team?.ownerId === userId) {
     return NextResponse.json({ error: "Roli vlastníka nelze měnit" }, { status: 400 });
   }
 
   const data: Record<string, any> = {};
-  if (role !== undefined) data.role = role;
+  // Assigning a custom role wins: it drives permissions/finance via auth
+  // resolution, so we clear the builtin role + raw permissions.
+  if (customRoleId !== undefined) {
+    if (customRoleId) {
+      const cr = await prisma.customRole.findUnique({ where: { id: customRoleId } });
+      if (!cr || cr.teamId !== teamId) {
+        return NextResponse.json({ error: "Role nenalezena" }, { status: 400 });
+      }
+      data.customRoleId = cr.id;
+      data.role = "member";
+      data.permissions = null;
+    } else {
+      data.customRoleId = null;
+    }
+  }
+  // A builtin role assignment removes any custom role.
+  if (role !== undefined) {
+    data.role = role;
+    data.customRoleId = null;
+  }
   if (permissions !== undefined) {
     data.permissions = Array.isArray(permissions) ? JSON.stringify(permissions) : null;
+    data.customRoleId = null;
   }
 
   await prisma.teamMember.updateMany({ where: { teamId, userId }, data });

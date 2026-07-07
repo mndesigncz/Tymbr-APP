@@ -99,6 +99,7 @@ model Team {
   projects       Project[]
   billing        TeamBilling?
   invoices       Invoice[]
+  customRoles    CustomRole[]
 
   @@index([ownerId])
   @@index([parentId])
@@ -320,9 +321,30 @@ model TeamMember {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  customRoleId String?
+  customRole   CustomRole? @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
+
   @@unique([teamId, userId])
   @@index([teamId])
   @@index([userId])
+}
+
+// A named permission preset a manager can define and assign to members.
+model CustomRole {
+  id          String   @id @default(cuid())
+  name        String
+  color       String?
+  finance     Boolean  @default(false) // access to billing / invoices / capacity
+  permissions String   @default("[]")  // JSON array of nav tab keys
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  members TeamMember[]
+
+  @@index([teamId])
 }
 
 model TeamInvitation {

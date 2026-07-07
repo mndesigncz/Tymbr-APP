@@ -3,6 +3,24 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 
+// A custom role resolves into the two session fields the app already checks:
+// its `finance` flag maps onto the "finance" role (member + billing access),
+// and its permission list becomes the member's visible tabs. This keeps every
+// existing canSeeTab / canSeeFinance call site working untouched.
+function resolveMembership(member: {
+  role: string;
+  permissions: string | null;
+  customRole?: { finance: boolean; permissions: string } | null;
+}): { teamRole: string; permissions: string | null } {
+  if (member.customRole) {
+    return {
+      teamRole: member.customRole.finance ? "finance" : "member",
+      permissions: member.customRole.permissions ?? "[]",
+    };
+  }
+  return { teamRole: member.role, permissions: member.permissions ?? null };
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -48,12 +66,13 @@ export const authOptions: NextAuthOptions = {
         if (session.teamId !== undefined && token.id) {
           const member = await prisma.teamMember.findFirst({
             where: { userId: token.id as string, teamId: String(session.teamId) },
-            select: { teamId: true, role: true, permissions: true },
+            select: { teamId: true, role: true, permissions: true, customRole: { select: { finance: true, permissions: true } } },
           });
           if (member) {
+            const resolved = resolveMembership(member);
             token.teamId = member.teamId;
-            token.teamRole = member.role;
-            token.permissions = member.permissions ?? null;
+            token.teamRole = resolved.teamRole;
+            token.permissions = resolved.permissions;
           }
         }
       }
@@ -63,12 +82,13 @@ export const authOptions: NextAuthOptions = {
         try {
           const member = await prisma.teamMember.findFirst({
             where: { userId: token.id as string },
-            select: { teamId: true, role: true, permissions: true },
+            select: { teamId: true, role: true, permissions: true, customRole: { select: { finance: true, permissions: true } } },
             orderBy: { joinedAt: "asc" },
           });
           token.teamId = member?.teamId ?? null;
-          token.teamRole = member?.role ?? null;
-          token.permissions = member?.permissions ?? null;
+          const resolved = member ? resolveMembership(member) : { teamRole: null, permissions: null };
+          token.teamRole = resolved.teamRole;
+          token.permissions = resolved.permissions;
         } catch {}
       }
       return token;
