@@ -8,24 +8,34 @@ export const dynamic = "force-dynamic";
 // straight to Vercel Blob — bypassing the ~4.5 MB serverless request body
 // limit that a normal multipart POST through an API route would hit.
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  // Surface the most common misconfiguration clearly instead of a vague
+  // "Failed to retrieve the client token" on the browser.
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return NextResponse.json(
+      { error: "Úložiště souborů není nastavené (chybí BLOB_READ_WRITE_TOKEN pro toto prostředí)." },
+      { status: 500 }
+    );
+  }
+
+  const session = await getSession();
+  if (!session?.user) return NextResponse.json({ error: "Neautorizováno" }, { status: 401 });
+
   const body = (await req.json()) as HandleUploadBody;
   try {
     const json = await handleUpload({
       body,
       request: req,
-      onBeforeGenerateToken: async () => {
-        const session = await getSession();
-        if (!session?.user) throw new Error("Neautorizováno");
-        return {
-          maximumSizeInBytes: 100 * 1024 * 1024, // 100 MB
-          addRandomSuffix: true,
-        };
-      },
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+      onBeforeGenerateToken: async () => ({
+        maximumSizeInBytes: 100 * 1024 * 1024, // 100 MB
+        addRandomSuffix: true,
+      }),
       // eslint-disable-next-line @typescript-eslint/no-empty-function
       onUploadCompleted: async () => {},
     });
     return NextResponse.json(json);
   } catch (e: any) {
+    console.error("[blob/upload]", e?.message ?? e);
     return NextResponse.json({ error: e?.message ?? "Chyba nahrávání" }, { status: 400 });
   }
 }
