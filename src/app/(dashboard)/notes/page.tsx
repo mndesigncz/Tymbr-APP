@@ -20,7 +20,14 @@ import { EventForm } from "@/components/calendar/EventForm";
 import { ShareSheet } from "@/components/share/ShareSheet";
 import { DropdownPortal } from "@/components/ui/DropdownPortal";
 import { MarkdownView } from "@/components/notes/MarkdownView";
-import { parseNoteToTasks, countTasks, type ParsedClient } from "@/lib/noteTasks";
+import { parseNoteToTasks, countTasks, noteToPlainText, NOTE_MARKS, type ParsedClient, type NoteMarkKey } from "@/lib/noteTasks";
+
+// Icon + colour per semantic writing mode, keyed to NOTE_MARKS.
+const MARK_META: Record<NoteMarkKey, { icon: typeof Building2; color: string; short: string }> = {
+  client:  { icon: Building2,    color: "#ea580c", short: "Klient" },
+  project: { icon: FolderKanban, color: "#7c3aed", short: "Projekt" },
+  task:    { icon: CheckSquare,  color: "#16a34a", short: "Úkol" },
+};
 
 const NOTE_COLORS = [
   { value: null,      label: "Výchozí",  bg: "var(--bg-card)",    border: "var(--border-md)" },
@@ -59,7 +66,7 @@ function useDebounce<T>(value: T, delay: number): T {
 
 function NoteListItem({ note, active, onClick }: { note: Note; active: boolean; onClick: () => void }) {
   const color = NOTE_COLORS.find((c) => c.value === note.color);
-  const preview = note.content.replace(/\n+/g, " ").slice(0, 80);
+  const preview = noteToPlainText(note.content).replace(/\n+/g, " ").slice(0, 80);
   return (
     <button
       onClick={onClick}
@@ -128,7 +135,9 @@ function NoteEditor({
   const [taskOpen, setTaskOpen] = useState(false);
   const [eventOpen, setEventOpen] = useState(false);
   const [preview, setPreview] = useState(false);
-  const [taskMode, setTaskMode] = useState(false);
+  // Active semantic writing mode: text typed while set is auto-marked as
+  // client/project/task until the mode is turned off. null = normal writing.
+  const [activeMark, setActiveMark] = useState<NoteMarkKey | null>(null);
   const [genOpen, setGenOpen] = useState(false);
   const canUseTeam = !!(session?.user as any)?.teamId;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -242,30 +251,48 @@ function NoteEditor({
     return { value: value2, selStart: start + marker.length, selEnd: start + marker.length };
   });
 
-  // In "task mode" every new line is auto-prefixed as an H3 task heading, and
-  // toggling the mode on prefixes the current line too.
-  const toggleTaskMode = () => {
-    setTaskMode((on) => {
-      const next = !on;
-      if (next) {
-        setPreview(false);
-        applyEdit(({ value, start, end }) => {
-          const lineStart = value.lastIndexOf("\n", start - 1) + 1;
-          let lineEnd = value.indexOf("\n", end);
-          if (lineEnd === -1) lineEnd = value.length;
-          const cur = value.slice(lineStart, lineEnd);
-          if (cur.trim() === "" || /^#{1,6}\s+/.test(cur)) {
-            const value2 = cur.trim() === ""
-              ? value.slice(0, lineStart) + "### " + value.slice(lineStart)
-              : value;
-            const caret = cur.trim() === "" ? lineStart + 4 : end;
-            return { value: value2, selStart: caret, selEnd: caret };
-          }
-          const value2 = value.slice(0, lineStart) + "### " + value.slice(lineStart);
-          return { value: value2, selStart: end + 4, selEnd: end + 4 };
-        });
-      }
-      return next;
+  // Strips any existing semantic marker / heading marker from the start of a line.
+  const STRIP_LINE_MARKS = /^\s*@(?:klient|projekt|úkol)\s*/;
+
+  // The three "písma": with a selection, mark those lines; with no selection,
+  // toggle a persistent typing mode so every new line is auto-marked until the
+  // mode is turned off (or another mode is chosen).
+  const applyMark = (key: NoteMarkKey) => {
+    const token = NOTE_MARKS.find((m) => m.key === key)!.token;
+    const ta = textareaRef.current;
+    const hasSelection = ta ? ta.selectionEnd > ta.selectionStart : false;
+
+    if (hasSelection) {
+      applyEdit(({ value, start, end }) => {
+        const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+        let lineEnd = value.indexOf("\n", end);
+        if (lineEnd === -1) lineEnd = value.length;
+        const block = value.slice(lineStart, lineEnd);
+        const newBlock = block.split("\n").map((ln) => {
+          if (!ln.trim()) return ln;
+          const bare = ln.replace(STRIP_LINE_MARKS, "").replace(/^#{1,6}\s+/, "");
+          return `${token} ${bare}`;
+        }).join("\n");
+        const value2 = value.slice(0, lineStart) + newBlock + value.slice(lineEnd);
+        return { value: value2, selStart: lineStart, selEnd: lineStart + newBlock.length };
+      });
+      return;
+    }
+
+    // No selection → toggle persistent mode.
+    if (activeMark === key) { setActiveMark(null); return; }
+    setActiveMark(key);
+    setPreview(false);
+    applyEdit(({ value, start }) => {
+      const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+      let lineEnd = value.indexOf("\n", start);
+      if (lineEnd === -1) lineEnd = value.length;
+      const cur = value.slice(lineStart, lineEnd);
+      const bare = cur.replace(STRIP_LINE_MARKS, "").replace(/^#{1,6}\s+/, "");
+      const newLine = `${token} ${bare}`;
+      const value2 = value.slice(0, lineStart) + newLine + value.slice(lineEnd);
+      const caret = lineStart + newLine.length;
+      return { value: value2, selStart: caret, selEnd: caret };
     });
   };
 
@@ -273,10 +300,12 @@ function NoteEditor({
     const meta = e.metaKey || e.ctrlKey;
     if (meta && e.key.toLowerCase() === "b") { e.preventDefault(); wrapInline("**"); return; }
     if (meta && e.key.toLowerCase() === "i") { e.preventDefault(); wrapInline("*"); return; }
-    if (taskMode && e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Escape" && activeMark) { setActiveMark(null); return; }
+    if (activeMark && e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      const token = NOTE_MARKS.find((m) => m.key === activeMark)!.token;
       applyEdit(({ value, start }) => {
-        const insert = "\n### ";
+        const insert = `\n${token} `;
         const value2 = value.slice(0, start) + insert + value.slice(start);
         const caret = start + insert.length;
         return { value: value2, selStart: caret, selEnd: caret };
@@ -302,7 +331,8 @@ function NoteEditor({
     onRefresh();
   };
 
-  const chatMessage = `📝 **${note.title || "Poznámka"}**\n\n${note.content.slice(0, 300)}${note.content.length > 300 ? "…" : ""}`;
+  const plainContent = noteToPlainText(note.content);
+  const chatMessage = `📝 **${note.title || "Poznámka"}**\n\n${plainContent.slice(0, 300)}${plainContent.length > 300 ? "…" : ""}`;
 
   const color = NOTE_COLORS.find((c) => c.value === note.color) ?? NOTE_COLORS[0];
   const isOwner = note.createdById === (session?.user as any)?.id;
@@ -478,9 +508,9 @@ function NoteEditor({
           style={{ borderColor: "var(--border)" }}
         >
           {([
-            { icon: Heading1, fn: () => setHeading(1), title: "Nadpis 1 (klient)" },
-            { icon: Heading2, fn: () => setHeading(2), title: "Nadpis 2 (projekt)" },
-            { icon: Heading3, fn: () => setHeading(3), title: "Nadpis 3 (úkol)" },
+            { icon: Heading1, fn: () => setHeading(1), title: "Nadpis" },
+            { icon: Heading2, fn: () => setHeading(2), title: "Podnadpis" },
+            { icon: Heading3, fn: () => setHeading(3), title: "Název" },
           ] as const).map(({ icon: Icon, fn, title: t }, i) => (
             <button key={i} onClick={fn} disabled={preview} title={t}
               className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-[var(--hover)] disabled:opacity-40"
@@ -502,17 +532,27 @@ function NoteEditor({
             </button>
           ))}
           <span className="w-px h-5 mx-1" style={{ background: "var(--border)" }} />
-          {/* Task mode — every new line becomes an H3 task */}
-          <button
-            onClick={toggleTaskMode}
-            title="Úkolové písmo — každý řádek se stane úkolem (H3)"
-            className="h-8 px-2.5 rounded-lg flex items-center gap-1.5 text-[12px] font-semibold transition-colors"
-            style={taskMode
-              ? { background: "var(--accent)", color: "#fff" }
-              : { color: "var(--text-2)" }}
-          >
-            <CheckSquare className="w-3.5 h-3.5" /> Úkolové písmo
-          </button>
+          {/* Semantic "písma" — klient / projekt / úkol. Toggle a mode to keep
+              writing in it, or apply it to the current selection. */}
+          {NOTE_MARKS.map((m) => {
+            const meta = MARK_META[m.key];
+            const Icon = meta.icon;
+            const on = activeMark === m.key;
+            return (
+              <button
+                key={m.key}
+                onClick={() => applyMark(m.key)}
+                disabled={preview}
+                title={`${m.label} — zapni a piš, nebo označ text a klikni`}
+                className="h-8 px-2 rounded-lg flex items-center gap-1.5 text-[12px] font-semibold transition-colors disabled:opacity-40"
+                style={on
+                  ? { background: meta.color, color: "#fff" }
+                  : { color: meta.color, background: `${meta.color}14` }}
+              >
+                <Icon className="w-3.5 h-3.5" /> <span className="hidden md:inline">{meta.short}</span>
+              </button>
+            );
+          })}
 
           <div className="flex items-center gap-1 ml-auto">
             {/* Generate tasks from note */}
@@ -550,18 +590,39 @@ function NoteEditor({
               <MarkdownView content={content} />
             </div>
           ) : (
-            <textarea
-              ref={textareaRef}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Začni psát… Použij # klient, ## projekt, ### úkol"
-              className="w-full bg-transparent outline-none resize-none text-[15px] leading-[1.75] min-h-[400px]"
-              style={{
-                color: "var(--text-2)",
-                fontFamily: taskMode ? "var(--font-mono, ui-monospace, monospace)" : undefined,
-              }}
-            />
+            <>
+              {/* Active writing-mode indicator */}
+              {activeMark && (() => {
+                const meta = MARK_META[activeMark];
+                const Icon = meta.icon;
+                const label = NOTE_MARKS.find((m) => m.key === activeMark)?.label ?? "";
+                return (
+                  <div
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-[12px] font-semibold w-fit"
+                    style={{ color: meta.color, background: `${meta.color}14` }}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    Píšeš: {label}
+                    <button
+                      onClick={() => { setActiveMark(null); textareaRef.current?.focus(); }}
+                      className="ml-1 opacity-70 hover:opacity-100"
+                      title="Vypnout (Esc)"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })()}
+              <textarea
+                ref={textareaRef}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Začni psát… Zapni klientské / projektové / úkolové písmo a piš úkoly rovnou."
+                className="w-full bg-transparent outline-none resize-none text-[15px] leading-[1.75] min-h-[400px]"
+                style={{ color: "var(--text-2)" }}
+              />
+            </>
           )}
         </div>
 
@@ -654,7 +715,7 @@ function NoteEditor({
       {/* Create task modal — real TaskForm pre-filled from the note */}
       <Modal open={taskOpen} onClose={() => setTaskOpen(false)} title="Vytvořit úkol z poznámky">
         <TaskForm
-          initialValues={{ title: note.title, description: note.content }}
+          initialValues={{ title: note.title, description: plainContent }}
           onCancel={() => setTaskOpen(false)}
           onSuccess={(t) => { setTaskOpen(false); router.push(`/tasks/${t.id}`); }}
         />
@@ -663,7 +724,7 @@ function NoteEditor({
       {/* Create event modal — real EventForm pre-filled from the note */}
       <Modal open={eventOpen} onClose={() => setEventOpen(false)} title="Vytvořit událost z poznámky">
         <EventForm
-          initialValues={{ title: note.title, description: note.content }}
+          initialValues={{ title: note.title, description: plainContent }}
           canUseTeam={canUseTeam}
           onClose={() => setEventOpen(false)}
           onSaved={() => { setEventOpen(false); router.push("/calendar"); }}
@@ -757,11 +818,11 @@ function GenerateTasksModal({
             <div className="text-[13px] leading-relaxed" style={{ color: "var(--text-2)" }}>
               <p className="font-semibold mb-1" style={{ color: "var(--text-1)" }}>Zatím není z čeho vytvořit úkoly</p>
               <p style={{ color: "var(--text-3)" }}>
-                Použij nadpisy v poznámce:
-                <br />• <strong># Nadpis 1</strong> = klient
-                <br />• <strong>## Nadpis 2</strong> = projekt
-                <br />• <strong>### Nadpis 3</strong> = úkol
-                <br /><br />Tip: zapni <strong>Úkolové písmo</strong> a piš úkoly rovnou.
+                Označ části poznámky pomocí písem v liště:
+                <br />• <strong style={{ color: "#ea580c" }}>Klientské písmo</strong> = klient
+                <br />• <strong style={{ color: "#7c3aed" }}>Projektové písmo</strong> = projekt
+                <br />• <strong style={{ color: "#16a34a" }}>Úkolové písmo</strong> = úkol
+                <br /><br />Zapni písmo a piš — každý řádek se označí sám. Nadpisy (H1–H3) jsou jen vizuální.
               </p>
             </div>
           </div>

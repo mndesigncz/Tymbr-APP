@@ -1,6 +1,15 @@
 "use client";
 
 import React from "react";
+import { Building2, FolderKanban, CheckSquare } from "lucide-react";
+import { MARK_LINE_RE } from "@/lib/noteTasks";
+
+// Visual treatment for each semantic marker line (klient / projekt / úkol).
+const MARK_STYLES: Record<string, { color: string; indent: string; Icon: typeof Building2; label: string }> = {
+  klient:  { color: "#ea580c", indent: "pl-0",  Icon: Building2,    label: "Klient" },
+  projekt: { color: "#7c3aed", indent: "pl-5",  Icon: FolderKanban, label: "Projekt" },
+  "úkol":  { color: "#16a34a", indent: "pl-10", Icon: CheckSquare,  label: "Úkol" },
+};
 
 // A tiny, dependency-free markdown renderer tuned for the notes editor.
 // Supports: # / ## / ### headings, unordered (-, *, +) and ordered lists,
@@ -61,6 +70,26 @@ export function MarkdownView({ content }: { content: string }) {
 
   for (const raw of lines) {
     const line = raw.trimEnd();
+    const mark = line.match(MARK_LINE_RE);
+    if (mark) {
+      flushList();
+      const st = MARK_STYLES[mark[1]];
+      const text = (mark[2] || "").trim();
+      blocks.push(
+        <div key={key++} className={`flex items-center gap-2 my-1 ${st.indent}`}>
+          <span
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-bold uppercase tracking-wide flex-shrink-0"
+            style={{ color: st.color, background: `${st.color}18` }}
+          >
+            <st.Icon className="w-3 h-3" /> {st.label}
+          </span>
+          <span className="text-[14.5px] font-semibold" style={{ color: st.color }}>
+            {text ? renderInline(text, `mk-${key}`) : <span className="italic opacity-60">(prázdné)</span>}
+          </span>
+        </div>
+      );
+      continue;
+    }
     const h1 = line.match(/^#\s+(.+)$/);
     const h2 = line.match(/^##\s+(.+)$/);
     const h3 = line.match(/^###\s+(.+)$/);
