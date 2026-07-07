@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import { Modal } from "@/components/ui/Modal";
+import { CustomRolesManager } from "@/components/team/CustomRolesManager";
 import {
   Users, Mail, Trash2, Crown, Copy, Check, Plus, Hash, UserPlus, X,
   Palette, Image as ImageIcon, RefreshCw, AlertTriangle, ChevronDown, Shield,
@@ -716,8 +717,12 @@ function TeamSettingsContent() {
     load();
   };
 
-  const handleChangeRole = async (userId: string, role: string) => {
-    await fetch("/api/teams/members", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId, role }) });
+  const handleChangeRole = async (userId: string, value: string) => {
+    // A "custom:<id>" value assigns a custom role; anything else is a builtin role.
+    const payload = value.startsWith("custom:")
+      ? { userId, customRoleId: value.slice(7) }
+      : { userId, role: value };
+    await fetch("/api/teams/members", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     load();
   };
 
@@ -1037,6 +1042,9 @@ function TeamSettingsContent() {
           </div>
         )}
 
+        {/* Custom roles — manager only */}
+        {isOwnerOrAdmin && <CustomRolesManager onChanged={load} />}
+
         {/* Members */}
         <div className="rounded-3xl border overflow-hidden"
           style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
@@ -1057,11 +1065,20 @@ function TeamSettingsContent() {
           </div>
           <div className="divide-y" style={{ borderColor: "var(--border)" }}>
             {(team.members as TeamMember[])?.map((member) => {
+              const memberCustomRole = (member as any).customRole as { id: string; name: string } | null;
               const isMe = member.userId === session?.user?.id;
               const isMemberOwner = member.role === "owner";
               const isMemberAdmin = member.role === "admin";
               const isExpanded = expandedMemberId === member.id;
-              const canEditPerms = isOwnerOrAdmin && !isMemberOwner && !isMemberAdmin && !isMe;
+              // Per-member permission editing only for plain members (custom-role
+              // members get their permissions from the role itself).
+              const canEditPerms = isOwnerOrAdmin && !isMemberOwner && !isMemberAdmin && !isMe && !memberCustomRole;
+              const customRoles = ((team as any).customRoles ?? []) as { id: string; name: string }[];
+              const roleSelectOptions = [
+                ...ROLE_OPTIONS.filter((r) => r.value !== "owner"),
+                ...customRoles.map((r) => ({ value: `custom:${r.id}`, label: `⭐ ${r.name}` })),
+              ];
+              const roleSelectValue = memberCustomRole ? `custom:${memberCustomRole.id}` : member.role;
 
               return (
                 <div key={member.id}>
@@ -1078,7 +1095,7 @@ function TeamSettingsContent() {
                     {isOwnerOrAdmin && !isMemberOwner && !isMe ? (
                       <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                         <div className="flex-1 sm:flex-none min-w-0">
-                          <Select options={ROLE_OPTIONS.filter((r) => r.value !== "owner")} value={member.role} onChange={(e) => handleChangeRole(member.userId, e.target.value)} />
+                          <Select options={roleSelectOptions} value={roleSelectValue} onChange={(e) => handleChangeRole(member.userId, e.target.value)} />
                         </div>
                         {canEditPerms && (
                           <button
@@ -1100,7 +1117,7 @@ function TeamSettingsContent() {
                       </div>
                     ) : (
                       <span className="text-[12.5px] font-semibold px-2.5 py-1 rounded-xl flex-shrink-0" style={{ background: "var(--bg-subtle)", color: "var(--text-2)" }}>
-                        {ROLE_LABELS[member.role as TeamRole] ?? member.role}
+                        {memberCustomRole ? `⭐ ${memberCustomRole.name}` : (ROLE_LABELS[member.role as TeamRole] ?? member.role)}
                       </span>
                     )}
                   </div>
