@@ -11,12 +11,16 @@ import { Suspense } from "react";
 import {
   Plus, Search, Pin, PinOff, Trash2, Globe, Lock, Users,
   CalendarPlus, CheckSquare, Share2, UserPlus, X, Check, BookOpen, Palette, ChevronLeft,
+  Heading1, Heading2, Heading3, Bold, Italic, List, ListOrdered, Eye, Pencil,
+  ListTree, Building2, FolderKanban, Sparkles, ArrowRight,
 } from "lucide-react";
 import { formatRelative } from "@/lib/utils";
 import { TaskForm } from "@/components/tasks/TaskForm";
 import { EventForm } from "@/components/calendar/EventForm";
 import { ShareSheet } from "@/components/share/ShareSheet";
 import { DropdownPortal } from "@/components/ui/DropdownPortal";
+import { MarkdownView } from "@/components/notes/MarkdownView";
+import { parseNoteToTasks, countTasks, type ParsedClient } from "@/lib/noteTasks";
 
 const NOTE_COLORS = [
   { value: null,      label: "Výchozí",  bg: "var(--bg-card)",    border: "var(--border-md)" },
@@ -123,6 +127,9 @@ function NoteEditor({
   const [shareOpen, setShareOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
   const [eventOpen, setEventOpen] = useState(false);
+  const [preview, setPreview] = useState(false);
+  const [taskMode, setTaskMode] = useState(false);
+  const [genOpen, setGenOpen] = useState(false);
   const canUseTeam = !!(session?.user as any)?.teamId;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const colorPickerRef = useRef<HTMLButtonElement>(null);
@@ -165,6 +172,117 @@ function NoteEditor({
   const togglePin = () => save({ pinned: !note.pinned }).then(() => onUpdate({ pinned: !note.pinned }));
   const setNoteColor = (c: string | null) => { save({ color: c }); setShowColorPicker(false); };
   const setVisibility = (v: string) => save({ visibility: v });
+
+  /* ── Rich-text formatting helpers (markdown under the hood) ─────────── */
+
+  // Apply a transform to the textarea content while preserving a sensible
+  // caret/selection afterwards.
+  const applyEdit = (
+    transform: (args: { value: string; start: number; end: number }) =>
+      { value: string; selStart: number; selEnd: number }
+  ) => {
+    const ta = textareaRef.current;
+    const start = ta?.selectionStart ?? content.length;
+    const end = ta?.selectionEnd ?? content.length;
+    const result = transform({ value: content, start, end });
+    setContent(result.value);
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (el) { el.focus(); el.setSelectionRange(result.selStart, result.selEnd); }
+    });
+  };
+
+  // Toggle a markdown heading (level 1–3) on every line the selection touches.
+  const setHeading = (level: number) => applyEdit(({ value, start, end }) => {
+    const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+    let lineEnd = value.indexOf("\n", end);
+    if (lineEnd === -1) lineEnd = value.length;
+    const marker = "#".repeat(level) + " ";
+    const block = value.slice(lineStart, lineEnd);
+    const newBlock = block.split("\n").map((ln) => {
+      const stripped = ln.replace(/^#{1,6}\s+/, "");
+      // Toggle off if the line already had exactly this heading level.
+      return ln.startsWith(marker) ? stripped : marker + stripped;
+    }).join("\n");
+    const value2 = value.slice(0, lineStart) + newBlock + value.slice(lineEnd);
+    return { value: value2, selStart: lineStart, selEnd: lineStart + newBlock.length };
+  });
+
+  const toggleList = (ordered: boolean) => applyEdit(({ value, start, end }) => {
+    const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+    let lineEnd = value.indexOf("\n", end);
+    if (lineEnd === -1) lineEnd = value.length;
+    const block = value.slice(lineStart, lineEnd);
+    const lines = block.split("\n");
+    const allMarked = lines.every((ln) =>
+      ordered ? /^\s*\d+[.)]\s+/.test(ln) : /^\s*[-*+]\s+/.test(ln));
+    const newLines = lines.map((ln, i) => {
+      const bare = ln.replace(/^\s*[-*+]\s+/, "").replace(/^\s*\d+[.)]\s+/, "");
+      if (allMarked) return bare;
+      return ordered ? `${i + 1}. ${bare}` : `- ${bare}`;
+    });
+    const newBlock = newLines.join("\n");
+    const value2 = value.slice(0, lineStart) + newBlock + value.slice(lineEnd);
+    return { value: value2, selStart: lineStart, selEnd: lineStart + newBlock.length };
+  });
+
+  const wrapInline = (marker: string) => applyEdit(({ value, start, end }) => {
+    const sel = value.slice(start, end);
+    if (sel) {
+      // Un-wrap if the selection is already wrapped in this marker.
+      if (sel.startsWith(marker) && sel.endsWith(marker) && sel.length >= marker.length * 2) {
+        const inner = sel.slice(marker.length, sel.length - marker.length);
+        const value2 = value.slice(0, start) + inner + value.slice(end);
+        return { value: value2, selStart: start, selEnd: start + inner.length };
+      }
+      const value2 = value.slice(0, start) + marker + sel + marker + value.slice(end);
+      return { value: value2, selStart: start + marker.length, selEnd: end + marker.length };
+    }
+    const value2 = value.slice(0, start) + marker + marker + value.slice(end);
+    return { value: value2, selStart: start + marker.length, selEnd: start + marker.length };
+  });
+
+  // In "task mode" every new line is auto-prefixed as an H3 task heading, and
+  // toggling the mode on prefixes the current line too.
+  const toggleTaskMode = () => {
+    setTaskMode((on) => {
+      const next = !on;
+      if (next) {
+        setPreview(false);
+        applyEdit(({ value, start, end }) => {
+          const lineStart = value.lastIndexOf("\n", start - 1) + 1;
+          let lineEnd = value.indexOf("\n", end);
+          if (lineEnd === -1) lineEnd = value.length;
+          const cur = value.slice(lineStart, lineEnd);
+          if (cur.trim() === "" || /^#{1,6}\s+/.test(cur)) {
+            const value2 = cur.trim() === ""
+              ? value.slice(0, lineStart) + "### " + value.slice(lineStart)
+              : value;
+            const caret = cur.trim() === "" ? lineStart + 4 : end;
+            return { value: value2, selStart: caret, selEnd: caret };
+          }
+          const value2 = value.slice(0, lineStart) + "### " + value.slice(lineStart);
+          return { value: value2, selStart: end + 4, selEnd: end + 4 };
+        });
+      }
+      return next;
+    });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const meta = e.metaKey || e.ctrlKey;
+    if (meta && e.key.toLowerCase() === "b") { e.preventDefault(); wrapInline("**"); return; }
+    if (meta && e.key.toLowerCase() === "i") { e.preventDefault(); wrapInline("*"); return; }
+    if (taskMode && e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      applyEdit(({ value, start }) => {
+        const insert = "\n### ";
+        const value2 = value.slice(0, start) + insert + value.slice(start);
+        const caret = start + insert.length;
+        return { value: value2, selStart: caret, selEnd: caret };
+      });
+    }
+  };
 
   const addCollaborator = async (userId: string) => {
     const res = await fetch(`/api/notes/${note.id}/collaborators`, {
@@ -354,6 +472,70 @@ function NoteEditor({
           </div>
         </div>
 
+        {/* Formatting toolbar — markdown-backed rich text controls */}
+        <div
+          className="flex flex-wrap items-center gap-0.5 px-2.5 sm:px-3 py-1.5 border-b flex-shrink-0"
+          style={{ borderColor: "var(--border)" }}
+        >
+          {([
+            { icon: Heading1, fn: () => setHeading(1), title: "Nadpis 1 (klient)" },
+            { icon: Heading2, fn: () => setHeading(2), title: "Nadpis 2 (projekt)" },
+            { icon: Heading3, fn: () => setHeading(3), title: "Nadpis 3 (úkol)" },
+          ] as const).map(({ icon: Icon, fn, title: t }, i) => (
+            <button key={i} onClick={fn} disabled={preview} title={t}
+              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-[var(--hover)] disabled:opacity-40"
+              style={{ color: "var(--text-2)" }}>
+              <Icon className="w-4 h-4" />
+            </button>
+          ))}
+          <span className="w-px h-5 mx-1" style={{ background: "var(--border)" }} />
+          {([
+            { icon: Bold, fn: () => wrapInline("**"), title: "Tučně (⌘B)" },
+            { icon: Italic, fn: () => wrapInline("*"), title: "Kurzíva (⌘I)" },
+            { icon: List, fn: () => toggleList(false), title: "Odrážky" },
+            { icon: ListOrdered, fn: () => toggleList(true), title: "Číslovaný seznam" },
+          ] as const).map(({ icon: Icon, fn, title: t }, i) => (
+            <button key={i} onClick={fn} disabled={preview} title={t}
+              className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-[var(--hover)] disabled:opacity-40"
+              style={{ color: "var(--text-2)" }}>
+              <Icon className="w-4 h-4" />
+            </button>
+          ))}
+          <span className="w-px h-5 mx-1" style={{ background: "var(--border)" }} />
+          {/* Task mode — every new line becomes an H3 task */}
+          <button
+            onClick={toggleTaskMode}
+            title="Úkolové písmo — každý řádek se stane úkolem (H3)"
+            className="h-8 px-2.5 rounded-lg flex items-center gap-1.5 text-[12px] font-semibold transition-colors"
+            style={taskMode
+              ? { background: "var(--accent)", color: "#fff" }
+              : { color: "var(--text-2)" }}
+          >
+            <CheckSquare className="w-3.5 h-3.5" /> Úkolové písmo
+          </button>
+
+          <div className="flex items-center gap-1 ml-auto">
+            {/* Generate tasks from note */}
+            <button
+              onClick={() => setGenOpen(true)}
+              title="Vytvořit úkoly z poznámky"
+              className="h-8 px-2.5 rounded-lg flex items-center gap-1.5 text-[12px] font-semibold transition-colors hover:bg-[var(--hover)]"
+              style={{ color: "var(--accent)" }}
+            >
+              <ListTree className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Generovat úkoly</span>
+            </button>
+            {/* Edit / preview toggle */}
+            <button
+              onClick={() => setPreview((p) => !p)}
+              title={preview ? "Upravit" : "Náhled"}
+              className="h-8 px-2.5 rounded-lg flex items-center gap-1.5 text-[12px] font-semibold transition-colors hover:bg-[var(--hover)]"
+              style={{ color: "var(--text-2)" }}
+            >
+              {preview ? <><Pencil className="w-3.5 h-3.5" /> Upravit</> : <><Eye className="w-3.5 h-3.5" /> Náhled</>}
+            </button>
+          </div>
+        </div>
+
         {/* Editor body — transparent, glass card provides the background */}
         <div className="flex-1 min-h-0 overflow-y-auto px-5 sm:px-8 py-5 sm:py-6 space-y-3">
           <input
@@ -363,14 +545,24 @@ function NoteEditor({
             className="w-full text-[26px] font-bold bg-transparent outline-none"
             style={{ color: "var(--text-1)" }}
           />
-          <textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Začni psát…"
-            className="w-full bg-transparent outline-none resize-none text-[15px] leading-[1.75] min-h-[400px]"
-            style={{ color: "var(--text-2)" }}
-          />
+          {preview ? (
+            <div className="min-h-[400px]">
+              <MarkdownView content={content} />
+            </div>
+          ) : (
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Začni psát… Použij # klient, ## projekt, ### úkol"
+              className="w-full bg-transparent outline-none resize-none text-[15px] leading-[1.75] min-h-[400px]"
+              style={{
+                color: "var(--text-2)",
+                fontFamily: taskMode ? "var(--font-mono, ui-monospace, monospace)" : undefined,
+              }}
+            />
+          )}
         </div>
 
         {/* Collaborators footer */}
@@ -477,7 +669,154 @@ function NoteEditor({
           onSaved={() => { setEventOpen(false); router.push("/calendar"); }}
         />
       </Modal>
+
+      {/* Generate tasks from note — parses heading hierarchy into clients/projects/tasks */}
+      <GenerateTasksModal
+        open={genOpen}
+        content={content}
+        onClose={() => setGenOpen(false)}
+        onGoToTasks={() => { setGenOpen(false); router.push("/tasks"); }}
+      />
     </div>
+  );
+}
+
+/* ─── Generate tasks from a note ─────────────────────────────────────── */
+
+function GenerateTasksModal({
+  open,
+  content,
+  onClose,
+  onGoToTasks,
+}: {
+  open: boolean;
+  content: string;
+  onClose: () => void;
+  onGoToTasks: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<{ clientsCreated: number; projectsCreated: number; tasksCreated: number } | null>(null);
+
+  // Re-parse whenever the modal opens so it reflects the latest note content.
+  const tree: ParsedClient[] = open ? parseNoteToTasks(content) : [];
+  const total = countTasks(tree);
+
+  useEffect(() => {
+    if (open) { setResult(null); setError(null); }
+  }, [open]);
+
+  const generate = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/notes/generate-tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clients: tree }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Vytvoření úkolů selhalo"); return; }
+      setResult(data);
+    } catch {
+      setError("Vytvoření úkolů selhalo");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title="Vytvořit úkoly z poznámky">
+      {result ? (
+        <div className="pt-1">
+          <div className="flex items-center gap-3 mb-4 p-3.5 rounded-2xl"
+            style={{ background: "var(--bg-subtle)" }}>
+            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ background: "#22C55E22" }}>
+              <Check className="w-5 h-5" style={{ color: "#22C55E" }} />
+            </div>
+            <div>
+              <p className="text-[14px] font-semibold" style={{ color: "var(--text-1)" }}>Hotovo!</p>
+              <p className="text-[12.5px]" style={{ color: "var(--text-3)" }}>
+                {result.tasksCreated} úkolů
+                {result.projectsCreated > 0 && `, ${result.projectsCreated} projektů`}
+                {result.clientsCreated > 0 && `, ${result.clientsCreated} klientů`}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button variant="secondary" onClick={onClose}>Zavřít</Button>
+            <Button icon={<ArrowRight className="w-4 h-4" />} onClick={onGoToTasks}>Zobrazit úkoly</Button>
+          </div>
+        </div>
+      ) : total === 0 ? (
+        <div className="pt-1 pb-2">
+          <div className="flex items-start gap-2.5 p-3.5 rounded-2xl mb-4"
+            style={{ background: "var(--bg-subtle)" }}>
+            <Sparkles className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "var(--accent)" }} />
+            <div className="text-[13px] leading-relaxed" style={{ color: "var(--text-2)" }}>
+              <p className="font-semibold mb-1" style={{ color: "var(--text-1)" }}>Zatím není z čeho vytvořit úkoly</p>
+              <p style={{ color: "var(--text-3)" }}>
+                Použij nadpisy v poznámce:
+                <br />• <strong># Nadpis 1</strong> = klient
+                <br />• <strong>## Nadpis 2</strong> = projekt
+                <br />• <strong>### Nadpis 3</strong> = úkol
+                <br /><br />Tip: zapni <strong>Úkolové písmo</strong> a piš úkoly rovnou.
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button variant="secondary" onClick={onClose}>Zavřít</Button>
+          </div>
+        </div>
+      ) : (
+        <div className="pt-1">
+          <p className="text-[13px] mb-3" style={{ color: "var(--text-3)" }}>
+            Vytvoří se <strong style={{ color: "var(--text-1)" }}>{total}</strong> {total === 1 ? "úkol" : total < 5 ? "úkoly" : "úkolů"} podle
+            struktury poznámky. Existující klienti a projekty se použijí znovu (nevytvoří se duplikáty).
+          </p>
+          <div className="max-h-[46vh] overflow-y-auto space-y-3 mb-4 -mx-1 px-1">
+            {tree.map((c, ci) => (
+              <div key={ci} className="rounded-2xl border p-3" style={{ borderColor: "var(--border-md)" }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <Building2 className="w-4 h-4 flex-shrink-0" style={{ color: "var(--accent)" }} />
+                  <span className="text-[13.5px] font-semibold" style={{ color: "var(--text-1)" }}>
+                    {c.name ?? <span className="italic" style={{ color: "var(--text-3)" }}>Bez klienta</span>}
+                  </span>
+                </div>
+                <div className="space-y-2 pl-1">
+                  {c.projects.map((p, pi) => (
+                    <div key={pi}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <FolderKanban className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--text-3)" }} />
+                        <span className="text-[12.5px] font-medium" style={{ color: "var(--text-2)" }}>
+                          {p.name ?? <span className="italic" style={{ color: "var(--text-3)" }}>Bez projektu</span>}
+                        </span>
+                      </div>
+                      <ul className="pl-5 space-y-0.5">
+                        {p.tasks.map((t, ti) => (
+                          <li key={ti} className="flex items-center gap-2 text-[12.5px]" style={{ color: "var(--text-2)" }}>
+                            <CheckSquare className="w-3 h-3 flex-shrink-0" style={{ color: "var(--text-3)" }} />
+                            {t}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          {error && <p className="text-[12.5px] mb-3" style={{ color: "var(--danger, #ef4444)" }}>{error}</p>}
+          <div className="flex gap-2 justify-end">
+            <Button variant="secondary" onClick={onClose} disabled={busy}>Zrušit</Button>
+            <Button icon={<ListTree className="w-4 h-4" />} onClick={generate} loading={busy}>
+              Vytvořit {total} {total === 1 ? "úkol" : total < 5 ? "úkoly" : "úkolů"}
+            </Button>
+          </div>
+        </div>
+      )}
+    </Modal>
   );
 }
 
