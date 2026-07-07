@@ -4,6 +4,17 @@ import { getSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
+// Diagnostic: open this URL in the browser to see whether the Blob token
+// actually reaches THIS deployment's environment.
+export async function GET() {
+  const tok = process.env.BLOB_READ_WRITE_TOKEN;
+  return NextResponse.json({
+    tokenConfigured: !!tok,
+    tokenPrefix: tok ? tok.slice(0, 20) + "…" : null,
+    env: process.env.VERCEL_ENV ?? "unknown",
+  });
+}
+
 // Issues short-lived client upload tokens so the browser can upload files
 // straight to Vercel Blob — bypassing the ~4.5 MB serverless request body
 // limit that a normal multipart POST through an API route would hit.
