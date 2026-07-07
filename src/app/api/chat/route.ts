@@ -89,8 +89,22 @@ export async function POST(req: NextRequest) {
   const teamId = (session.user as any).teamId;
   if (!teamId) return NextResponse.json({ error: "Nejsi v žádném týmu" }, { status: 400 });
 
-  const { content, recipientId } = await req.json();
-  if (!content?.trim()) return NextResponse.json({ error: "Prázdná zpráva" }, { status: 400 });
+  // The file is uploaded to Blob straight from the browser; the client sends
+  // us only the resulting metadata alongside the (optional) text.
+  const body = await req.json();
+  let content: string = (body.content ?? "").trim();
+  const recipientId: string | null = body.recipientId ?? null;
+  const a = body.attachment;
+  const attachment: { url: string; name: string; type: string; size: number } | null =
+    a && typeof a.url === "string"
+      ? {
+          url: a.url,
+          name: String(a.name ?? "soubor").slice(0, 200),
+          type: String(a.type ?? "application/octet-stream"),
+          size: Number(a.size) || 0,
+        }
+      : null;
+  if (!content && !attachment) return NextResponse.json({ error: "Prázdná zpráva" }, { status: 400 });
 
   const dmSupport = await hasDMSupport();
 
@@ -103,8 +117,8 @@ export async function POST(req: NextRequest) {
     if (!member) return NextResponse.json({ error: "Příjemce není členem týmu" }, { status: 400 });
 
     const rows = await prisma.$queryRaw<any[]>`
-      INSERT INTO "ChatMessage" (id, content, "teamId", "userId", "recipientId", "createdAt")
-      VALUES (gen_random_uuid()::text, ${content.trim()}, ${teamId}, ${session.user.id}, ${recipientId}, NOW())
+      INSERT INTO "ChatMessage" (id, content, "attachmentUrl", "attachmentName", "attachmentType", "attachmentSize", "teamId", "userId", "recipientId", "createdAt")
+      VALUES (gen_random_uuid()::text, ${content}, ${attachment?.url ?? null}, ${attachment?.name ?? null}, ${attachment?.type ?? null}, ${attachment?.size ?? null}, ${teamId}, ${session.user.id}, ${recipientId}, NOW())
       RETURNING *
     `;
     const msg = rows[0];
@@ -117,7 +131,7 @@ export async function POST(req: NextRequest) {
       userId: recipientId,
       type: "direct_message",
       title: `${senderName} ti napsal(a) přímou zprávu`,
-      body: content.trim().slice(0, 100),
+      body: (content || attachment?.name || "📎 Příloha").slice(0, 100),
       url: "/chat",
     }]);
 
@@ -125,19 +139,25 @@ export async function POST(req: NextRequest) {
   }
 
   const message = await prisma.chatMessage.create({
-    data: { content: content.trim(), teamId, userId: session.user.id },
+    data: {
+      content, teamId, userId: session.user.id,
+      attachmentUrl: attachment?.url ?? null,
+      attachmentName: attachment?.name ?? null,
+      attachmentType: attachment?.type ?? null,
+      attachmentSize: attachment?.size ?? null,
+    },
     include: { user: { select: { id: true, name: true, avatar: true } } },
   });
 
   // Notify @mentioned users in team chat (skip self)
-  const mentionedIds = parseMentionedUserIds(content.trim()).filter((id) => id !== session.user.id);
+  const mentionedIds = parseMentionedUserIds(content).filter((id) => id !== session.user.id);
   const senderName = (message.user as any)?.name ?? "Někdo";
   if (mentionedIds.length > 0) {
     void createNotifications(mentionedIds.map((uid) => ({
       userId: uid,
       type: "mention" as const,
       title: `${senderName} tě zmínil(a) v chatu`,
-      body: content.trim().slice(0, 100),
+      body: (content || attachment?.name || "📎 Příloha").slice(0, 100),
       url: "/chat",
     })));
   }
@@ -153,7 +173,7 @@ export async function POST(req: NextRequest) {
       userId: m.userId,
       type: "chat_message" as const,
       title: `${senderName} napsal(a) do chatu`,
-      body: content.trim().slice(0, 100),
+      body: (content || attachment?.name || "📎 Příloha").slice(0, 100),
       url: "/chat",
     })));
   }

@@ -7,10 +7,11 @@ import { Avatar } from "@/components/ui/Avatar";
 import { MessageContent } from "@/components/chat/MessageContent";
 import { MentionInput, type MentionInputHandle } from "@/components/chat/MentionInput";
 import { ScrollFadeX } from "@/components/ui/ScrollFadeX";
-import { Send, MessageSquare, Users, CheckSquare, User, Paperclip } from "lucide-react";
+import { Send, MessageSquare, Users, CheckSquare, User, Paperclip, FileText, Download } from "lucide-react";
 import type { Task } from "@/types";
 import { STATUS_COLORS } from "@/types";
 import { DropdownPortal } from "@/components/ui/DropdownPortal";
+import { uploadFileToBlob } from "@/lib/uploadBlob";
 
 interface ChatMessage {
   id: string;
@@ -18,6 +19,10 @@ interface ChatMessage {
   createdAt: string;
   userId: string;
   recipientId?: string | null;
+  attachmentUrl?: string | null;
+  attachmentName?: string | null;
+  attachmentType?: string | null;
+  attachmentSize?: number | null;
   user?: { id: string; name: string; avatar?: string | null };
   recipient?: { id: string; name: string; avatar?: string | null };
 }
@@ -69,6 +74,7 @@ export default function ChatPage() {
   const [mentionIdx, setMentionIdx] = useState(0);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<MentionInputHandle>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const lastTimestamp = useRef<string | null>(null);
   const mentionWrapperRef = useRef<HTMLDivElement>(null);
   const myId = session?.user?.id;
@@ -248,6 +254,35 @@ export default function ChatPage() {
     setSending(false);
   };
 
+  const sendFile = async (file: File) => {
+    if (!file || sending) return;
+    setSending(true);
+    try {
+      // Upload straight to storage from the browser (no serverless body cap).
+      const attachment = await uploadFileToBlob(file, "chat");
+      const typed = inputRef.current?.serialize().trim() ?? "";
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: typed, recipientId: activeDM, attachment }),
+      });
+      if (res.ok) {
+        const msg = await res.json();
+        setMessages((prev) => [...prev, msg]);
+        lastTimestamp.current = msg.createdAt;
+        inputRef.current?.clear();
+        setHasContent(false);
+        setTimeout(scrollToBottom, 50);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err?.error ?? "Soubor se nepodařilo odeslat");
+      }
+    } catch (e: any) {
+      alert(e?.message ?? "Soubor se nepodařilo nahrát");
+    }
+    setSending(false);
+  };
+
   const activeMember = members.find((m) => m.id === activeDM);
 
   let lastDay = "";
@@ -388,7 +423,8 @@ export default function ChatPage() {
                             style={isMe
                               ? { background: "var(--accent)", color: "#fff", borderBottomRightRadius: "4px" }
                               : { background: "var(--bg-subtle)", color: "var(--text-1)", borderBottomLeftRadius: "4px" }}>
-                            <MessageContent content={msg.content} tasksById={tasksById} textColor={isMe ? "#fff" : undefined} />
+                            {msg.attachmentUrl && <ChatAttachment msg={msg} isMe={isMe} />}
+                            {msg.content && <MessageContent content={msg.content} tasksById={tasksById} textColor={isMe ? "#fff" : undefined} />}
                           </div>
                           <span className="text-[10.5px] mt-1 px-1" style={{ color: "var(--text-3)" }}>
                             {formatTime(msg.createdAt)}
@@ -483,6 +519,24 @@ export default function ChatPage() {
               </DropdownPortal>
 
               <div className="flex items-center gap-3 p-4">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) sendFile(f);
+                    e.target.value = "";
+                  }}
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={sending}
+                  title="Přiložit soubor"
+                  className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 border transition-all hover:bg-[var(--hover)] disabled:opacity-40"
+                  style={{ borderColor: "var(--border-md)", color: "var(--text-2)" }}>
+                  <Paperclip className="w-4 h-4" />
+                </button>
                 <MentionInput
                   ref={inputRef}
                   placeholder={activeDM
@@ -506,5 +560,49 @@ export default function ChatPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function formatFileSize(bytes?: number | null): string {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} kB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+// Renders a chat attachment: images preview inline, everything else is a
+// downloadable file chip (this is the "supported vs unsupported format" split).
+function ChatAttachment({ msg, isMe }: { msg: ChatMessage; isMe: boolean }) {
+  const url = msg.attachmentUrl!;
+  const name = msg.attachmentName ?? "soubor";
+  const type = msg.attachmentType ?? "";
+  const isImage = type.startsWith("image/");
+
+  if (isImage) {
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer" className="block mb-1.5">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={url} alt={name} className="rounded-xl max-w-full max-h-64 object-cover"
+          style={{ border: "1px solid rgba(0,0,0,0.06)" }} />
+      </a>
+    );
+  }
+
+  const fg = isMe ? "rgba(255,255,255,0.92)" : "var(--text-1)";
+  const sub = isMe ? "rgba(255,255,255,0.7)" : "var(--text-3)";
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" download={name}
+      className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl mb-1 transition-opacity hover:opacity-90"
+      style={{ background: isMe ? "rgba(255,255,255,0.16)" : "var(--bg-card)", maxWidth: 260 }}>
+      <span className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+        style={{ background: isMe ? "rgba(255,255,255,0.18)" : "var(--bg-subtle)" }}>
+        <FileText className="w-4 h-4" style={{ color: fg }} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[12.5px] font-medium truncate" style={{ color: fg }}>{name}</p>
+        <p className="text-[10.5px]" style={{ color: sub }}>{formatFileSize(msg.attachmentSize)}</p>
+      </div>
+      <Download className="w-3.5 h-3.5 flex-shrink-0" style={{ color: sub }} />
+    </a>
   );
 }

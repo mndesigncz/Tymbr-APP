@@ -10,6 +10,7 @@ import {
   Link as LinkIcon, Upload, Trash2, ChevronRight, Home, X, ExternalLink,
   Lock, Globe, LayoutList, LayoutGrid,
 } from "lucide-react";
+import { uploadFileToBlob } from "@/lib/uploadBlob";
 
 interface TeamFolder {
   id: string;
@@ -142,16 +143,22 @@ export default function FilesPage() {
   const uploadFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { alert("Soubor je větší než 5 MB"); return; }
     setUploading(true);
-    const form = new FormData();
-    form.append("file", file);
-    if (folderId) form.append("folderId", folderId);
-    const res = await fetch("/api/files", { method: "POST", body: form });
+    try {
+      // Direct-to-Blob upload from the browser (no ~4.5 MB serverless cap).
+      const blob = await uploadFileToBlob(file, "team-files");
+      const res = await fetch("/api/files", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "upload", name: blob.name, url: blob.url, mimeType: blob.type, size: blob.size, folderId }),
+      });
+      if (!res.ok) { const d = await res.json().catch(() => ({})); alert(d.error || "Nahrání selhalo"); }
+      else load(folderId);
+    } catch (err: any) {
+      alert(err?.message ?? "Nahrání selhalo");
+    }
     setUploading(false);
     if (fileRef.current) fileRef.current.value = "";
-    if (!res.ok) { const d = await res.json(); alert(d.error || "Nahrání selhalo"); return; }
-    load(folderId);
   };
 
   const deleteItem = async (kind: "folder" | "file", id: string) => {

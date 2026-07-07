@@ -293,8 +293,13 @@ model TeamFile {
 
 model ChatMessage {
   id        String   @id @default(cuid())
-  content   String
+  content   String   @default("")
   createdAt DateTime @default(now())
+
+  attachmentUrl  String?
+  attachmentName String?
+  attachmentType String? // MIME type
+  attachmentSize Int?    // bytes
 
   teamId String
   team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
