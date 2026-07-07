@@ -112,6 +112,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(rows[0], { status: 201 });
   }
 
+  // --- upload registered after a direct-to-Blob client upload ---
+  if (type === "upload") {
+    if (!url?.trim()) return NextResponse.json({ error: "URL je povinná" }, { status: 400 });
+    const rows = await prisma.$queryRaw<any[]>`
+      INSERT INTO "TeamFile" (id, name, type, url, "mimeType", size, "folderId", "teamId", "createdById")
+      VALUES (gen_random_uuid()::text, ${name.trim()}, 'upload', ${url.trim()},
+              ${body.mimeType || null}, ${body.size ? Number(body.size) : null}, ${folderId || null}, ${teamId}, ${userId})
+      RETURNING id, name, type, url, "mimeType", size, "folderId", "createdAt"
+    `;
+    return NextResponse.json(rows[0], { status: 201 });
+  }
+
   return NextResponse.json({ error: "Neznámý typ" }, { status: 400 });
 }
 

@@ -11,6 +11,7 @@ import { Send, MessageSquare, Users, CheckSquare, User, Paperclip, FileText, Dow
 import type { Task } from "@/types";
 import { STATUS_COLORS } from "@/types";
 import { DropdownPortal } from "@/components/ui/DropdownPortal";
+import { uploadFileToBlob } from "@/lib/uploadBlob";
 
 interface ChatMessage {
   id: string;
@@ -256,22 +257,28 @@ export default function ChatPage() {
   const sendFile = async (file: File) => {
     if (!file || sending) return;
     setSending(true);
-    const fd = new FormData();
-    fd.append("file", file);
-    const typed = inputRef.current?.serialize().trim() ?? "";
-    if (typed) fd.append("content", typed);
-    if (activeDM) fd.append("recipientId", activeDM);
-    const res = await fetch("/api/chat", { method: "POST", body: fd });
-    if (res.ok) {
-      const msg = await res.json();
-      setMessages((prev) => [...prev, msg]);
-      lastTimestamp.current = msg.createdAt;
-      inputRef.current?.clear();
-      setHasContent(false);
-      setTimeout(scrollToBottom, 50);
-    } else {
-      const err = await res.json().catch(() => ({}));
-      alert(err?.error ?? "Soubor se nepodařilo odeslat");
+    try {
+      // Upload straight to storage from the browser (no serverless body cap).
+      const attachment = await uploadFileToBlob(file, "chat");
+      const typed = inputRef.current?.serialize().trim() ?? "";
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: typed, recipientId: activeDM, attachment }),
+      });
+      if (res.ok) {
+        const msg = await res.json();
+        setMessages((prev) => [...prev, msg]);
+        lastTimestamp.current = msg.createdAt;
+        inputRef.current?.clear();
+        setHasContent(false);
+        setTimeout(scrollToBottom, 50);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err?.error ?? "Soubor se nepodařilo odeslat");
+      }
+    } catch (e: any) {
+      alert(e?.message ?? "Soubor se nepodařilo nahrát");
     }
     setSending(false);
   };

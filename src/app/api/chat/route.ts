@@ -89,31 +89,21 @@ export async function POST(req: NextRequest) {
   const teamId = (session.user as any).teamId;
   if (!teamId) return NextResponse.json({ error: "Nejsi v žádném týmu" }, { status: 400 });
 
-  // Accept either JSON (text only) or multipart/form-data (with a file).
-  let content = "";
-  let recipientId: string | null = null;
-  let attachment: { url: string; name: string; type: string; size: number } | null = null;
-
-  if ((req.headers.get("content-type") || "").includes("multipart/form-data")) {
-    const form = await req.formData();
-    content = String(form.get("content") ?? "");
-    recipientId = (form.get("recipientId") as string) || null;
-    const file = form.get("file") as File | null;
-    if (file && file.size > 0) {
-      if (file.size > 25 * 1024 * 1024) {
-        return NextResponse.json({ error: "Soubor je příliš velký (max 25 MB)" }, { status: 400 });
-      }
-      const { put } = await import("@vercel/blob");
-      const blob = await put(`chat/${teamId}/${file.name}`, file, { access: "public", addRandomSuffix: true });
-      attachment = { url: blob.url, name: file.name, type: file.type || "application/octet-stream", size: file.size };
-    }
-  } else {
-    const body = await req.json();
-    content = body.content ?? "";
-    recipientId = body.recipientId ?? null;
-  }
-
-  content = (content || "").trim();
+  // The file is uploaded to Blob straight from the browser; the client sends
+  // us only the resulting metadata alongside the (optional) text.
+  const body = await req.json();
+  let content: string = (body.content ?? "").trim();
+  const recipientId: string | null = body.recipientId ?? null;
+  const a = body.attachment;
+  const attachment: { url: string; name: string; type: string; size: number } | null =
+    a && typeof a.url === "string"
+      ? {
+          url: a.url,
+          name: String(a.name ?? "soubor").slice(0, 200),
+          type: String(a.type ?? "application/octet-stream"),
+          size: Number(a.size) || 0,
+        }
+      : null;
   if (!content && !attachment) return NextResponse.json({ error: "Prázdná zpráva" }, { status: 400 });
 
   const dmSupport = await hasDMSupport();
