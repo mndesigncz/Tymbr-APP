@@ -145,6 +145,9 @@ export interface CalendarEvent {
   assignees?: User[];
   recurring?: string | null;
   recurringUntil?: Date | string | null;
+  /** Set for read-only events mirrored from an external calendar (Google). */
+  source?: "google" | null;
+  htmlLink?: string | null;
 }
 
 export type ClientStage = "lead" | "negotiation" | "active" | "inactive" | "lost";

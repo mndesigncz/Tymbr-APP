@@ -47,6 +47,23 @@ model User {
   clientsCreated       Client[]       @relation("ClientCreator")
   projectsCreated      Project[]      @relation("ProjectCreator")
   invoicesCreated      Invoice[]      @relation("InvoiceCreator")
+  googleCalendar       GoogleCalendarAccount?
+}
+
+// A user's connected Google Calendar (OAuth). Stores the offline refresh token
+// so we can mint fresh access tokens without re-consent. One per user.
+model GoogleCalendarAccount {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email        String?
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  calendarId   String   @default("primary")
+  syncEnabled  Boolean  @default(true)
+  connectedAt  DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model Notification {
