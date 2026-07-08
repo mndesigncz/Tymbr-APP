@@ -7,6 +7,7 @@ import { TeamBrandingLoader } from "@/components/layout/TeamBrandingLoader";
 import { TimeTrackerProvider } from "@/context/TimeTrackerContext";
 import { KeyboardShortcutsProvider } from "@/components/layout/KeyboardShortcutsProvider";
 import { GlobalSearch } from "@/components/layout/GlobalSearch";
+import { FloatingDock } from "@/components/layout/FloatingDock";
 
 export default async function DashboardLayout({
   children,
@@ -28,6 +29,7 @@ export default async function DashboardLayout({
       </div>
       <WorkMode />
       <GlobalSearch />
+      <FloatingDock />
       <KeyboardShortcutsProvider />
     </TimeTrackerProvider>
   );
