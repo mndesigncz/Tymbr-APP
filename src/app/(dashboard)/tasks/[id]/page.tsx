@@ -12,6 +12,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { formatDate, formatRelative } from "@/lib/utils";
+import { inlineMarkRegex } from "@/lib/noteTasks";
 import { computeEstimate, formatCZK, formatDuration } from "@/lib/pricing";
 import type { Task } from "@/types";
 import {
@@ -301,7 +302,7 @@ export default function TaskDetailPage() {
 
               {task.description ? (
                 <p className="text-[14px] leading-relaxed whitespace-pre-wrap" style={{ color: "var(--text-2)" }}>
-                  {task.description}
+                  {task.description.replace(inlineMarkRegex(), "$2")}
                 </p>
               ) : (
                 <p className="text-[14px] italic" style={{ color: "var(--text-3)" }}>Bez popisu</p>

@@ -6,6 +6,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import {
   MessageSquare, X, StickyNote, ChevronLeft, Send, Users, Plus, Trash2,
 } from "lucide-react";
+import { noteToPlainText } from "@/lib/noteTasks";
 
 // Only for landscape tablets and desktops — never on phones / portrait tablets.
 function useWideLandscape(): boolean {
@@ -212,7 +213,15 @@ function NotesPanel({ onBack, onClose }: { onBack: () => void; onClose: () => vo
 
   useEffect(() => { loadNotes(); }, [loadNotes]);
 
-  const openNote = (n: Note) => { setActive(n); setTitle(n.title); setContent(n.content); };
+  // Show notes as clean text — strip any inline mark tokens (@klient{…} etc.)
+  // that rich notes store. The stripped text is also the autosave baseline, so
+  // merely opening a note never rewrites it.
+  const openNote = (n: Note) => {
+    const plain = noteToPlainText(n.content);
+    setActive({ ...n, content: plain });
+    setTitle(n.title);
+    setContent(plain);
+  };
 
   const newNote = async () => {
     try {
@@ -267,21 +276,20 @@ function NotesPanel({ onBack, onClose }: { onBack: () => void; onClose: () => vo
       />
 
       {active ? (
-        <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2"
-          style={{ background: "#fef9c3" }}>
+        <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2" style={{ background: "var(--bg-card)" }}>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Název"
             className="w-full text-[15px] font-bold bg-transparent outline-none"
-            style={{ color: "#3a3320" }}
+            style={{ color: "var(--text-1)" }}
           />
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="Rychlá poznámka…"
             className="flex-1 w-full bg-transparent outline-none resize-none text-[13px] leading-relaxed"
-            style={{ color: "#4a4326" }}
+            style={{ color: "var(--text-2)" }}
           />
         </div>
       ) : (
@@ -301,7 +309,7 @@ function NotesPanel({ onBack, onClose }: { onBack: () => void; onClose: () => vo
                   {n.title || "Bez názvu"}
                 </p>
                 <p className="text-[11.5px] truncate" style={{ color: "var(--text-3)" }}>
-                  {n.content.replace(/\n+/g, " ").slice(0, 60) || "Prázdná"}
+                  {noteToPlainText(n.content).replace(/\n+/g, " ").slice(0, 60) || "Prázdná"}
                 </p>
               </button>
               <button onClick={() => removeNote(n.id)}
