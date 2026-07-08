@@ -1,17 +1,18 @@
 // Parses a note into a client → project → task tree.
 //
-// The hierarchy is driven by three semantic line markers ("písma") that the
-// notes toolbar inserts — deliberately separate from the visual markdown
-// headings (#, ##, ###), which are now purely typographic (nadpis / podnadpis
-// / název) and carry no meaning for task generation.
+// The hierarchy is driven by three inline semantic marks ("písma") that the
+// notes editor applies to spans of text — separate from the visual markdown
+// headings (#, ##, ###), which are purely typographic and carry no meaning for
+// task generation. Each mark is stored inline as a token:
 //
-//   @klient  <name>   → client   (Klientské písmo)
-//   @projekt <name>   → project  (Projektové písmo)
-//   @úkol    <name>   → task     (Úkolové písmo)
+//   @klient{Acme}      → client   (Klientské písmo)
+//   @projekt{Web 2026} → project  (Projektové písmo)
+//   @úkol{Homepage}    → task     (Úkolové písmo)
 //
-// A marker shallower than the current context is tolerated: an @úkol before any
-// @klient/@projekt becomes a task with no project/client; an @projekt before
-// any @klient becomes a project with no client.
+// Marks are scanned in document order. A mark shallower than the current
+// context is tolerated: an @úkol before any @klient/@projekt becomes a task
+// with no project/client; an @projekt before any @klient a project with no
+// client.
 
 export interface ParsedProject {
   name: string | null;
@@ -27,29 +28,38 @@ export type NoteMarkKey = "client" | "project" | "task";
 
 export interface NoteMark {
   key: NoteMarkKey;
-  token: string; // literal prefix stored in the note content
-  word: string;  // the word after @ (used in regexes)
+  word: string;  // the word after @ inside the token
   label: string; // human label for the toolbar button
 }
 
 export const NOTE_MARKS: NoteMark[] = [
-  { key: "client", token: "@klient", word: "klient", label: "Klientské písmo" },
-  { key: "project", token: "@projekt", word: "projekt", label: "Projektové písmo" },
-  { key: "task", token: "@úkol", word: "úkol", label: "Úkolové písmo" },
+  { key: "client", word: "klient", label: "Klientské písmo" },
+  { key: "project", word: "projekt", label: "Projektové písmo" },
+  { key: "task", word: "úkol", label: "Úkolové písmo" },
 ];
 
-const WORD_TO_KEY: Record<string, NoteMarkKey> = {
+export const WORD_TO_KEY: Record<string, NoteMarkKey> = {
   klient: "client",
   projekt: "project",
   "úkol": "task",
 };
 
-// Matches a marked line, capturing the marker word and the remaining text.
-export const MARK_LINE_RE = /^\s*@(klient|projekt|úkol)\s*(.*)$/;
+export const KEY_TO_WORD: Record<NoteMarkKey, string> = {
+  client: "klient",
+  project: "projekt",
+  task: "úkol",
+};
 
-/** Remove inline markdown decoration so names/titles are clean plain text. */
+// Matches a single inline mark token, capturing the word and inner text.
+// Use a fresh RegExp (with the `g` flag) when iterating to avoid shared state.
+export function inlineMarkRegex(): RegExp {
+  return /@(klient|projekt|úkol)\{([^}]*)\}/g;
+}
+
+/** Remove inline markdown decoration and zero-width chars for clean text. */
 function stripInline(s: string): string {
   return s
+    .replace(/[​﻿]/g, "")
     .replace(/\*\*(.+?)\*\*/g, "$1")
     .replace(/\*(.+?)\*/g, "$1")
     .replace(/`(.+?)`/g, "$1")
@@ -78,9 +88,7 @@ export function parseNoteToTasks(content: string): ParsedClient[] {
     return currentProject;
   };
 
-  for (const rawLine of content.split(/\r?\n/)) {
-    const m = rawLine.match(MARK_LINE_RE);
-    if (!m) continue;
+  for (const m of content.matchAll(inlineMarkRegex())) {
     const key = WORD_TO_KEY[m[1]];
     const text = stripInline(m[2]);
 
@@ -96,7 +104,7 @@ export function parseNoteToTasks(content: string): ParsedClient[] {
     }
   }
 
-  // Drop empty clients/projects (a marker with no task underneath is no work).
+  // Drop empty clients/projects (a mark with no task underneath is no work).
   return clients
     .map((c) => ({ ...c, projects: c.projects.filter((p) => p.tasks.length > 0) }))
     .filter((c) => c.projects.length > 0);
@@ -108,17 +116,17 @@ export function countTasks(tree: ParsedClient[]): number {
 }
 
 /**
- * Strips all markup (semantic markers, heading hashes, list bullets and inline
+ * Strips all markup (inline marks, heading hashes, list bullets and inline
  * decoration) from note content so it can be shown as a clean plain-text
  * preview in lists, chat shares and pre-filled task descriptions.
  */
 export function noteToPlainText(content: string): string {
-  return content
+  const noTokens = content.replace(inlineMarkRegex(), "$2");
+  return noTokens
     .split(/\r?\n/)
     .map((line) =>
       stripInline(
         line
-          .replace(MARK_LINE_RE, "$2")
           .replace(/^#{1,6}\s+/, "")
           .replace(/^\s*[-*+]\s+/, "")
           .replace(/^\s*\d+[.)]\s+/, "")

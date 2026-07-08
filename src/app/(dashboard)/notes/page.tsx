@@ -564,11 +564,11 @@ function GenerateTasksModal({
             <div className="text-[13px] leading-relaxed" style={{ color: "var(--text-2)" }}>
               <p className="font-semibold mb-1" style={{ color: "var(--text-1)" }}>Zatím není z čeho vytvořit úkoly</p>
               <p style={{ color: "var(--text-3)" }}>
-                Označ části poznámky pomocí písem v liště:
+                Označ slova v poznámce pomocí písem v liště:
                 <br />• <strong style={{ color: "#ea580c" }}>Klientské písmo</strong> = klient
                 <br />• <strong style={{ color: "#7c3aed" }}>Projektové písmo</strong> = projekt
                 <br />• <strong style={{ color: "#16a34a" }}>Úkolové písmo</strong> = úkol
-                <br /><br />Zapni písmo a piš — každý řádek se označí sám. Nadpisy (H1–H3) jsou jen vizuální.
+                <br /><br />Označ text a klikni na písmo, nebo písmo zapni a piš. Nadpisy jsou jen vizuální.
               </p>
             </div>
           </div>
