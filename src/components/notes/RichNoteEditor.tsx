@@ -223,28 +223,24 @@ export function RichNoteEditor({
     emit();
   };
 
-  // End the armed writing mode: drop an empty sentinel span, otherwise move the
-  // caret just past the marked span so further typing is unmarked.
+  // End the armed writing mode. Placing the caret merely "after" the span makes
+  // the browser keep typing inside it (caret absorption), so we insert a plain
+  // text-node boundary (a zero-width space) right after the span and drop the
+  // caret INSIDE it — new typing then lands outside any mark. An empty sentinel
+  // (mode armed but nothing typed) is removed entirely.
   const endMode = () => {
     const span = caretMarkSpan();
-    if (span) {
-      if ((span.textContent ?? "").replace(/​/g, "") === "") {
-        const parent = span.parentNode;
-        const at = document.createRange();
-        at.setStartBefore(span);
-        parent?.removeChild(span);
-        at.collapse(true);
-        const sel = window.getSelection();
-        sel?.removeAllRanges();
-        sel?.addRange(at);
-      } else {
-        const sel = window.getSelection();
-        const after = document.createRange();
-        after.setStartAfter(span);
-        after.collapse(true);
-        sel?.removeAllRanges();
-        sel?.addRange(after);
-      }
+    if (span && span.parentNode) {
+      const empty = (span.textContent ?? "").replace(/​/g, "") === "";
+      const boundary = document.createTextNode(ZWSP);
+      span.parentNode.insertBefore(boundary, span.nextSibling);
+      if (empty) span.parentNode.removeChild(span);
+      const r = document.createRange();
+      r.setStart(boundary, 1);
+      r.collapse(true);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(r);
     }
     setActiveMark(null);
     emit();
