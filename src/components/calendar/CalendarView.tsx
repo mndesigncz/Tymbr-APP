@@ -11,12 +11,13 @@ import {
 import { cs } from "date-fns/locale";
 import {
   ChevronLeft, ChevronRight, Plus, CalendarDays, Clock,
-  CheckSquare, Calendar as CalendarIcon, Lock, Users, MapPin, RefreshCw, Palmtree,
+  CheckSquare, Calendar as CalendarIcon, Lock, Users, MapPin, RefreshCw, Palmtree, X,
 } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { Avatar } from "@/components/ui/Avatar";
 import { EventForm } from "./EventForm";
+import { CalendarTimeGrid } from "./CalendarTimeGrid";
 import { isOverdue } from "@/lib/utils";
 import type { CalendarEvent, Task, Vacation } from "@/types";
 
@@ -69,8 +70,18 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [vacations, setVacations] = useState<Vacation[]>([]);
 
+  // Google Calendar (read-only mirror)
+  const [googleEvents, setGoogleEvents] = useState<CalendarEvent[]>([]);
+  const [gcal, setGcal] = useState<{ configured: boolean; connected: boolean; email: string | null } | null>(null);
+  const [showGoogle, setShowGoogle] = useState(true);
+  const [gcalMsg, setGcalMsg] = useState<string | null>(null);
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  // When creating from a clicked time slot, remember the exact start moment.
+  const [slotStart, setSlotStart] = useState<Date | null>(null);
+
+  const isTimeGrid = rangeMode === "day" || rangeMode === "week";
 
   // 6-week grid starting Monday
   const gridStart = useMemo(() => startOfWeek(startOfMonth(current), { weekStartsOn: 1 }), [current]);
@@ -127,6 +138,68 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
       .catch(() => setTasks([]));
   }, []);
 
+  // Google Calendar connection status
+  const loadGcalStatus = useCallback(async () => {
+    try {
+      const r = await fetch("/api/google/calendar/status");
+      if (r.ok) setGcal(await r.json());
+    } catch { /* ignore */ }
+  }, []);
+  useEffect(() => { loadGcalStatus(); }, [loadGcalStatus]);
+
+  // Surface the OAuth redirect result (/calendar?gcal=connected|error|…)
+  useEffect(() => {
+    const g = searchParams.get("gcal");
+    if (!g) return;
+    const map: Record<string, string> = {
+      connected: "Google kalendář propojen ✓",
+      error: "Propojení Google kalendáře selhalo",
+      denied: "Přístup ke Google kalendáři byl zamítnut",
+      norefresh: "Zkus propojení prosím znovu",
+      notconfigured: "Google kalendář zatím není na serveru nastavený",
+    };
+    setGcalMsg(map[g] ?? null);
+    loadGcalStatus();
+    router.replace("/calendar");
+    const t = setTimeout(() => setGcalMsg(null), 4500);
+    return () => clearTimeout(t);
+  }, [searchParams, router, loadGcalStatus]);
+
+  // Pull Google events for the visible window when connected
+  useEffect(() => {
+    if (!gcal?.connected || !showGoogle) { setGoogleEvents([]); return; }
+    const params = new URLSearchParams({ from: fetchFrom.toISOString(), to: fetchTo.toISOString() });
+    fetch(`/api/google/calendar/events?${params}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (!Array.isArray(d)) { setGoogleEvents([]); return; }
+        setGoogleEvents(d.map((g: any): CalendarEvent => ({
+          id: "g_" + g.id,
+          title: g.title,
+          description: g.description ?? null,
+          startAt: g.startAt,
+          endAt: g.endAt,
+          allDay: !!g.allDay,
+          location: g.location ?? null,
+          color: "#4285F4",
+          visibility: "personal",
+          createdAt: g.startAt,
+          updatedAt: g.startAt,
+          createdById: "",
+          source: "google",
+          htmlLink: g.htmlLink ?? null,
+        })));
+      })
+      .catch(() => setGoogleEvents([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gcal?.connected, showGoogle, fetchFrom.getTime(), fetchTo.getTime()]);
+
+  // DB events + Google mirror, used for all rendering
+  const mergedEvents = useMemo(
+    () => (showGoogle ? [...events, ...googleEvents] : events),
+    [events, googleEvents, showGoogle]
+  );
+
   // Allow other sections to deep-link into "new event" via /calendar?new=event
   useEffect(() => {
     if (searchParams.get("new") === "event") {
@@ -163,7 +236,7 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
   const itemsForDay = useCallback((day: Date): DayItem[] => {
     const out: DayItem[] = [];
     if (showEvents) {
-      for (const e of events) {
+      for (const e of mergedEvents) {
         if (new Date(e.startAt) <= endOfDay(day) && new Date(e.endAt) >= startOfDay(day)) {
           out.push({ kind: "event", date: new Date(e.startAt), color: e.color || "var(--accent)", data: e });
         }
@@ -182,14 +255,14 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
       }
     }
     return out.sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, [events, tasks, vacations, showEvents, showTasks]);
+  }, [mergedEvents, tasks, vacations, showEvents, showTasks]);
 
   // Agenda: all items within [rangeFrom, rangeTo], grouped by day
   const agendaGroups = useMemo(() => {
     const within = (d: Date) => isWithinInterval(d, { start: rangeFrom, end: rangeTo });
     const items: DayItem[] = [];
     if (showEvents) {
-      for (const e of events) {
+      for (const e of mergedEvents) {
         const s = new Date(e.startAt), en = new Date(e.endAt);
         if (s <= rangeTo && en >= rangeFrom) {
           items.push({ kind: "event", date: s, color: e.color || "var(--accent)", data: e });
@@ -218,15 +291,38 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
       groups.get(key)!.push(it);
     }
     return Array.from(groups.entries()).map(([key, list]) => ({ key, date: list[0].date, list }));
-  }, [events, tasks, rangeFrom, rangeTo, showEvents, showTasks]);
+  }, [mergedEvents, tasks, vacations, rangeFrom, rangeTo, showEvents, showTasks]);
 
   const agendaCount = agendaGroups.reduce((s, g) => s + g.list.length, 0);
   const multiDay = rangeMode !== "day";
 
   // ── Actions ──
-  const selectDay = (day: Date) => { setAnchor(day); setRangeMode("day"); };
-  const openNew = (day: Date) => { setAnchor(day); setEditingEvent(null); setModalOpen(true); };
-  const openEdit = (ev: CalendarEvent) => { setEditingEvent(ev); setModalOpen(true); };
+  const selectDay = (day: Date) => { setAnchor(day); setCurrent(day); setRangeMode("day"); };
+  const openNew = (day: Date) => { setAnchor(day); setSlotStart(null); setEditingEvent(null); setModalOpen(true); };
+  const openNewAt = (at: Date) => { setAnchor(at); setSlotStart(at); setEditingEvent(null); setModalOpen(true); };
+  const openEdit = (ev: CalendarEvent) => {
+    // Google events are read-only here — open them in Google Calendar instead.
+    if (ev.source === "google") { if (ev.htmlLink) window.open(ev.htmlLink, "_blank"); return; }
+    setEditingEvent(ev);
+    setModalOpen(true);
+  };
+
+  // Range-aware previous/next navigation.
+  const navigate = (dir: -1 | 1) => {
+    if (rangeMode === "day") { setAnchor((a) => addDays(a, dir)); setCurrent((c) => addDays(c, dir)); }
+    else if (rangeMode === "week") { setAnchor((a) => addDays(a, 7 * dir)); setCurrent((c) => addDays(c, 7 * dir)); }
+    else setCurrent((c) => (dir > 0 ? addMonths(c, 1) : subMonths(c, 1)));
+  };
+  const goToday = () => { const t = new Date(); setAnchor(t); setCurrent(t); };
+
+  const disconnectGoogle = async () => {
+    try { await fetch("/api/google/calendar/disconnect", { method: "POST" }); } catch { /* ignore */ }
+    setGoogleEvents([]);
+    setShowGoogle(true);
+    loadGcalStatus();
+  };
+
+  const weekStart = useMemo(() => startOfWeek(anchor, { weekStartsOn: 1 }), [anchor]);
 
   const setRangePreset = (mode: RangeMode) => {
     setRangeMode(mode);
@@ -272,6 +368,13 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
 
   return (
     <div className="space-y-4">
+      {gcalMsg && (
+        <div className="px-3.5 py-2.5 rounded-xl text-[13px] font-medium border"
+          style={{ background: "var(--accent-soft)", borderColor: "var(--accent)", color: "var(--accent)" }}>
+          {gcalMsg}
+        </div>
+      )}
+
       {/* ── Filter bar — everything in one row, like the tasks tab ── */}
       <div className="space-y-3">
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar lg:flex-wrap lg:overflow-visible">
@@ -314,6 +417,33 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
             <CheckSquare className="w-3.5 h-3.5" />
             Úkoly
           </button>
+
+          {/* Google Calendar — connect, or toggle/disconnect the mirror */}
+          {gcal?.configured && (gcal.connected ? (
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button onClick={() => setShowGoogle((v) => !v)}
+                title={gcal.email ? `Google: ${gcal.email}` : "Google kalendář"}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[12.5px] font-semibold transition-all whitespace-nowrap"
+                style={showGoogle
+                  ? { background: "#4285F415", borderColor: "#4285F4", color: "#4285F4" }
+                  : { background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-2)" }}>
+                <span className="w-2 h-2 rounded-full" style={{ background: "#4285F4" }} />
+                Google
+              </button>
+              <button onClick={disconnectGoogle} title="Odpojit Google kalendář"
+                className="p-2 rounded-xl border transition-colors hover:bg-[var(--hover)]"
+                style={{ borderColor: "var(--border-md)", color: "var(--text-3)" }}>
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <a href="/api/google/calendar/connect"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[12.5px] font-semibold transition-all whitespace-nowrap flex-shrink-0 hover:bg-[var(--hover)]"
+              style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-2)" }}>
+              <span className="w-2 h-2 rounded-full" style={{ background: "#4285F4" }} />
+              Propojit Google
+            </a>
+          ))}
         </div>
 
         {/* Custom range inputs */}
@@ -326,7 +456,44 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
         )}
       </div>
 
-      {/* ── Calendar + agenda ── */}
+      {/* ── Time grid (week / day) ── */}
+      {isTimeGrid ? (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-[18px] font-bold tracking-tight truncate" style={{ color: "var(--text-1)" }}>
+              {rangeLabel}
+            </h2>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button onClick={() => navigate(-1)} aria-label="Předchozí"
+                className="p-2 rounded-xl transition-colors hover:bg-[var(--hover)]" style={{ color: "var(--text-2)" }}>
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button onClick={goToday}
+                className="px-3 py-1.5 text-[12.5px] font-semibold rounded-xl border transition-colors hover:bg-[var(--hover)]"
+                style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-2)" }}>
+                Dnes
+              </button>
+              <button onClick={() => navigate(1)} aria-label="Další"
+                className="p-2 rounded-xl transition-colors hover:bg-[var(--hover)]" style={{ color: "var(--text-2)" }}>
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+          <CalendarTimeGrid
+            mode={rangeMode as "week" | "day"}
+            anchor={rangeMode === "week" ? weekStart : anchor}
+            events={mergedEvents}
+            tasks={tasks}
+            vacations={vacations}
+            showEvents={showEvents}
+            showTasks={showTasks}
+            onSelectEvent={openEdit}
+            onCreateAt={openNewAt}
+            onSelectDay={selectDay}
+          />
+        </div>
+      ) : (
+      /* ── Calendar + agenda (month / custom) ── */
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5 lg:gap-6">
         {/* Calendar card */}
         <div className="rounded-3xl border overflow-hidden"
@@ -366,7 +533,7 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
             {days.map((day, i) => {
               const inMonth = day.getMonth() === current.getMonth();
               const today = isToday(day);
-              const selected = rangeMode === "day" && isSameDay(day, anchor);
+              const selected = isSameDay(day, anchor);
               const items = itemsForDay(day);
               return (
                 <button
@@ -431,7 +598,7 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-[12px] font-semibold uppercase tracking-wide" style={{ color: "var(--accent)" }}>
-                  {rangeMode === "day" ? "Den" : rangeMode === "week" ? "Týden" : rangeMode === "month" ? "Měsíc" : "Rozsah"}
+                  {rangeMode === "month" ? "Měsíc" : "Rozsah"}
                 </p>
                 <h3 className="text-[19px] font-bold tracking-tight mt-0.5 truncate" style={{ color: "var(--text-1)" }}>
                   {rangeLabel}
@@ -558,7 +725,7 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
           </div>
 
           <div className="p-3 border-t" style={{ borderColor: "var(--border)" }}>
-            <button onClick={() => openNew(rangeMode === "day" ? anchor : new Date())}
+            <button onClick={() => openNew(anchor)}
               className="flex items-center justify-center gap-2 w-full py-2.5 rounded-2xl text-[13.5px] font-semibold text-white transition-opacity hover:opacity-90"
               style={{ background: "var(--accent)" }}>
               <Plus className="w-4 h-4" />
@@ -567,17 +734,19 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
           </div>
         </div>
       </div>
+      )}
 
       {/* Create / edit modal */}
-      <Modal open={modalOpen} onClose={() => { setModalOpen(false); setEditingEvent(null); }}
+      <Modal open={modalOpen} onClose={() => { setModalOpen(false); setEditingEvent(null); setSlotStart(null); }}
         title={editingEvent ? "Upravit událost" : "Nová událost"}>
         <EventForm
           event={editingEvent ?? undefined}
-          defaultDate={anchor.toISOString().slice(0, 10)}
+          defaultDate={format(slotStart ?? anchor, "yyyy-MM-dd")}
+          defaultTime={slotStart ? format(slotStart, "HH:mm") : undefined}
           canUseTeam={canUseTeam}
           onSaved={handleSaved}
           onDeleted={editingEvent ? handleDeleted : undefined}
-          onClose={() => { setModalOpen(false); setEditingEvent(null); }}
+          onClose={() => { setModalOpen(false); setEditingEvent(null); setSlotStart(null); }}
         />
       </Modal>
     </div>

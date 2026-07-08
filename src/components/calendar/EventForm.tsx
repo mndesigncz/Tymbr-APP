@@ -24,12 +24,21 @@ export const EVENT_COLORS = [
 interface EventFormProps {
   event?: CalendarEvent;
   defaultDate?: string; // yyyy-mm-dd to prefill for new events
+  /** HH:mm to prefill the start time for a NEW event (e.g. clicking a slot). */
+  defaultTime?: string;
   /** Pre-fill a NEW event (e.g. when creating from a note). Ignored when editing. */
   initialValues?: { title?: string; description?: string };
   canUseTeam: boolean;
   onSaved: (event: CalendarEvent) => void;
   onDeleted?: (id: string) => void;
   onClose: () => void;
+}
+
+/** Add whole hours to an HH:mm string, clamped to the same day. */
+function addHour(hhmm: string, hours: number): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  const nh = Math.min(23, (h || 0) + hours);
+  return `${String(nh).padStart(2, "0")}:${String(m || 0).padStart(2, "0")}`;
 }
 
 function toDateInput(d: Date | string): string {
@@ -40,15 +49,16 @@ function toTimeInput(d: Date | string): string {
   return `${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`;
 }
 
-export function EventForm({ event, defaultDate, initialValues, canUseTeam, onSaved, onDeleted, onClose }: EventFormProps) {
+export function EventForm({ event, defaultDate, defaultTime, initialValues, canUseTeam, onSaved, onDeleted, onClose }: EventFormProps) {
   const today = defaultDate || new Date().toISOString().slice(0, 10);
+  const startDefault = defaultTime || "09:00";
 
   const [title, setTitle] = useState(event?.title || initialValues?.title || "");
   const [date, setDate] = useState(event ? toDateInput(event.startAt) : today);
   const [endDate, setEndDate] = useState(event ? toDateInput(event.endAt) : today);
   const [allDay, setAllDay] = useState(event?.allDay ?? false);
-  const [startTime, setStartTime] = useState(event && !event.allDay ? toTimeInput(event.startAt) : "09:00");
-  const [endTime, setEndTime] = useState(event && !event.allDay ? toTimeInput(event.endAt) : "10:00");
+  const [startTime, setStartTime] = useState(event && !event.allDay ? toTimeInput(event.startAt) : startDefault);
+  const [endTime, setEndTime] = useState(event && !event.allDay ? toTimeInput(event.endAt) : addHour(startDefault, 1));
   const [location, setLocation] = useState(event?.location || "");
   const [description, setDescription] = useState(event?.description || initialValues?.description || "");
   const [color, setColor] = useState(event?.color || EVENT_COLORS[0]);
