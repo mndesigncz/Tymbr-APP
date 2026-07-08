@@ -11,12 +11,15 @@ import { Suspense } from "react";
 import {
   Plus, Search, Pin, PinOff, Trash2, Globe, Lock, Users,
   CalendarPlus, CheckSquare, Share2, UserPlus, X, Check, BookOpen, Palette, ChevronLeft,
+  ListTree, Building2, FolderKanban, Sparkles, ArrowRight,
 } from "lucide-react";
 import { formatRelative } from "@/lib/utils";
 import { TaskForm } from "@/components/tasks/TaskForm";
 import { EventForm } from "@/components/calendar/EventForm";
 import { ShareSheet } from "@/components/share/ShareSheet";
 import { DropdownPortal } from "@/components/ui/DropdownPortal";
+import { RichNoteEditor } from "@/components/notes/RichNoteEditor";
+import { parseNoteToTasks, countTasks, noteToPlainText, type ParsedClient } from "@/lib/noteTasks";
 
 const NOTE_COLORS = [
   { value: null,      label: "Výchozí",  bg: "var(--bg-card)",    border: "var(--border-md)" },
@@ -55,7 +58,7 @@ function useDebounce<T>(value: T, delay: number): T {
 
 function NoteListItem({ note, active, onClick }: { note: Note; active: boolean; onClick: () => void }) {
   const color = NOTE_COLORS.find((c) => c.value === note.color);
-  const preview = note.content.replace(/\n+/g, " ").slice(0, 80);
+  const preview = noteToPlainText(note.content).replace(/\n+/g, " ").slice(0, 80);
   return (
     <button
       onClick={onClick}
@@ -123,8 +126,8 @@ function NoteEditor({
   const [shareOpen, setShareOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
   const [eventOpen, setEventOpen] = useState(false);
+  const [genOpen, setGenOpen] = useState(false);
   const canUseTeam = !!(session?.user as any)?.teamId;
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const colorPickerRef = useRef<HTMLButtonElement>(null);
   const collabBtnRef = useRef<HTMLButtonElement>(null);
 
@@ -184,7 +187,8 @@ function NoteEditor({
     onRefresh();
   };
 
-  const chatMessage = `📝 **${note.title || "Poznámka"}**\n\n${note.content.slice(0, 300)}${note.content.length > 300 ? "…" : ""}`;
+  const plainContent = noteToPlainText(note.content);
+  const chatMessage = `📝 **${note.title || "Poznámka"}**\n\n${plainContent.slice(0, 300)}${plainContent.length > 300 ? "…" : ""}`;
 
   const color = NOTE_COLORS.find((c) => c.value === note.color) ?? NOTE_COLORS[0];
   const isOwner = note.createdById === (session?.user as any)?.id;
@@ -354,8 +358,8 @@ function NoteEditor({
           </div>
         </div>
 
-        {/* Editor body — transparent, glass card provides the background */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-5 sm:px-8 py-5 sm:py-6 space-y-3">
+        {/* Note title */}
+        <div className="px-5 sm:px-8 pt-4">
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -363,15 +367,10 @@ function NoteEditor({
             className="w-full text-[26px] font-bold bg-transparent outline-none"
             style={{ color: "var(--text-1)" }}
           />
-          <textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Začni psát…"
-            className="w-full bg-transparent outline-none resize-none text-[15px] leading-[1.75] min-h-[400px]"
-            style={{ color: "var(--text-2)" }}
-          />
         </div>
+
+        {/* Rich WYSIWYG editor — headings + the three "písma" (klient/projekt/úkol) */}
+        <RichNoteEditor value={content} onChange={setContent} onGenerate={() => setGenOpen(true)} />
 
         {/* Collaborators footer */}
         <div
@@ -462,7 +461,7 @@ function NoteEditor({
       {/* Create task modal — real TaskForm pre-filled from the note */}
       <Modal open={taskOpen} onClose={() => setTaskOpen(false)} title="Vytvořit úkol z poznámky">
         <TaskForm
-          initialValues={{ title: note.title, description: note.content }}
+          initialValues={{ title: note.title, description: plainContent }}
           onCancel={() => setTaskOpen(false)}
           onSuccess={(t) => { setTaskOpen(false); router.push(`/tasks/${t.id}`); }}
         />
@@ -471,13 +470,160 @@ function NoteEditor({
       {/* Create event modal — real EventForm pre-filled from the note */}
       <Modal open={eventOpen} onClose={() => setEventOpen(false)} title="Vytvořit událost z poznámky">
         <EventForm
-          initialValues={{ title: note.title, description: note.content }}
+          initialValues={{ title: note.title, description: plainContent }}
           canUseTeam={canUseTeam}
           onClose={() => setEventOpen(false)}
           onSaved={() => { setEventOpen(false); router.push("/calendar"); }}
         />
       </Modal>
+
+      {/* Generate tasks from note — parses heading hierarchy into clients/projects/tasks */}
+      <GenerateTasksModal
+        open={genOpen}
+        content={content}
+        onClose={() => setGenOpen(false)}
+        onGoToTasks={() => { setGenOpen(false); router.push("/tasks"); }}
+      />
     </div>
+  );
+}
+
+/* ─── Generate tasks from a note ─────────────────────────────────────── */
+
+function GenerateTasksModal({
+  open,
+  content,
+  onClose,
+  onGoToTasks,
+}: {
+  open: boolean;
+  content: string;
+  onClose: () => void;
+  onGoToTasks: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<{ clientsCreated: number; projectsCreated: number; tasksCreated: number } | null>(null);
+
+  // Re-parse whenever the modal opens so it reflects the latest note content.
+  const tree: ParsedClient[] = open ? parseNoteToTasks(content) : [];
+  const total = countTasks(tree);
+
+  useEffect(() => {
+    if (open) { setResult(null); setError(null); }
+  }, [open]);
+
+  const generate = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/notes/generate-tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clients: tree }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Vytvoření úkolů selhalo"); return; }
+      setResult(data);
+    } catch {
+      setError("Vytvoření úkolů selhalo");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title="Vytvořit úkoly z poznámky">
+      {result ? (
+        <div className="pt-1">
+          <div className="flex items-center gap-3 mb-4 p-3.5 rounded-2xl"
+            style={{ background: "var(--bg-subtle)" }}>
+            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ background: "#22C55E22" }}>
+              <Check className="w-5 h-5" style={{ color: "#22C55E" }} />
+            </div>
+            <div>
+              <p className="text-[14px] font-semibold" style={{ color: "var(--text-1)" }}>Hotovo!</p>
+              <p className="text-[12.5px]" style={{ color: "var(--text-3)" }}>
+                {result.tasksCreated} úkolů
+                {result.projectsCreated > 0 && `, ${result.projectsCreated} projektů`}
+                {result.clientsCreated > 0 && `, ${result.clientsCreated} klientů`}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button variant="secondary" onClick={onClose}>Zavřít</Button>
+            <Button icon={<ArrowRight className="w-4 h-4" />} onClick={onGoToTasks}>Zobrazit úkoly</Button>
+          </div>
+        </div>
+      ) : total === 0 ? (
+        <div className="pt-1 pb-2">
+          <div className="flex items-start gap-2.5 p-3.5 rounded-2xl mb-4"
+            style={{ background: "var(--bg-subtle)" }}>
+            <Sparkles className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "var(--accent)" }} />
+            <div className="text-[13px] leading-relaxed" style={{ color: "var(--text-2)" }}>
+              <p className="font-semibold mb-1" style={{ color: "var(--text-1)" }}>Zatím není z čeho vytvořit úkoly</p>
+              <p style={{ color: "var(--text-3)" }}>
+                Označ slova v poznámce pomocí písem v liště:
+                <br />• <strong style={{ color: "#ea580c" }}>Klientské písmo</strong> = klient
+                <br />• <strong style={{ color: "#7c3aed" }}>Projektové písmo</strong> = projekt
+                <br />• <strong style={{ color: "#16a34a" }}>Úkolové písmo</strong> = úkol
+                <br /><br />Označ text a klikni na písmo, nebo písmo zapni a piš. Nadpisy jsou jen vizuální.
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end">
+            <Button variant="secondary" onClick={onClose}>Zavřít</Button>
+          </div>
+        </div>
+      ) : (
+        <div className="pt-1">
+          <p className="text-[13px] mb-3" style={{ color: "var(--text-3)" }}>
+            Vytvoří se <strong style={{ color: "var(--text-1)" }}>{total}</strong> {total === 1 ? "úkol" : total < 5 ? "úkoly" : "úkolů"} podle
+            struktury poznámky. Existující klienti a projekty se použijí znovu (nevytvoří se duplikáty).
+          </p>
+          <div className="max-h-[46vh] overflow-y-auto space-y-3 mb-4 -mx-1 px-1">
+            {tree.map((c, ci) => (
+              <div key={ci} className="rounded-2xl border p-3" style={{ borderColor: "var(--border-md)" }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <Building2 className="w-4 h-4 flex-shrink-0" style={{ color: "var(--accent)" }} />
+                  <span className="text-[13.5px] font-semibold" style={{ color: "var(--text-1)" }}>
+                    {c.name ?? <span className="italic" style={{ color: "var(--text-3)" }}>Bez klienta</span>}
+                  </span>
+                </div>
+                <div className="space-y-2 pl-1">
+                  {c.projects.map((p, pi) => (
+                    <div key={pi}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <FolderKanban className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "var(--text-3)" }} />
+                        <span className="text-[12.5px] font-medium" style={{ color: "var(--text-2)" }}>
+                          {p.name ?? <span className="italic" style={{ color: "var(--text-3)" }}>Bez projektu</span>}
+                        </span>
+                      </div>
+                      <ul className="pl-5 space-y-0.5">
+                        {p.tasks.map((t, ti) => (
+                          <li key={ti} className="flex items-center gap-2 text-[12.5px]" style={{ color: "var(--text-2)" }}>
+                            <CheckSquare className="w-3 h-3 flex-shrink-0" style={{ color: "var(--text-3)" }} />
+                            {t}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          {error && <p className="text-[12.5px] mb-3" style={{ color: "var(--danger, #ef4444)" }}>{error}</p>}
+          <div className="flex gap-2 justify-end">
+            <Button variant="secondary" onClick={onClose} disabled={busy}>Zrušit</Button>
+            <Button icon={<ListTree className="w-4 h-4" />} onClick={generate} loading={busy}>
+              Vytvořit {total} {total === 1 ? "úkol" : total < 5 ? "úkoly" : "úkolů"}
+            </Button>
+          </div>
+        </div>
+      )}
+    </Modal>
   );
 }
 
