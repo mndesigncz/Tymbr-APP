@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { Avatar } from "@/components/ui/Avatar";
 import { EventForm } from "./EventForm";
+import { CalendarTimeGrid } from "./CalendarTimeGrid";
 import { isOverdue } from "@/lib/utils";
 import type { CalendarEvent, Task, Vacation } from "@/types";
 
@@ -71,6 +72,10 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  // When creating from a clicked time slot, remember the exact start moment.
+  const [slotStart, setSlotStart] = useState<Date | null>(null);
+
+  const isTimeGrid = rangeMode === "day" || rangeMode === "week";
 
   // 6-week grid starting Monday
   const gridStart = useMemo(() => startOfWeek(startOfMonth(current), { weekStartsOn: 1 }), [current]);
@@ -224,9 +229,20 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
   const multiDay = rangeMode !== "day";
 
   // ── Actions ──
-  const selectDay = (day: Date) => { setAnchor(day); setRangeMode("day"); };
-  const openNew = (day: Date) => { setAnchor(day); setEditingEvent(null); setModalOpen(true); };
+  const selectDay = (day: Date) => { setAnchor(day); setCurrent(day); setRangeMode("day"); };
+  const openNew = (day: Date) => { setAnchor(day); setSlotStart(null); setEditingEvent(null); setModalOpen(true); };
+  const openNewAt = (at: Date) => { setAnchor(at); setSlotStart(at); setEditingEvent(null); setModalOpen(true); };
   const openEdit = (ev: CalendarEvent) => { setEditingEvent(ev); setModalOpen(true); };
+
+  // Range-aware previous/next navigation.
+  const navigate = (dir: -1 | 1) => {
+    if (rangeMode === "day") { setAnchor((a) => addDays(a, dir)); setCurrent((c) => addDays(c, dir)); }
+    else if (rangeMode === "week") { setAnchor((a) => addDays(a, 7 * dir)); setCurrent((c) => addDays(c, 7 * dir)); }
+    else setCurrent((c) => (dir > 0 ? addMonths(c, 1) : subMonths(c, 1)));
+  };
+  const goToday = () => { const t = new Date(); setAnchor(t); setCurrent(t); };
+
+  const weekStart = useMemo(() => startOfWeek(anchor, { weekStartsOn: 1 }), [anchor]);
 
   const setRangePreset = (mode: RangeMode) => {
     setRangeMode(mode);
@@ -326,7 +342,44 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
         )}
       </div>
 
-      {/* ── Calendar + agenda ── */}
+      {/* ── Time grid (week / day) ── */}
+      {isTimeGrid ? (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-[18px] font-bold tracking-tight truncate" style={{ color: "var(--text-1)" }}>
+              {rangeLabel}
+            </h2>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button onClick={() => navigate(-1)} aria-label="Předchozí"
+                className="p-2 rounded-xl transition-colors hover:bg-[var(--hover)]" style={{ color: "var(--text-2)" }}>
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button onClick={goToday}
+                className="px-3 py-1.5 text-[12.5px] font-semibold rounded-xl border transition-colors hover:bg-[var(--hover)]"
+                style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-2)" }}>
+                Dnes
+              </button>
+              <button onClick={() => navigate(1)} aria-label="Další"
+                className="p-2 rounded-xl transition-colors hover:bg-[var(--hover)]" style={{ color: "var(--text-2)" }}>
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+          <CalendarTimeGrid
+            mode={rangeMode as "week" | "day"}
+            anchor={rangeMode === "week" ? weekStart : anchor}
+            events={events}
+            tasks={tasks}
+            vacations={vacations}
+            showEvents={showEvents}
+            showTasks={showTasks}
+            onSelectEvent={openEdit}
+            onCreateAt={openNewAt}
+            onSelectDay={selectDay}
+          />
+        </div>
+      ) : (
+      /* ── Calendar + agenda (month / custom) ── */
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5 lg:gap-6">
         {/* Calendar card */}
         <div className="rounded-3xl border overflow-hidden"
@@ -366,7 +419,7 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
             {days.map((day, i) => {
               const inMonth = day.getMonth() === current.getMonth();
               const today = isToday(day);
-              const selected = rangeMode === "day" && isSameDay(day, anchor);
+              const selected = isSameDay(day, anchor);
               const items = itemsForDay(day);
               return (
                 <button
@@ -431,7 +484,7 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-[12px] font-semibold uppercase tracking-wide" style={{ color: "var(--accent)" }}>
-                  {rangeMode === "day" ? "Den" : rangeMode === "week" ? "Týden" : rangeMode === "month" ? "Měsíc" : "Rozsah"}
+                  {rangeMode === "month" ? "Měsíc" : "Rozsah"}
                 </p>
                 <h3 className="text-[19px] font-bold tracking-tight mt-0.5 truncate" style={{ color: "var(--text-1)" }}>
                   {rangeLabel}
@@ -558,7 +611,7 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
           </div>
 
           <div className="p-3 border-t" style={{ borderColor: "var(--border)" }}>
-            <button onClick={() => openNew(rangeMode === "day" ? anchor : new Date())}
+            <button onClick={() => openNew(anchor)}
               className="flex items-center justify-center gap-2 w-full py-2.5 rounded-2xl text-[13.5px] font-semibold text-white transition-opacity hover:opacity-90"
               style={{ background: "var(--accent)" }}>
               <Plus className="w-4 h-4" />
@@ -567,17 +620,19 @@ export function CalendarView({ canUseTeam }: { canUseTeam: boolean }) {
           </div>
         </div>
       </div>
+      )}
 
       {/* Create / edit modal */}
-      <Modal open={modalOpen} onClose={() => { setModalOpen(false); setEditingEvent(null); }}
+      <Modal open={modalOpen} onClose={() => { setModalOpen(false); setEditingEvent(null); setSlotStart(null); }}
         title={editingEvent ? "Upravit událost" : "Nová událost"}>
         <EventForm
           event={editingEvent ?? undefined}
-          defaultDate={anchor.toISOString().slice(0, 10)}
+          defaultDate={format(slotStart ?? anchor, "yyyy-MM-dd")}
+          defaultTime={slotStart ? format(slotStart, "HH:mm") : undefined}
           canUseTeam={canUseTeam}
           onSaved={handleSaved}
           onDeleted={editingEvent ? handleDeleted : undefined}
-          onClose={() => { setModalOpen(false); setEditingEvent(null); }}
+          onClose={() => { setModalOpen(false); setEditingEvent(null); setSlotStart(null); }}
         />
       </Modal>
     </div>
