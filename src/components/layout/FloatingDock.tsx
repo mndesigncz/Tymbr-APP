@@ -155,7 +155,7 @@ function ChatsPanel({ myId, onNewNote, onClose }: { myId?: string; onNewNote: ()
         </div>
       ) : (
         <>
-          <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2">
+          <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden px-3 py-2 space-y-2">
             {messages.length === 0 ? (
               <p className="text-[12.5px] text-center py-8" style={{ color: "var(--text-3)" }}>Zatím žádné zprávy</p>
             ) : messages.map((m) => {
@@ -165,7 +165,8 @@ function ChatsPanel({ myId, onNewNote, onClose }: { myId?: string; onNewNote: ()
                   {!mine && <Avatar name={m.user?.name ?? "?"} src={m.user?.avatar} size="xs" />}
                   <div className={`max-w-[75%] min-w-0 px-3 py-1.5 rounded-2xl ${mine ? "rounded-br-md" : "rounded-bl-md"}`}
                     style={{ background: mine ? "var(--accent)" : "var(--bg-subtle)", color: mine ? "#fff" : "var(--text-1)" }}>
-                    <p className="text-[12.5px] leading-snug whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{m.content}</p>
+                    <p className="text-[12.5px] leading-snug whitespace-pre-wrap"
+                      style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>{m.content}</p>
                     <p className="text-[9.5px] mt-0.5 opacity-60">{timeOf(m.createdAt)}</p>
                   </div>
                 </div>

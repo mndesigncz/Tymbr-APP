@@ -381,7 +381,7 @@ export default function ChatPage() {
           <div className="flex-1 flex flex-col rounded-3xl border overflow-hidden"
             style={{ background: "var(--bg-card)", borderColor: "var(--border)", boxShadow: "var(--shadow-sm)" }}>
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-5 py-6 space-y-1">
+            <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden px-5 py-6 space-y-1">
               {loading ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="w-7 h-7 border-[2.5px] rounded-full animate-spin"
