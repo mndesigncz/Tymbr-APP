@@ -413,7 +413,7 @@ export default function ChatPage() {
                       )}
                       <div className={`flex items-end gap-2.5 mb-2 ${isMe ? "flex-row-reverse" : ""}`}>
                         {!isMe && <Avatar name={msg.user?.name ?? "?"} src={msg.user?.avatar} size="sm" />}
-                        <div className={`max-w-[70%] ${isMe ? "items-end" : "items-start"} flex flex-col`}>
+                        <div className={`max-w-[70%] min-w-0 ${isMe ? "items-end" : "items-start"} flex flex-col`}>
                           {!isMe && (
                             <span className="text-[11.5px] font-semibold mb-1 px-1" style={{ color: "var(--text-3)" }}>
                               {msg.user?.name}

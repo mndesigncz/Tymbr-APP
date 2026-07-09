@@ -161,11 +161,11 @@ function ChatsPanel({ myId, onNewNote, onClose }: { myId?: string; onNewNote: ()
             ) : messages.map((m) => {
               const mine = m.userId === myId;
               return (
-                <div key={m.id} className={`flex gap-2 ${mine ? "flex-row-reverse" : ""}`}>
+                <div key={m.id} className={`flex gap-2 min-w-0 ${mine ? "flex-row-reverse" : ""}`}>
                   {!mine && <Avatar name={m.user?.name ?? "?"} src={m.user?.avatar} size="xs" />}
-                  <div className={`max-w-[75%] px-3 py-1.5 rounded-2xl ${mine ? "rounded-br-md" : "rounded-bl-md"}`}
+                  <div className={`max-w-[75%] min-w-0 px-3 py-1.5 rounded-2xl ${mine ? "rounded-br-md" : "rounded-bl-md"}`}
                     style={{ background: mine ? "var(--accent)" : "var(--bg-subtle)", color: mine ? "#fff" : "var(--text-1)" }}>
-                    <p className="text-[12.5px] leading-snug whitespace-pre-wrap break-words">{m.content}</p>
+                    <p className="text-[12.5px] leading-snug whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{m.content}</p>
                     <p className="text-[9.5px] mt-0.5 opacity-60">{timeOf(m.createdAt)}</p>
                   </div>
                 </div>

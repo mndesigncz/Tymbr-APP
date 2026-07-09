@@ -49,7 +49,7 @@ export function MessageContent({
 
   return (
     <p
-      className="text-[13.5px] leading-relaxed whitespace-pre-wrap break-words"
+      className="text-[13.5px] leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
       style={textColor ? { color: textColor } : undefined}
     >
       {parts}
