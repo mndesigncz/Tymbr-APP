@@ -8,6 +8,7 @@ import { TimeTrackerProvider } from "@/context/TimeTrackerContext";
 import { KeyboardShortcutsProvider } from "@/components/layout/KeyboardShortcutsProvider";
 import { GlobalSearch } from "@/components/layout/GlobalSearch";
 import { FloatingDock } from "@/components/layout/FloatingDock";
+import { TimerCorrection } from "@/components/layout/TimerCorrection";
 
 export default async function DashboardLayout({
   children,
@@ -28,6 +29,7 @@ export default async function DashboardLayout({
         <BottomNav />
       </div>
       <WorkMode />
+      <TimerCorrection />
       <GlobalSearch />
       <FloatingDock />
       <KeyboardShortcutsProvider />
