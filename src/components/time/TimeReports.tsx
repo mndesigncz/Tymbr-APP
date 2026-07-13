@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { Header } from "@/components/layout/Header";
 import { Avatar } from "@/components/ui/Avatar";
-import { Clock, TrendingUp, CheckSquare, Trash2, ChevronDown, ChevronUp, Download } from "lucide-react";
+import { Clock, TrendingUp, CheckSquare, Trash2, ChevronDown, ChevronUp, Download, Pencil, Check, X } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { isManager } from "@/lib/roles";
@@ -50,6 +50,13 @@ function getRange(range: DateRange, customFrom: string, customTo: string) {
     };
   }
   return { from, to };
+}
+
+// ISO/date string → value for a <input type="datetime-local"> (in local time).
+function toLocalInput(d: string | Date): string {
+  const dt = new Date(d);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
 }
 
 function formatMinutes(minutes: number) {
@@ -113,6 +120,43 @@ export function TimeReports({ embedded = false }: { embedded?: boolean }) {
   const handleDelete = async (id: string) => {
     await fetch(`/api/time-entries/${id}`, { method: "DELETE" });
     setEntries((prev) => prev.filter((e) => e.id !== id));
+  };
+
+  // Inline editing of a completed entry's start / end times.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editStart, setEditStart] = useState("");
+  const [editEnd, setEditEnd] = useState("");
+  const [editErr, setEditErr] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+
+  const beginEdit = (e: TimeEntry) => {
+    setEditingId(e.id);
+    setEditErr(null);
+    setEditStart(toLocalInput(e.startedAt));
+    setEditEnd(e.stoppedAt ? toLocalInput(e.stoppedAt) : toLocalInput(new Date().toISOString()));
+  };
+
+  const saveEdit = async (id: string) => {
+    setEditErr(null);
+    const startedAt = new Date(editStart);
+    const stoppedAt = new Date(editEnd);
+    if (isNaN(startedAt.getTime()) || isNaN(stoppedAt.getTime())) { setEditErr("Neplatné datum"); return; }
+    if (stoppedAt <= startedAt) { setEditErr("Konec musí být po začátku"); return; }
+    setEditSaving(true);
+    try {
+      const res = await fetch(`/api/time-entries/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ startedAt: startedAt.toISOString(), stoppedAt: stoppedAt.toISOString() }),
+      });
+      if (!res.ok) { setEditErr((await res.json()).error || "Uložení selhalo"); return; }
+      setEditingId(null);
+      fetchEntries();
+    } catch {
+      setEditErr("Uložení selhalo");
+    } finally {
+      setEditSaving(false);
+    }
   };
 
   const toggleUser = (id: string) => {
@@ -510,29 +554,77 @@ export function TimeReports({ embedded = false }: { embedded?: boolean }) {
 
                     {expanded && (
                       <div className="px-4 pb-4 pt-0 space-y-1.5 border-t" style={{ borderColor: "var(--border)" }}>
-                        <div className="grid grid-cols-2 gap-2 mt-3">
-                          {[
-                            ["Začátek", `${dateStr} ${timeStart}`],
-                            ["Konec", `${dateStr} ${timeEnd}`],
-                            ["Délka", formatMinutes(entry.durationMinutes ?? 0)],
-                            ...(subtask ? [["Podúkol", subtask.title]] : []),
-                            ["Stav úkolu", statusLabel(statuses, (entry.task as any)?.status ?? "")],
-                            ...(entryRate(entry) ? [["Hodinová sazba", `${entryRate(entry)} Kč/h`]] : []),
-                            ...(entryEarning(entry) > 0 ? [["Výdělek", `${entryEarning(entry).toLocaleString("cs-CZ")} Kč`]] : []),
-                          ].map(([k, v]) => (
-                            <div key={k}>
-                              <p className="text-[11px] font-medium" style={{ color: "var(--text-3)" }}>{k}</p>
-                              <p className="text-[13px] font-semibold" style={{ color: "var(--text-1)" }}>{v}</p>
+                        {editingId === entry.id ? (
+                          /* Inline editor for start / end */
+                          <div className="mt-3 space-y-2.5">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <p className="text-[11px] font-medium mb-1" style={{ color: "var(--text-3)" }}>Začátek</p>
+                                <Input type="datetime-local" value={editStart} onChange={(e) => setEditStart(e.target.value)} className="w-full" />
+                              </div>
+                              <div>
+                                <p className="text-[11px] font-medium mb-1" style={{ color: "var(--text-3)" }}>Konec</p>
+                                <Input type="datetime-local" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} className="w-full" />
+                              </div>
                             </div>
-                          ))}
-                        </div>
-                        {isMe && (
-                          <button onClick={() => handleDelete(entry.id)}
-                            className="flex items-center gap-1.5 mt-2 text-[12.5px] font-medium transition-colors hover:text-red-500"
-                            style={{ color: "var(--text-3)" }}>
-                            <Trash2 className="w-3.5 h-3.5" />
-                            Smazat záznam
-                          </button>
+                            <p className="text-[12px]" style={{ color: "var(--text-3)" }}>
+                              Délka:{" "}
+                              <span className="font-semibold" style={{ color: "var(--text-1)" }}>
+                                {(() => {
+                                  const mins = Math.round((new Date(editEnd).getTime() - new Date(editStart).getTime()) / 60000);
+                                  return mins > 0 && !isNaN(mins) ? formatMinutes(mins) : "–";
+                                })()}
+                              </span>
+                            </p>
+                            {editErr && <p className="text-[12px]" style={{ color: "var(--danger, #ef4444)" }}>{editErr}</p>}
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => saveEdit(entry.id)} disabled={editSaving}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12.5px] font-semibold text-white disabled:opacity-50"
+                                style={{ background: "var(--accent)" }}>
+                                <Check className="w-3.5 h-3.5" /> Uložit
+                              </button>
+                              <button onClick={() => setEditingId(null)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12.5px] font-medium border"
+                                style={{ borderColor: "var(--border-md)", color: "var(--text-2)" }}>
+                                <X className="w-3.5 h-3.5" /> Zrušit
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="grid grid-cols-2 gap-2 mt-3">
+                              {[
+                                ["Začátek", `${dateStr} ${timeStart}`],
+                                ["Konec", `${dateStr} ${timeEnd}`],
+                                ["Délka", formatMinutes(entry.durationMinutes ?? 0)],
+                                ...(subtask ? [["Podúkol", subtask.title]] : []),
+                                ["Stav úkolu", statusLabel(statuses, (entry.task as any)?.status ?? "")],
+                                ...(entryRate(entry) ? [["Hodinová sazba", `${entryRate(entry)} Kč/h`]] : []),
+                                ...(entryEarning(entry) > 0 ? [["Výdělek", `${entryEarning(entry).toLocaleString("cs-CZ")} Kč`]] : []),
+                              ].map(([k, v]) => (
+                                <div key={k}>
+                                  <p className="text-[11px] font-medium" style={{ color: "var(--text-3)" }}>{k}</p>
+                                  <p className="text-[13px] font-semibold" style={{ color: "var(--text-1)" }}>{v}</p>
+                                </div>
+                              ))}
+                            </div>
+                            {(isMe || manager) && (
+                              <div className="flex items-center gap-4 mt-2">
+                                <button onClick={() => beginEdit(entry)}
+                                  className="flex items-center gap-1.5 text-[12.5px] font-medium transition-colors hover:text-[var(--accent)]"
+                                  style={{ color: "var(--text-3)" }}>
+                                  <Pencil className="w-3.5 h-3.5" />
+                                  Upravit čas
+                                </button>
+                                <button onClick={() => handleDelete(entry.id)}
+                                  className="flex items-center gap-1.5 text-[12.5px] font-medium transition-colors hover:text-red-500"
+                                  style={{ color: "var(--text-3)" }}>
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  Smazat záznam
+                                </button>
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
                     )}

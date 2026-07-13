@@ -769,6 +769,10 @@ model TimeEntry {
   startedAt       DateTime  @default(now())
   stoppedAt       DateTime?
   durationMinutes Int?
+  // Last time the running timer's client checked in. Used to detect a forgotten
+  // timer (laptop closed / went to sleep) and offer to stop it at the last
+  // confirmed activity instead of counting the idle hours.
+  lastHeartbeatAt DateTime?
   createdAt       DateTime  @default(now())
 
   userId String
