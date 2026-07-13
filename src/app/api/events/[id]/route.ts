@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { getAccessibleTask } from "@/lib/access";
 import { eventInclude, serializeEvent, syncEventAssignees } from "@/lib/events";
+import { hasGoogleCalendar, insertGoogleEvent, updateGoogleEvent, deleteGoogleEvent } from "@/lib/googleCalendar";
 
 export const dynamic = "force-dynamic";
 
@@ -100,6 +101,30 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       await syncEventAssignees(id, body.assigneeIds.filter(Boolean));
     }
 
+    // Mirror the change to the creator's Google Calendar (only the creator syncs).
+    try {
+      if (existing.createdById === userId && await hasGoogleCalendar(userId)) {
+        const fresh = await prisma.event.findUnique({ where: { id } });
+        if (fresh) {
+          const shape = {
+            title: fresh.title, description: fresh.description, location: fresh.location,
+            startAt: fresh.startAt, endAt: fresh.endAt, allDay: fresh.allDay,
+            recurring: fresh.recurring, recurringUntil: fresh.recurringUntil,
+          };
+          if (fresh.googleEventId) {
+            const ok = await updateGoogleEvent(userId, fresh.googleEventId, shape);
+            if (!ok) {
+              const gid = await insertGoogleEvent(userId, shape);
+              if (gid) await prisma.event.update({ where: { id }, data: { googleEventId: gid } });
+            }
+          } else {
+            const gid = await insertGoogleEvent(userId, shape);
+            if (gid) await prisma.event.update({ where: { id }, data: { googleEventId: gid } });
+          }
+        }
+      }
+    } catch (e: any) { console.error("[events PUT → google]", e?.message ?? e); }
+
     const event = await prisma.event.findUnique({ where: { id }, include: eventInclude });
     return NextResponse.json(event ? serializeEvent(event) : { id });
   } catch (e: any) {
@@ -120,6 +145,13 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     const existing = await prisma.event.findUnique({ where: { id } });
     if (!existing) return NextResponse.json({ error: "Událost nenalezena" }, { status: 404 });
     if (!canAccess(existing, userId, teamId)) return NextResponse.json({ error: "Přístup odepřen" }, { status: 403 });
+
+    // Remove the mirrored copy from the creator's Google Calendar.
+    try {
+      if (existing.createdById === userId && (existing as any).googleEventId && await hasGoogleCalendar(userId)) {
+        await deleteGoogleEvent(userId, (existing as any).googleEventId);
+      }
+    } catch (e: any) { console.error("[events DELETE → google]", e?.message ?? e); }
 
     await prisma.event.delete({ where: { id } });
     return NextResponse.json({ ok: true });

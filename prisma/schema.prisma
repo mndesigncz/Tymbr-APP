@@ -647,6 +647,9 @@ model Event {
   taskId      String?
   task        Task?   @relation("EventTask", fields: [taskId], references: [id], onDelete: SetNull)
 
+  // Id of this event mirrored into the creator's Google Calendar (two-way sync).
+  googleEventId String?
+
   assignees   EventAssignee[]
 
   @@index([teamId])
