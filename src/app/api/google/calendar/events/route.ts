@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { listEvents } from "@/lib/googleCalendar";
 
@@ -16,8 +17,25 @@ export async function GET(req: NextRequest) {
   const timeMax = to ? new Date(to) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
   try {
-    const events = await listEvents(session.user.id as string, timeMin, timeMax);
-    return NextResponse.json(events);
+    const userId = session.user.id as string;
+    const events = await listEvents(userId, timeMin, timeMax);
+
+    // Hide Google events that are mirrors of this user's own Tymbr events, so
+    // they don't appear twice (once native, once from Google).
+    const mirrored = await prisma.event.findMany({
+      where: {
+        createdById: userId,
+        googleEventId: { not: null },
+        startAt: { lte: timeMax },
+        endAt: { gte: timeMin },
+      },
+      select: { googleEventId: true },
+    });
+    const mine = mirrored.map((m) => m.googleEventId!).filter(Boolean);
+    const filtered = events.filter(
+      (e) => !mine.some((g) => e.id === g || e.id.startsWith(g + "_")) // base + recurring instances
+    );
+    return NextResponse.json(filtered);
   } catch (e: any) {
     console.error("[GET /api/google/calendar/events]", e?.message ?? e);
     return NextResponse.json([]);
