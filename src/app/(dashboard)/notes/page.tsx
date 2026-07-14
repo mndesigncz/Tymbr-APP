@@ -65,49 +65,114 @@ function useDebounce<T>(value: T, delay: number): T {
   return debounced;
 }
 
-function NoteListItem({ note, active, onClick }: { note: Note; active: boolean; onClick: () => void }) {
+function NoteListItem({ note, active, onClick, folders = [], onMove }: {
+  note: Note;
+  active: boolean;
+  onClick: () => void;
+  folders?: NoteFolder[];
+  onMove?: (folderId: string | null) => void;
+}) {
   const color = NOTE_COLORS.find((c) => c.value === note.color);
   const preview = noteToPlainText(note.content).replace(/\n+/g, " ").slice(0, 80);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
+  const currentFolder = folders.find((f) => f.id === note.folderId);
   return (
-    <button
-      onClick={onClick}
-      className="w-full text-left rounded-2xl px-3.5 py-3 transition-all active:scale-[0.98]"
-      style={{
-        background: active
-          ? "color-mix(in srgb, var(--accent) 8%, var(--bg-card))"
-          : color?.value
-            ? `color-mix(in srgb, ${color.bg} 18%, var(--bg-card))`
-            : "var(--bg-card)",
-        boxShadow: "var(--shadow-sm)",
-        border: active
-          ? "1.5px solid var(--accent)"
-          : color?.value
-            ? `1.5px solid ${color.border}88`
-            : "1.5px solid var(--border)",
-      }}
-    >
-      <div className="flex items-start justify-between gap-2 mb-1">
-        <span className="text-[13.5px] font-semibold truncate flex-1" style={{ color: "var(--text-1)" }}>
-          {note.title || "Bez názvu"}
-        </span>
-        <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
-          {note.pinned && <Pin className="w-3 h-3" style={{ color: "var(--accent)" }} />}
-          {note.visibility === "team" ? (
-            <Globe className="w-3 h-3" style={{ color: "var(--text-3)" }} />
-          ) : (note.collaborators?.length ?? 0) > 0 ? (
-            <Users className="w-3 h-3" style={{ color: "var(--text-3)" }} />
-          ) : (
-            <Lock className="w-3 h-3" style={{ color: "var(--text-3)" }} />
+    <div className="relative group">
+      <button
+        onClick={onClick}
+        className="w-full text-left rounded-2xl px-3.5 py-3 transition-all active:scale-[0.98]"
+        style={{
+          background: active
+            ? "color-mix(in srgb, var(--accent) 8%, var(--bg-card))"
+            : color?.value
+              ? `color-mix(in srgb, ${color.bg} 18%, var(--bg-card))`
+              : "var(--bg-card)",
+          boxShadow: "var(--shadow-sm)",
+          border: active
+            ? "1.5px solid var(--accent)"
+            : color?.value
+              ? `1.5px solid ${color.border}88`
+              : "1.5px solid var(--border)",
+        }}
+      >
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <span className="text-[13.5px] font-semibold truncate flex-1" style={{ color: "var(--text-1)" }}>
+            {note.title || "Bez názvu"}
+          </span>
+          <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
+            {note.pinned && <Pin className="w-3 h-3" style={{ color: "var(--accent)" }} />}
+            {note.visibility === "team" ? (
+              <Globe className="w-3 h-3" style={{ color: "var(--text-3)" }} />
+            ) : (note.collaborators?.length ?? 0) > 0 ? (
+              <Users className="w-3 h-3" style={{ color: "var(--text-3)" }} />
+            ) : (
+              <Lock className="w-3 h-3" style={{ color: "var(--text-3)" }} />
+            )}
+          </div>
+        </div>
+        <p className="text-[12px] truncate leading-relaxed" style={{ color: "var(--text-3)" }}>
+          {preview || <span className="italic">Prázdná poznámka</span>}
+        </p>
+        <div className="flex items-center justify-between gap-2 mt-1.5">
+          <p className="text-[11px]" style={{ color: "var(--text-3)" }}>{formatRelative(note.updatedAt)}</p>
+          {currentFolder && (
+            <span className="inline-flex items-center gap-1 text-[10.5px] font-medium px-1.5 py-0.5 rounded-md max-w-[110px]"
+              style={{ background: "var(--bg-subtle)", color: "var(--text-3)" }}>
+              <Bookmark className="w-2.5 h-2.5 flex-shrink-0" /> <span className="truncate">{currentFolder.name}</span>
+            </span>
           )}
         </div>
-      </div>
-      <p className="text-[12px] truncate leading-relaxed" style={{ color: "var(--text-3)" }}>
-        {preview || <span className="italic">Prázdná poznámka</span>}
-      </p>
-      <p className="text-[11px] mt-1.5" style={{ color: "var(--text-3)" }}>
-        {formatRelative(note.updatedAt)}
-      </p>
-    </button>
+      </button>
+
+      {onMove && (
+        <>
+          <button
+            ref={menuBtnRef}
+            onClick={(e) => { e.stopPropagation(); setMenuOpen((o) => !o); }}
+            title="Zařadit do záložky"
+            className="absolute top-2.5 right-2.5 w-6 h-6 rounded-lg items-center justify-center hidden group-hover:flex transition-colors hover:bg-[var(--hover)]"
+            style={{ background: "var(--bg-card)", color: "var(--text-3)" }}
+          >
+            <Bookmark className="w-3.5 h-3.5" />
+          </button>
+          <DropdownPortal
+            triggerRef={menuBtnRef}
+            open={menuOpen}
+            onClose={() => setMenuOpen(false)}
+            className="w-48 rounded-xl border overflow-hidden glass-strong animate-scale-in py-1"
+            style={{ borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)" }}
+          >
+            <p className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-3)" }}>
+              Zařadit do záložky
+            </p>
+            <button
+              onClick={() => { onMove(null); setMenuOpen(false); }}
+              className="w-full flex items-center gap-2 text-left px-3 py-1.5 text-[12.5px] transition-colors hover:bg-[var(--hover)]"
+              style={{ color: !note.folderId ? "var(--accent)" : "var(--text-2)" }}
+            >
+              Bez záložky
+              {!note.folderId && <Check className="w-3.5 h-3.5 ml-auto" />}
+            </button>
+            {folders.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => { onMove(f.id); setMenuOpen(false); }}
+                className="w-full flex items-center gap-2 text-left px-3 py-1.5 text-[12.5px] transition-colors hover:bg-[var(--hover)]"
+                style={{ color: note.folderId === f.id ? "var(--accent)" : "var(--text-1)" }}
+              >
+                <Bookmark className="w-3 h-3 flex-shrink-0" />
+                <span className="truncate">{f.name}</span>
+                {note.folderId === f.id && <Check className="w-3.5 h-3.5 ml-auto flex-shrink-0" />}
+              </button>
+            ))}
+            {folders.length === 0 && (
+              <p className="px-3 py-2 text-[12px]" style={{ color: "var(--text-3)" }}>Zatím žádné záložky</p>
+            )}
+          </DropdownPortal>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -887,7 +952,7 @@ function NotesContent() {
                       Připnuté
                     </p>
                     {pinned.map((n) => (
-                      <NoteListItem key={n.id} note={n} active={n.id === activeId} onClick={() => setActiveId(n.id)} />
+                      <NoteListItem key={n.id} note={n} active={n.id === activeId} onClick={() => setActiveId(n.id)} folders={folders} onMove={(fid) => moveNoteToFolder(n.id, fid)} />
                     ))}
                   </>
                 )}
@@ -900,7 +965,7 @@ function NotesContent() {
                       </p>
                     )}
                     {rest.map((n) => (
-                      <NoteListItem key={n.id} note={n} active={n.id === activeId} onClick={() => setActiveId(n.id)} />
+                      <NoteListItem key={n.id} note={n} active={n.id === activeId} onClick={() => setActiveId(n.id)} folders={folders} onMove={(fid) => moveNoteToFolder(n.id, fid)} />
                     ))}
                   </>
                 )}
