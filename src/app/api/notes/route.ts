@@ -22,7 +22,7 @@ export async function GET() {
   // in team A never appears while the user is active in team B.
   const notes = await prisma.$queryRaw<any[]>`
     SELECT DISTINCT n.id, n.title, n.content, n.color, n.pinned, n.visibility,
-                    n."createdAt", n."updatedAt", n."teamId", n."createdById",
+                    n."createdAt", n."updatedAt", n."teamId", n."createdById", n."folderId",
                     u.name as "creatorName", u.avatar as "creatorAvatar"
     FROM "Note" n
     JOIN "User" u ON u.id = n."createdById"
@@ -54,13 +54,20 @@ export async function POST(req: NextRequest) {
   const userId = session.user.id;
   const teamId = (session.user as any).teamId as string | undefined;
   const body = await req.json();
-  const { title = "", content = "", color, visibility = "private" } = body;
+  const { title = "", content = "", color, visibility = "private", folderId = null } = body;
+
+  // A note may only be filed under one of the user's own folders.
+  let validFolderId: string | null = null;
+  if (folderId) {
+    const f = await prisma.noteFolder.findFirst({ where: { id: folderId, createdById: userId }, select: { id: true } });
+    validFolderId = f?.id ?? null;
+  }
 
   // Every note is bound to the team it was created in — even private ones.
   // This scopes the note (and any collaborators) to that team's context: a
   // private note made in team A is only ever visible while active in team A.
   const rows = await prisma.$queryRaw<any[]>`
-    INSERT INTO "Note" (id, title, content, color, pinned, visibility, "createdAt", "updatedAt", "teamId", "createdById")
+    INSERT INTO "Note" (id, title, content, color, pinned, visibility, "createdAt", "updatedAt", "teamId", "createdById", "folderId")
     VALUES (
       gen_random_uuid()::text,
       ${title},
@@ -70,7 +77,8 @@ export async function POST(req: NextRequest) {
       ${visibility},
       NOW(), NOW(),
       ${teamId ?? null},
-      ${userId}
+      ${userId},
+      ${validFolderId}
     )
     RETURNING *
   `;

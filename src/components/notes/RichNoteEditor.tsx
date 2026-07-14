@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  Heading1, Heading2, Heading3, Bold, Italic,
+  Heading1, Heading2, Heading3, Bold, Italic, Underline, Highlighter,
   Building2, FolderKanban, CheckSquare, ListTree,
 } from "lucide-react";
 import { NOTE_MARKS, WORD_TO_KEY, KEY_TO_WORD, type NoteMarkKey } from "@/lib/noteTasks";
@@ -43,7 +43,12 @@ function inlineToHtml(text: string): string {
   let html = escapeHtml(text);
   html = html.replace(/@(klient|projekt|úkol)\{([^}]*)\}/g, (_m, w: string, inner: string) =>
     `<span data-mark="${WORD_TO_KEY[w]}">${emph(inner)}</span>`);
-  return emph(html);
+  html = emph(html);
+  // Re-introduce the literal inline tags we serialise (underline / highlight).
+  html = html
+    .replace(/&lt;u&gt;/g, "<u>").replace(/&lt;\/u&gt;/g, "</u>")
+    .replace(/&lt;mark&gt;/g, "<mark>").replace(/&lt;\/mark&gt;/g, "</mark>");
+  return html;
 }
 
 function lineToBlock(line: string): { type: BlockType; html: string } {
@@ -72,11 +77,16 @@ function inlineToMd(node: Node): string {
         return;
       }
       const fw = el.style?.fontWeight;
+      const deco = (el.style?.textDecorationLine || el.style?.textDecoration || "");
       const bold = el.nodeName === "B" || el.nodeName === "STRONG" || fw === "bold" || Number(fw) >= 600;
       const ital = el.nodeName === "I" || el.nodeName === "EM" || el.style?.fontStyle === "italic";
+      const under = el.nodeName === "U" || deco.includes("underline");
+      const high = el.nodeName === "MARK" || !!el.style?.backgroundColor;
       let inner = inlineToMd(el);
       if (bold) inner = "**" + inner + "**";
       if (ital) inner = "*" + inner + "*";
+      if (under) inner = "<u>" + inner + "</u>";
+      if (high) inner = "<mark>" + inner + "</mark>";
       out += inner;
     }
   });
@@ -311,8 +321,48 @@ export function RichNoteEditor({
     startMode(key);
   };
 
-  const execInline = (cmd: "bold" | "italic") => {
+  const execInline = (cmd: "bold" | "italic" | "underline") => {
     document.execCommand(cmd);
+    focusBack();
+    emit();
+  };
+
+  // Nearest ancestor element of the given tag around the caret.
+  const caretTag = (tag: string): HTMLElement | null => {
+    const sel = window.getSelection();
+    let n: Node | null = sel?.anchorNode ?? null;
+    while (n && n !== ref.current) {
+      if (n.nodeType === Node.ELEMENT_NODE && (n as HTMLElement).nodeName === tag) return n as HTMLElement;
+      n = n.parentNode;
+    }
+    return null;
+  };
+
+  // Highlight (background) the selection, toggling off if already highlighted.
+  const toggleHighlight = () => {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount || sel.isCollapsed) return;
+    const range = sel.getRangeAt(0);
+    const existing = caretTag("MARK");
+    if (existing && range.toString() === (existing.textContent ?? "").replace(/​/g, "")) {
+      unwrap(existing);
+      focusBack();
+      emit();
+      return;
+    }
+    const mark = document.createElement("mark");
+    try {
+      range.surroundContents(mark);
+    } catch {
+      const frag = range.extractContents();
+      mark.appendChild(frag);
+      range.insertNode(mark);
+    }
+    mark.querySelectorAll("mark").forEach((inner) => { if (inner !== mark) unwrap(inner); });
+    const r = document.createRange();
+    r.selectNodeContents(mark);
+    sel.removeAllRanges();
+    sel.addRange(r);
     focusBack();
     emit();
   };
@@ -321,6 +371,7 @@ export function RichNoteEditor({
     const meta = e.metaKey || e.ctrlKey;
     if (meta && e.key.toLowerCase() === "b") { e.preventDefault(); execInline("bold"); return; }
     if (meta && e.key.toLowerCase() === "i") { e.preventDefault(); execInline("italic"); return; }
+    if (meta && e.key.toLowerCase() === "u") { e.preventDefault(); execInline("underline"); return; }
     if (e.key === "Escape" && activeMark) { endMode(); return; }
 
     if (e.key === "Enter" && !e.shiftKey) {
@@ -393,6 +444,8 @@ export function RichNoteEditor({
         {([
           { icon: Bold, fn: () => execInline("bold"), title: "Tučně (⌘B)" },
           { icon: Italic, fn: () => execInline("italic"), title: "Kurzíva (⌘I)" },
+          { icon: Underline, fn: () => execInline("underline"), title: "Podtržené (⌘U)" },
+          { icon: Highlighter, fn: () => toggleHighlight(), title: "Zvýraznit (podbarvit)" },
         ] as const).map(({ icon: Icon, fn, title }, i) => (
           <button key={i} onMouseDown={(e) => { e.preventDefault(); fn(); }} title={title}
             className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-[var(--hover)]"
@@ -475,4 +528,6 @@ const STYLES = `
 .rich-note span[data-mark="client"]  { background: #ea580c26; color: #ea580c; }
 .rich-note span[data-mark="project"] { background: #7c3aed26; color: #7c3aed; }
 .rich-note span[data-mark="task"]    { background: #16a34a26; color: #16a34a; }
+.rich-note u { text-decoration: underline; }
+.rich-note mark { background: #fde68a; color: #1a1a1a; border-radius: 3px; padding: 0 2px; }
 `;

@@ -60,6 +60,7 @@ export function inlineMarkRegex(): RegExp {
 function stripInline(s: string): string {
   return s
     .replace(/[​﻿]/g, "")
+    .replace(/<\/?(?:u|mark|strong|em|b|i)>/gi, "")
     .replace(/\*\*(.+?)\*\*/g, "$1")
     .replace(/\*(.+?)\*/g, "$1")
     .replace(/`(.+?)`/g, "$1")

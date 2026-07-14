@@ -12,6 +12,7 @@ import {
   Plus, Search, Pin, PinOff, Trash2, Globe, Lock, Users,
   CalendarPlus, CheckSquare, Share2, UserPlus, X, Check, BookOpen, Palette, ChevronLeft,
   ListTree, Building2, FolderKanban, Sparkles, ArrowRight,
+  FolderPlus, PanelLeftClose, PanelLeft, Bookmark,
 } from "lucide-react";
 import { formatRelative } from "@/lib/utils";
 import { TaskForm } from "@/components/tasks/TaskForm";
@@ -42,9 +43,17 @@ interface Note {
   updatedAt: string;
   teamId: string | null;
   createdById: string;
+  folderId?: string | null;
   creatorName?: string;
   collaborators?: { id: string; name: string; email: string; avatar?: string | null }[];
   isOwner?: boolean;
+}
+
+interface NoteFolder {
+  id: string;
+  name: string;
+  color?: string | null;
+  count?: number;
 }
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -56,49 +65,116 @@ function useDebounce<T>(value: T, delay: number): T {
   return debounced;
 }
 
-function NoteListItem({ note, active, onClick }: { note: Note; active: boolean; onClick: () => void }) {
+function NoteListItem({ note, active, onClick, folders = [], onMove }: {
+  note: Note;
+  active: boolean;
+  onClick: () => void;
+  folders?: NoteFolder[];
+  onMove?: (folderId: string | null) => void;
+}) {
   const color = NOTE_COLORS.find((c) => c.value === note.color);
   const preview = noteToPlainText(note.content).replace(/\n+/g, " ").slice(0, 80);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
+  const currentFolder = folders.find((f) => f.id === note.folderId);
   return (
-    <button
-      onClick={onClick}
-      className="w-full text-left rounded-2xl px-3.5 py-3 transition-all active:scale-[0.98]"
-      style={{
-        background: active
-          ? "color-mix(in srgb, var(--accent) 8%, var(--bg-card))"
-          : color?.value
-            ? `color-mix(in srgb, ${color.bg} 18%, var(--bg-card))`
-            : "var(--bg-card)",
-        boxShadow: "var(--shadow-sm)",
-        border: active
-          ? "1.5px solid var(--accent)"
-          : color?.value
-            ? `1.5px solid ${color.border}88`
-            : "1.5px solid var(--border)",
-      }}
-    >
-      <div className="flex items-start justify-between gap-2 mb-1">
-        <span className="text-[13.5px] font-semibold truncate flex-1" style={{ color: "var(--text-1)" }}>
-          {note.title || "Bez názvu"}
-        </span>
-        <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
-          {note.pinned && <Pin className="w-3 h-3" style={{ color: "var(--accent)" }} />}
-          {note.visibility === "team" ? (
-            <Globe className="w-3 h-3" style={{ color: "var(--text-3)" }} />
-          ) : (note.collaborators?.length ?? 0) > 0 ? (
-            <Users className="w-3 h-3" style={{ color: "var(--text-3)" }} />
-          ) : (
-            <Lock className="w-3 h-3" style={{ color: "var(--text-3)" }} />
+    <div className="relative group">
+      <button
+        onClick={onClick}
+        className="w-full text-left rounded-2xl px-3.5 py-3 transition-all active:scale-[0.98]"
+        style={{
+          background: active
+            ? "color-mix(in srgb, var(--accent) 8%, var(--bg-card))"
+            : color?.value
+              ? `color-mix(in srgb, ${color.bg} 18%, var(--bg-card))`
+              : "var(--bg-card)",
+          boxShadow: "var(--shadow-sm)",
+          border: active
+            ? "1.5px solid var(--accent)"
+            : color?.value
+              ? `1.5px solid ${color.border}88`
+              : "1.5px solid var(--border)",
+        }}
+      >
+        <div className="flex items-start justify-between gap-2 mb-1 pr-7 lg:pr-0">
+          <span className="text-[13.5px] font-semibold truncate flex-1" style={{ color: "var(--text-1)" }}>
+            {note.title || "Bez názvu"}
+          </span>
+          <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
+            {note.pinned && <Pin className="w-3 h-3" style={{ color: "var(--accent)" }} />}
+            {note.visibility === "team" ? (
+              <Globe className="w-3 h-3" style={{ color: "var(--text-3)" }} />
+            ) : (note.collaborators?.length ?? 0) > 0 ? (
+              <Users className="w-3 h-3" style={{ color: "var(--text-3)" }} />
+            ) : (
+              <Lock className="w-3 h-3" style={{ color: "var(--text-3)" }} />
+            )}
+          </div>
+        </div>
+        <p className="text-[12px] truncate leading-relaxed" style={{ color: "var(--text-3)" }}>
+          {preview || <span className="italic">Prázdná poznámka</span>}
+        </p>
+        <div className="flex items-center justify-between gap-2 mt-1.5">
+          <p className="text-[11px]" style={{ color: "var(--text-3)" }}>{formatRelative(note.updatedAt)}</p>
+          {currentFolder && (
+            <span className="inline-flex items-center gap-1 text-[10.5px] font-medium px-1.5 py-0.5 rounded-md max-w-[110px]"
+              style={{ background: "var(--bg-subtle)", color: "var(--text-3)" }}>
+              <Bookmark className="w-2.5 h-2.5 flex-shrink-0" /> <span className="truncate">{currentFolder.name}</span>
+            </span>
           )}
         </div>
-      </div>
-      <p className="text-[12px] truncate leading-relaxed" style={{ color: "var(--text-3)" }}>
-        {preview || <span className="italic">Prázdná poznámka</span>}
-      </p>
-      <p className="text-[11px] mt-1.5" style={{ color: "var(--text-3)" }}>
-        {formatRelative(note.updatedAt)}
-      </p>
-    </button>
+      </button>
+
+      {onMove && (
+        <>
+          <button
+            ref={menuBtnRef}
+            onClick={(e) => { e.stopPropagation(); setMenuOpen((o) => !o); }}
+            title="Zařadit do záložky"
+            // Always visible on touch (no hover); hover-reveal on desktop.
+            className="absolute top-2.5 right-2.5 w-7 h-7 rounded-lg items-center justify-center flex lg:hidden lg:group-hover:flex transition-colors hover:bg-[var(--hover)] border"
+            style={{ background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}
+          >
+            <Bookmark className="w-3.5 h-3.5" />
+          </button>
+          <DropdownPortal
+            triggerRef={menuBtnRef}
+            open={menuOpen}
+            onClose={() => setMenuOpen(false)}
+            align="right"
+            className="w-48 max-w-[calc(100vw-1.5rem)] rounded-xl border overflow-hidden glass-strong animate-scale-in py-1"
+            style={{ borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)" }}
+          >
+            <p className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-3)" }}>
+              Zařadit do záložky
+            </p>
+            <button
+              onClick={() => { onMove(null); setMenuOpen(false); }}
+              className="w-full flex items-center gap-2 text-left px-3 py-1.5 text-[12.5px] transition-colors hover:bg-[var(--hover)]"
+              style={{ color: !note.folderId ? "var(--accent)" : "var(--text-2)" }}
+            >
+              Bez záložky
+              {!note.folderId && <Check className="w-3.5 h-3.5 ml-auto" />}
+            </button>
+            {folders.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => { onMove(f.id); setMenuOpen(false); }}
+                className="w-full flex items-center gap-2 text-left px-3 py-1.5 text-[12.5px] transition-colors hover:bg-[var(--hover)]"
+                style={{ color: note.folderId === f.id ? "var(--accent)" : "var(--text-1)" }}
+              >
+                <Bookmark className="w-3 h-3 flex-shrink-0" />
+                <span className="truncate">{f.name}</span>
+                {note.folderId === f.id && <Check className="w-3.5 h-3.5 ml-auto flex-shrink-0" />}
+              </button>
+            ))}
+            {folders.length === 0 && (
+              <p className="px-3 py-2 text-[12px]" style={{ color: "var(--text-3)" }}>Zatím žádné záložky</p>
+            )}
+          </DropdownPortal>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -107,11 +183,15 @@ function NoteEditor({
   onUpdate,
   onDelete,
   onRefresh,
+  folders = [],
+  onMoveFolder,
 }: {
   note: Note;
   onUpdate: (updated: Partial<Note>) => void;
   onDelete: () => void;
   onRefresh: () => void;
+  folders?: NoteFolder[];
+  onMoveFolder?: (folderId: string | null) => void;
 }) {
   const { data: session } = useSession();
   const router = useRouter();
@@ -122,6 +202,7 @@ function NoteEditor({
   const [users, setUsers] = useState<{ id: string; name: string; email: string; avatar?: string | null }[]>([]);
   const [showCollabPicker, setShowCollabPicker] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showFolderPicker, setShowFolderPicker] = useState(false);
   const [collabSearch, setCollabSearch] = useState("");
   const [shareOpen, setShareOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
@@ -130,6 +211,8 @@ function NoteEditor({
   const canUseTeam = !!(session?.user as any)?.teamId;
   const colorPickerRef = useRef<HTMLButtonElement>(null);
   const collabBtnRef = useRef<HTMLButtonElement>(null);
+  const folderBtnRef = useRef<HTMLButtonElement>(null);
+  const currentFolder = folders.find((f) => f.id === note.folderId);
 
   const debouncedTitle = useDebounce(title, 600);
   const debouncedContent = useDebounce(content, 600);
@@ -276,6 +359,55 @@ function NoteEditor({
               ))}
             </div>
           </DropdownPortal>
+
+          {/* Bookmark / folder — file this note (available on mobile too) */}
+          {onMoveFolder && (
+            <>
+              <button
+                ref={folderBtnRef}
+                onClick={() => setShowFolderPicker((o) => !o)}
+                title="Zařadit do záložky"
+                className="h-8 pl-2 pr-2.5 rounded-xl flex items-center gap-1.5 text-[12px] font-medium transition-colors hover:bg-[var(--hover)] max-w-[140px]"
+                style={{ color: currentFolder ? "var(--accent)" : "var(--text-3)" }}
+              >
+                <Bookmark className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate hidden sm:inline">{currentFolder ? currentFolder.name : "Záložka"}</span>
+              </button>
+              <DropdownPortal
+                triggerRef={folderBtnRef}
+                open={showFolderPicker}
+                onClose={() => setShowFolderPicker(false)}
+                className="w-48 max-w-[calc(100vw-1.5rem)] rounded-xl border overflow-hidden glass-strong animate-scale-in py-1"
+                style={{ borderColor: "var(--border-md)", boxShadow: "var(--shadow-overlay)" }}
+              >
+                <p className="px-3 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-3)" }}>
+                  Zařadit do záložky
+                </p>
+                <button
+                  onClick={() => { onMoveFolder(null); setShowFolderPicker(false); }}
+                  className="w-full flex items-center gap-2 text-left px-3 py-1.5 text-[12.5px] transition-colors hover:bg-[var(--hover)]"
+                  style={{ color: !note.folderId ? "var(--accent)" : "var(--text-2)" }}
+                >
+                  Bez záložky {!note.folderId && <Check className="w-3.5 h-3.5 ml-auto" />}
+                </button>
+                {folders.map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => { onMoveFolder(f.id); setShowFolderPicker(false); }}
+                    className="w-full flex items-center gap-2 text-left px-3 py-1.5 text-[12.5px] transition-colors hover:bg-[var(--hover)]"
+                    style={{ color: note.folderId === f.id ? "var(--accent)" : "var(--text-1)" }}
+                  >
+                    <Bookmark className="w-3 h-3 flex-shrink-0" />
+                    <span className="truncate">{f.name}</span>
+                    {note.folderId === f.id && <Check className="w-3.5 h-3.5 ml-auto flex-shrink-0" />}
+                  </button>
+                ))}
+                {folders.length === 0 && (
+                  <p className="px-3 py-2 text-[12px]" style={{ color: "var(--text-3)" }}>Zatím žádné záložky</p>
+                )}
+              </DropdownPortal>
+            </>
+          )}
 
           {/* Save indicator */}
           {(saving || saved) && (
@@ -638,13 +770,60 @@ function NotesContent() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeNote, setActiveNote] = useState<Note | null>(null);
 
+  // Bookmarks / folders
+  const [folders, setFolders] = useState<NoteFolder[]>([]);
+  const [activeFolder, setActiveFolder] = useState<string | null>(null); // null = Vše, "none" = bez záložky, else folder id
+  const [addingFolder, setAddingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [collapsed, setCollapsed] = useState(false); // hide the note list, editor only
+
   const load = useCallback(async () => {
     const res = await fetch("/api/notes");
     if (res.ok) setNotes(await res.json());
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  const loadFolders = useCallback(async () => {
+    const res = await fetch("/api/notes/folders");
+    if (res.ok) setFolders(await res.json());
+  }, []);
+
+  useEffect(() => { load(); loadFolders(); }, [load, loadFolders]);
+
+  const createFolder = async () => {
+    const name = newFolderName.trim();
+    if (!name) { setAddingFolder(false); return; }
+    const res = await fetch("/api/notes/folders", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (res.ok) {
+      const f = await res.json();
+      setFolders((p) => [...p, f]);
+      setActiveFolder(f.id);
+    }
+    setNewFolderName("");
+    setAddingFolder(false);
+  };
+
+  const deleteFolder = async (id: string) => {
+    if (!confirm("Smazat záložku? Poznámky v ní zůstanou (přesunou se do „Bez záložky“).")) return;
+    await fetch(`/api/notes/folders/${id}`, { method: "DELETE" });
+    setFolders((p) => p.filter((f) => f.id !== id));
+    if (activeFolder === id) setActiveFolder(null);
+    load();
+  };
+
+  // Move a note into a folder (or out of any, folderId=null).
+  const moveNoteToFolder = async (noteId: string, folderId: string | null) => {
+    await fetch(`/api/notes/${noteId}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ folderId }),
+    });
+    setNotes((prev) => prev.map((n) => (n.id === noteId ? { ...n, folderId } : n)));
+    setActiveNote((prev) => (prev && prev.id === noteId ? { ...prev, folderId } : prev));
+    loadFolders();
+  };
 
   // Deep-link to a specific note via /notes?note=<id> (e.g. from global search)
   useEffect(() => {
@@ -666,14 +845,17 @@ function NotesContent() {
   }, [activeId, loadNote]);
 
   const createNote = async () => {
+    // A note created while a folder is selected lands in that folder.
+    const folderId = activeFolder && activeFolder !== "none" ? activeFolder : null;
     const res = await fetch("/api/notes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: "", content: "", visibility: "private" }),
+      body: JSON.stringify({ title: "", content: "", visibility: "private", folderId }),
     });
     if (res.ok) {
       const note = await res.json();
       await load();
+      loadFolders();
       setActiveId(note.id);
     }
   };
@@ -691,9 +873,13 @@ function NotesContent() {
     load();
   };
 
-  const filtered = notes.filter((n) =>
-    !search || n.title.toLowerCase().includes(search.toLowerCase()) || n.content.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = notes.filter((n) => {
+    if (activeFolder === "none" && n.folderId) return false;
+    if (activeFolder && activeFolder !== "none" && n.folderId !== activeFolder) return false;
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q);
+  });
   const pinned = filtered.filter((n) => n.pinned);
   const rest = filtered.filter((n) => !n.pinned);
 
@@ -711,7 +897,7 @@ function NotesContent() {
       <div className="flex flex-1 overflow-hidden">
         {/* Note list sidebar — full width on mobile, fixed sidebar on desktop.
             On mobile it hides once a note is open (master-detail pattern). */}
-        <div className={`${activeId ? "hidden lg:flex" : "flex"} w-full lg:w-[272px] flex-shrink-0 border-r flex-col overflow-hidden`}
+        <div className={`${collapsed ? "hidden" : activeId ? "hidden lg:flex" : "flex"} w-full lg:w-[272px] flex-shrink-0 border-r flex-col overflow-hidden`}
           style={{ borderColor: "var(--border)", background: "var(--bg-page)" }}>
 
           {/* Search */}
@@ -729,6 +915,66 @@ function NotesContent() {
               {search && (
                 <button onClick={() => setSearch("")} style={{ color: "var(--text-3)" }}>
                   <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Bookmarks / folders */}
+          <div className="px-3 pb-2">
+            <div className="flex flex-wrap gap-1.5">
+              {([
+                { id: null as string | null, label: "Vše" },
+                ...folders.map((f) => ({ id: f.id, label: f.name })),
+                { id: "none" as string | null, label: "Bez záložky" },
+              ]).map((chip) => {
+                const on = activeFolder === chip.id;
+                const isFolder = chip.id !== null && chip.id !== "none";
+                return (
+                  <span key={chip.id ?? chip.label} className="group relative inline-flex">
+                    <button
+                      onClick={() => setActiveFolder(chip.id)}
+                      className="inline-flex items-center gap-1 pl-2.5 pr-2.5 py-1 rounded-full text-[12px] font-semibold border transition-all"
+                      style={on
+                        ? { background: "var(--accent)", borderColor: "var(--accent)", color: "#fff" }
+                        : { background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-2)" }}
+                    >
+                      {isFolder && <Bookmark className="w-3 h-3" />}
+                      {chip.label}
+                    </button>
+                    {isFolder && (
+                      <button
+                        onClick={() => deleteFolder(chip.id as string)}
+                        title="Smazat záložku"
+                        className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full items-center justify-center hidden group-hover:flex"
+                        style={{ background: "var(--bg-card)", border: "1px solid var(--border-md)", color: "var(--text-3)" }}
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    )}
+                  </span>
+                );
+              })}
+
+              {addingFolder ? (
+                <input
+                  autoFocus
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") createFolder(); if (e.key === "Escape") { setAddingFolder(false); setNewFolderName(""); } }}
+                  onBlur={createFolder}
+                  placeholder="Název záložky…"
+                  className="text-[12px] px-2.5 py-1 rounded-full border outline-none w-32"
+                  style={{ background: "var(--bg-card)", borderColor: "var(--accent)", color: "var(--text-1)" }}
+                />
+              ) : (
+                <button
+                  onClick={() => setAddingFolder(true)}
+                  title="Nová záložka"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[12px] font-semibold border border-dashed transition-colors hover:bg-[var(--hover)]"
+                  style={{ borderColor: "var(--border-md)", color: "var(--text-3)" }}
+                >
+                  <FolderPlus className="w-3 h-3" /> Záložka
                 </button>
               )}
             </div>
@@ -764,7 +1010,7 @@ function NotesContent() {
                       Připnuté
                     </p>
                     {pinned.map((n) => (
-                      <NoteListItem key={n.id} note={n} active={n.id === activeId} onClick={() => setActiveId(n.id)} />
+                      <NoteListItem key={n.id} note={n} active={n.id === activeId} onClick={() => setActiveId(n.id)} folders={folders} onMove={(fid) => moveNoteToFolder(n.id, fid)} />
                     ))}
                   </>
                 )}
@@ -777,7 +1023,7 @@ function NotesContent() {
                       </p>
                     )}
                     {rest.map((n) => (
-                      <NoteListItem key={n.id} note={n} active={n.id === activeId} onClick={() => setActiveId(n.id)} />
+                      <NoteListItem key={n.id} note={n} active={n.id === activeId} onClick={() => setActiveId(n.id)} folders={folders} onMove={(fid) => moveNoteToFolder(n.id, fid)} />
                     ))}
                   </>
                 )}
@@ -789,6 +1035,34 @@ function NotesContent() {
         {/* Editor pane — no overflow-hidden so the card shadow can breathe.
             On mobile it only appears once a note is selected. */}
         <div className={`${activeId ? "flex" : "hidden lg:flex"} flex-1 min-h-0 flex-col`}>
+          {/* Desktop bar: collapse the list + file the note into a bookmark */}
+          <div className="hidden lg:flex items-center gap-2 px-4 py-2 border-b flex-shrink-0" style={{ borderColor: "var(--border)" }}>
+            <button
+              onClick={() => setCollapsed((c) => !c)}
+              title={collapsed ? "Zobrazit seznam poznámek" : "Skrýt seznam, jen editor"}
+              className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[12.5px] font-medium transition-colors hover:bg-[var(--hover)]"
+              style={{ color: "var(--text-2)" }}
+            >
+              {collapsed ? <PanelLeft className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+              {collapsed ? "Zobrazit seznam" : "Skrýt seznam"}
+            </button>
+
+            {activeNote && (
+              <div className="ml-auto flex items-center gap-1.5">
+                <Bookmark className="w-3.5 h-3.5" style={{ color: "var(--text-3)" }} />
+                <select
+                  value={activeNote.folderId ?? ""}
+                  onChange={(e) => moveNoteToFolder(activeNote.id, e.target.value || null)}
+                  className="text-[12.5px] px-2 py-1 rounded-lg border outline-none"
+                  style={{ background: "var(--bg-card)", borderColor: "var(--border-md)", color: "var(--text-1)" }}
+                >
+                  <option value="">Bez záložky</option>
+                  {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+
           {activeNote ? (
             <>
               {/* Mobile-only back bar to return to the note list */}
@@ -808,6 +1082,8 @@ function NotesContent() {
                   onUpdate={handleUpdate}
                   onDelete={handleDelete}
                   onRefresh={() => loadNote(activeId!)}
+                  folders={folders}
+                  onMoveFolder={(fid) => moveNoteToFolder(activeNote.id, fid)}
                 />
               </div>
             </>
