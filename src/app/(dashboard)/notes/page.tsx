@@ -96,7 +96,7 @@ function NoteListItem({ note, active, onClick, folders = [], onMove }: {
               : "1.5px solid var(--border)",
         }}
       >
-        <div className="flex items-start justify-between gap-2 mb-1">
+        <div className="flex items-start justify-between gap-2 mb-1 pr-7 lg:pr-0">
           <span className="text-[13.5px] font-semibold truncate flex-1" style={{ color: "var(--text-1)" }}>
             {note.title || "Bez názvu"}
           </span>
@@ -131,8 +131,9 @@ function NoteListItem({ note, active, onClick, folders = [], onMove }: {
             ref={menuBtnRef}
             onClick={(e) => { e.stopPropagation(); setMenuOpen((o) => !o); }}
             title="Zařadit do záložky"
-            className="absolute top-2.5 right-2.5 w-6 h-6 rounded-lg items-center justify-center hidden group-hover:flex transition-colors hover:bg-[var(--hover)]"
-            style={{ background: "var(--bg-card)", color: "var(--text-3)" }}
+            // Always visible on touch (no hover); hover-reveal on desktop.
+            className="absolute top-2.5 right-2.5 w-7 h-7 rounded-lg items-center justify-center flex lg:hidden lg:group-hover:flex transition-colors hover:bg-[var(--hover)] border"
+            style={{ background: "var(--bg-card)", color: "var(--text-2)", borderColor: "var(--border-md)" }}
           >
             <Bookmark className="w-3.5 h-3.5" />
           </button>
