@@ -37,6 +37,7 @@ model User {
   contentPostsCreated  ContentPost[]  @relation("ContentPostCreator")
   contentPostsAssigned ContentPost[]  @relation("ContentPostAssignee")
   notesCreated         Note[]         @relation("NoteCreator")
+  noteFolders          NoteFolder[]   @relation("NoteFolderCreator")
   noteCollaborations   NoteCollaborator[]
   shareLinks           ShareLink[]    @relation("ShareLinkCreator")
   approvalCategories   Category[]     @relation("CategoryApprover")
@@ -162,9 +163,31 @@ model Note {
   createdById String
   createdBy   User     @relation("NoteCreator", fields: [createdById], references: [id], onDelete: Cascade)
 
+  // Optional user "bookmark" folder this note is filed under.
+  folderId    String?
+  folder      NoteFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
   collaborators NoteCollaborator[]
 
   @@index([teamId])
+  @@index([createdById])
+  @@index([folderId])
+}
+
+// A user's note "bookmark" / folder for organising notes.
+model NoteFolder {
+  id          String   @id @default(cuid())
+  name        String
+  color       String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdById String
+  createdBy   User     @relation("NoteFolderCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  notes       Note[]
+
   @@index([createdById])
 }
 

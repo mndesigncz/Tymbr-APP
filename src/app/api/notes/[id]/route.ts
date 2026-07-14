@@ -100,6 +100,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       values.push(teamId);
     }
   }
+  if ("folderId" in body) {
+    // Only allow filing under one of the user's own folders (null = unfiled).
+    let fid: string | null = null;
+    if (body.folderId) {
+      const f = await prisma.noteFolder.findFirst({ where: { id: body.folderId, createdById: userId }, select: { id: true } });
+      fid = f?.id ?? null;
+    }
+    updates.push(`"folderId" = $${idx++}`);
+    values.push(fid);
+  }
 
   if (updates.length === 0) return NextResponse.json({ error: "Nic ke změně" }, { status: 400 });
 
