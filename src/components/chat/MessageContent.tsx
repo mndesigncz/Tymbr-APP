@@ -49,8 +49,8 @@ export function MessageContent({
 
   return (
     <p
-      className="text-[13.5px] leading-relaxed whitespace-pre-wrap break-words"
-      style={textColor ? { color: textColor } : undefined}
+      className="text-[13.5px] leading-relaxed whitespace-pre-wrap"
+      style={{ overflowWrap: "anywhere", wordBreak: "break-word", ...(textColor ? { color: textColor } : {}) }}
     >
       {parts}
     </p>
