@@ -13,7 +13,7 @@ import { useChatUnread } from "@/hooks/useChatUnread";
 import { parsePermissions, canSeeTab, isManager, canSeeFinance } from "@/lib/roles";
 import {
   LayoutDashboard, CheckSquare, Tag, LogOut, Settings,
-  Users, MessageSquare, ChevronDown, Settings2, FolderOpen, Webhook,
+  Users, MessageSquare, ChevronDown, Settings2, FolderOpen, Webhook, KeyRound,
   Calendar, Megaphone, BookOpen, Palmtree, Briefcase, Contact, FileText, Gauge,
   Boxes, Wrench,
 } from "lucide-react";
@@ -69,6 +69,7 @@ const navGroups: NavGroup[] = [
       { href: "/categories",        icon: Tag,       label: "Funkce",         permKey: "categories" },
       { href: "/settings/team",     icon: Settings2, label: "Nastavení týmu", managerOnly: true },
       { href: "/settings/webhooks", icon: Webhook,   label: "Integrace",      managerOnly: true },
+      { href: "/settings/tokens",   icon: KeyRound,  label: "API tokeny" },
     ],
   },
 ];
