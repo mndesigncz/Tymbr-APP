@@ -116,7 +116,12 @@ export const authOptions: NextAuthOptions = {
 };
 
 export async function getSession() {
-  return getServerSession(authOptions);
+  const session = await getServerSession(authOptions);
+  if (session) return session;
+  // Fall back to a personal Bearer token (external clients, e.g. the macOS app).
+  const { sessionFromBearer } = await import("./apiToken");
+  const bearer = await sessionFromBearer();
+  return bearer as typeof session;
 }
 
 export async function requireAuth() {
