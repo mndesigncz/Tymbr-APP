@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { getAccessibleTask } from "@/lib/access";
 import { eventInclude, serializeEvent, syncEventAssignees, expandRecurring } from "@/lib/events";
+import { hasGoogleCalendar, insertGoogleEvent } from "@/lib/googleCalendar";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +116,18 @@ export async function POST(req: NextRequest) {
     });
 
     if (assigneeIds.length > 0) await syncEventAssignees(created.id, assigneeIds);
+
+    // Mirror to the creator's Google Calendar, if connected (best-effort).
+    try {
+      if (await hasGoogleCalendar(userId)) {
+        const gid = await insertGoogleEvent(userId, {
+          title: created.title, description: created.description, location: created.location,
+          startAt: created.startAt, endAt: created.endAt, allDay: created.allDay,
+          recurring: created.recurring, recurringUntil: created.recurringUntil,
+        });
+        if (gid) await prisma.event.update({ where: { id: created.id }, data: { googleEventId: gid } });
+      }
+    } catch (e: any) { console.error("[events POST → google]", e?.message ?? e); }
 
     const event = await prisma.event.findUnique({ where: { id: created.id }, include: eventInclude });
     return NextResponse.json(event ? serializeEvent(event) : created, { status: 201 });

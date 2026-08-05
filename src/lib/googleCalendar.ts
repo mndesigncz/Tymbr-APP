@@ -173,3 +173,95 @@ export async function listEvents(userId: string, timeMin: Date, timeMax: Date): 
       };
     });
 }
+
+/* ── write-back (Tymbr → Google) ───────────────────────────────────────── */
+
+export interface TymbrEventShape {
+  title: string;
+  description?: string | null;
+  location?: string | null;
+  startAt: Date | string;
+  endAt: Date | string;
+  allDay: boolean;
+  recurring?: string | null;
+  recurringUntil?: Date | string | null;
+}
+
+const FREQ: Record<string, string> = { daily: "DAILY", weekly: "WEEKLY", monthly: "MONTHLY", yearly: "YEARLY" };
+
+function ymd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// Build the Google event resource from a Tymbr event.
+function toGoogleBody(ev: TymbrEventShape): Record<string, any> {
+  const start = new Date(ev.startAt);
+  const end = new Date(ev.endAt);
+  const body: Record<string, any> = {
+    summary: ev.title,
+    description: ev.description ?? undefined,
+    location: ev.location ?? undefined,
+  };
+  if (ev.allDay) {
+    // Google treats the all-day end date as exclusive → add a day to the last day.
+    const lastDay = end < start ? start : end;
+    body.start = { date: ymd(start) };
+    body.end = { date: ymd(new Date(lastDay.getTime() + 24 * 60 * 60 * 1000)) };
+  } else {
+    body.start = { dateTime: start.toISOString() };
+    body.end = { dateTime: (end <= start ? new Date(start.getTime() + 3600000) : end).toISOString() };
+  }
+  if (ev.recurring && FREQ[ev.recurring]) {
+    let rule = `RRULE:FREQ=${FREQ[ev.recurring]}`;
+    if (ev.recurringUntil) {
+      const u = new Date(ev.recurringUntil);
+      rule += `;UNTIL=${u.getUTCFullYear()}${String(u.getUTCMonth() + 1).padStart(2, "0")}${String(u.getUTCDate()).padStart(2, "0")}T235959Z`;
+    }
+    body.recurrence = [rule];
+  }
+  return body;
+}
+
+/** Create the event in the user's Google Calendar; returns the new Google id. */
+export async function insertGoogleEvent(userId: string, ev: TymbrEventShape): Promise<string | null> {
+  const auth = await getAccessToken(userId);
+  if (!auth) return null;
+  const res = await fetch(`${API_BASE}/calendars/${encodeURIComponent(auth.calendarId)}/events`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${auth.token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(toGoogleBody(ev)),
+  });
+  if (!res.ok) { console.error("[googleCalendar.insert]", res.status, await res.text().catch(() => "")); return null; }
+  const data = await res.json();
+  return data.id ?? null;
+}
+
+/** Update a mirrored event; returns true on success. */
+export async function updateGoogleEvent(userId: string, googleEventId: string, ev: TymbrEventShape): Promise<boolean> {
+  const auth = await getAccessToken(userId);
+  if (!auth) return false;
+  const res = await fetch(`${API_BASE}/calendars/${encodeURIComponent(auth.calendarId)}/events/${encodeURIComponent(googleEventId)}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${auth.token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(toGoogleBody(ev)),
+  });
+  if (!res.ok && res.status !== 404) console.error("[googleCalendar.update]", res.status, await res.text().catch(() => ""));
+  return res.ok;
+}
+
+/** Delete a mirrored event. 404/410 (already gone) count as success. */
+export async function deleteGoogleEvent(userId: string, googleEventId: string): Promise<boolean> {
+  const auth = await getAccessToken(userId);
+  if (!auth) return false;
+  const res = await fetch(`${API_BASE}/calendars/${encodeURIComponent(auth.calendarId)}/events/${encodeURIComponent(googleEventId)}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${auth.token}` },
+  });
+  return res.ok || res.status === 404 || res.status === 410;
+}
+
+/** True if the user has a connected Google Calendar. */
+export async function hasGoogleCalendar(userId: string): Promise<boolean> {
+  const acct = await prisma.googleCalendarAccount.findUnique({ where: { userId }, select: { id: true } });
+  return !!acct;
+}
