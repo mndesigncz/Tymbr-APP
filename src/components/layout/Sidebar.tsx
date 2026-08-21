@@ -14,7 +14,7 @@ import { parsePermissions, canSeeTab, isManager, canSeeFinance } from "@/lib/rol
 import {
   LayoutDashboard, CheckSquare, Tag, LogOut, Settings,
   Users, MessageSquare, ChevronDown, Settings2, FolderOpen, Webhook, KeyRound,
-  Calendar, Megaphone, BookOpen, Palmtree, Briefcase, Contact, FileText, Gauge,
+  Calendar, Megaphone, BookOpen, Palmtree, Briefcase, Contact, FileText, Gauge, Vault,
   Boxes, Wrench,
 } from "lucide-react";
 
@@ -61,6 +61,7 @@ const navGroups: NavGroup[] = [
       { href: "/clients",  icon: Contact,   label: "Klienti",   permKey: "clients" },
       { href: "/invoices", icon: FileText,  label: "Fakturace", permKey: "invoices", financeOnly: true },
       { href: "/capacity", icon: Gauge,     label: "Vytížení",  permKey: "capacity", financeOnly: true },
+      { href: "/cash",     icon: Vault,     label: "Uzávěrka",  financeOnly: true },
     ],
   },
   {
