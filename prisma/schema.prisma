@@ -41,6 +41,7 @@ model User {
   noteCollaborations   NoteCollaborator[]
   personalTokens       PersonalToken[]
   cashClosings         CashClosing[]  @relation("CashClosingCreator")
+  shiftAttendances     ShiftAttendance[]
   shareLinks           ShareLink[]    @relation("ShareLinkCreator")
   approvalCategories   Category[]     @relation("CategoryApprover")
   approvedTasks        Task[]         @relation("TaskApprover")
@@ -137,6 +138,8 @@ model Team {
   invoices       Invoice[]
   customRoles    CustomRole[]
   cashClosings   CashClosing[]
+  shifts         Shift[]
+  shiftChecklists ShiftChecklist[]
 
   @@index([ownerId])
   @@index([parentId])
@@ -387,6 +390,9 @@ model TeamMember {
 
   customRoleId String?
   customRole   CustomRole? @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
+
+  // 4-digit PIN used to clock in/out on the shared iPad kiosk.
+  kioskPin String?
 
   @@unique([teamId, userId])
   @@index([teamId])
@@ -647,7 +653,66 @@ model CashClosing {
   createdById String
   createdBy   User   @relation("CashClosingCreator", fields: [createdById], references: [id])
 
+  // The shift this closing ended (pairing uzávěrka ↔ směna).
+  shiftId String? @unique
+
   @@index([teamId, date])
+}
+
+// A work shift ("směna") — opens on the first kiosk clock-in and closes with
+// the daily cash closing (which logs everyone out of the shared iPad).
+model Shift {
+  id            String    @id @default(cuid())
+  status        String    @default("open") // open | closed
+  openedAt      DateTime  @default(now())
+  closedAt      DateTime?
+  note          String?
+  // Ticked checklist items: { "<checklistId>": { "<itemIndex>": {byId,byName,at} } }
+  checklistState String   @default("{}")
+  cashClosingId String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  attendance ShiftAttendance[]
+
+  @@index([teamId, status])
+  @@index([teamId, openedAt])
+}
+
+// One person's presence on a shift (kiosk clock in/out).
+model ShiftAttendance {
+  id         String    @id @default(cuid())
+  name       String    // snapshot of the member's name
+  clockInAt  DateTime  @default(now())
+  clockOutAt DateTime?
+
+  shiftId String
+  shift   Shift  @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([shiftId])
+  @@index([userId])
+}
+
+// A reusable opening/closing checklist ("postup") the team ticks off per shift.
+model ShiftChecklist {
+  id        String   @id @default(cuid())
+  name      String
+  kind      String   @default("open") // open | close
+  items     String   @default("[]")   // JSON string[]
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
 }
 
 model Invoice {

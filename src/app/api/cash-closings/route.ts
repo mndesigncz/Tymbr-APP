@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { canSeeFinance } from "@/lib/roles";
 import { computeCash, parseMovements, parsePayouts } from "@/lib/cashClosing";
+import { getActiveShift } from "@/lib/shifts";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +63,9 @@ export async function POST(req: NextRequest) {
   };
   const c = computeCash(input);
 
+  // The closing ends the currently open shift (pairs them + logs everyone out).
+  const activeShift = await getActiveShift(g.teamId);
+
   const created = await prisma.cashClosing.create({
     data: {
       date: b.date ? new Date(b.date) : new Date(),
@@ -79,8 +83,17 @@ export async function POST(req: NextRequest) {
       note: b.note?.trim() || null,
       teamId: g.teamId,
       createdById: g.userId,
+      shiftId: activeShift?.id ?? null,
     },
   });
 
-  return NextResponse.json(created, { status: 201 });
+  if (activeShift) {
+    const now = new Date();
+    await prisma.$transaction([
+      prisma.shift.update({ where: { id: activeShift.id }, data: { status: "closed", closedAt: now, cashClosingId: created.id } }),
+      prisma.shiftAttendance.updateMany({ where: { shiftId: activeShift.id, clockOutAt: null }, data: { clockOutAt: now } }),
+    ]);
+  }
+
+  return NextResponse.json({ ...created, closedShiftId: activeShift?.id ?? null }, { status: 201 });
 }

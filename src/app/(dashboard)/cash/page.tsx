@@ -37,8 +37,10 @@ export default function CashPage() {
   const [safeStart, setSafeStart] = useState("");
   const [note, setNote] = useState("");
 
+  const [shift, setShift] = useState<{ openedAt: string; count: number } | null>(null);
+
   const load = useCallback(async () => {
-    const r = await fetch("/api/cash-closings");
+    const [r, sr] = await Promise.all([fetch("/api/cash-closings"), fetch("/api/shifts/active")]);
     if (r.ok) {
       const d = await r.json();
       setClosings(d.closings ?? []);
@@ -46,6 +48,10 @@ export default function CashPage() {
       setCashStart(String(d.context.cashStart));
       setStandard(String(d.context.standard));
       setSafeStart(String(d.context.safeStart));
+    }
+    if (sr.ok) {
+      const s = await sr.json();
+      setShift(s.shift ? { openedAt: s.shift.openedAt, count: s.attendance.length } : null);
     }
     setLoaded(true);
   }, []);
@@ -172,6 +178,15 @@ export default function CashPage() {
 
             <div>{label("Poznámka")}<Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="volitelné" /></div>
           </div>
+
+          {shift ? (
+            <div className="rounded-2xl border px-4 py-3 text-[13px] flex items-center gap-2.5" style={{ borderColor: "var(--accent)", background: "var(--accent-soft)", color: "var(--text-1)" }}>
+              <Vault className="w-4 h-4 flex-shrink-0" style={{ color: "var(--accent)" }} />
+              Uzávěrka <strong>uzavře směnu</strong> otevřenou v {new Date(shift.openedAt).toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit" })} a odhlásí {shift.count} {shift.count === 1 ? "člověka" : "lidí"} z kiosku.
+            </div>
+          ) : (
+            <p className="text-[12.5px]" style={{ color: "var(--text-3)" }}>Žádná otevřená směna — uzávěrka se uloží samostatně.</p>
+          )}
 
           <Button onClick={save} loading={saving} className="w-full sm:w-auto">Uložit uzávěrku</Button>
 

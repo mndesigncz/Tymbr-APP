@@ -15,7 +15,7 @@ import {
   LayoutDashboard, CheckSquare, Tag, LogOut, Settings,
   Users, MessageSquare, ChevronDown, Settings2, FolderOpen, Webhook, KeyRound,
   Calendar, Megaphone, BookOpen, Palmtree, Briefcase, Contact, FileText, Gauge, Vault,
-  Boxes, Wrench,
+  Boxes, Wrench, Store,
 } from "lucide-react";
 
 interface NavItem {
@@ -49,6 +49,7 @@ const navGroups: NavGroup[] = [
   {
     key: "tools", label: "Nástroje", icon: Wrench,
     items: [
+      { href: "/kiosk",    icon: Store,      label: "Kiosk / Směna" },
       { href: "/files",    icon: FolderOpen, label: "Soubory",      permKey: "files" },
       { href: "/content",  icon: Megaphone,  label: "Content plán", permKey: "content" },
       { href: "/vacation", icon: Palmtree,   label: "Dovolená",     permKey: "vacation" },
