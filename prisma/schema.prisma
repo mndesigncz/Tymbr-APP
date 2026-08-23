@@ -40,6 +40,7 @@ model User {
   noteFolders          NoteFolder[]   @relation("NoteFolderCreator")
   noteCollaborations   NoteCollaborator[]
   personalTokens       PersonalToken[]
+  cashClosings         CashClosing[]  @relation("CashClosingCreator")
   shareLinks           ShareLink[]    @relation("ShareLinkCreator")
   approvalCategories   Category[]     @relation("CategoryApprover")
   approvedTasks        Task[]         @relation("TaskApprover")
@@ -135,6 +136,7 @@ model Team {
   billing        TeamBilling?
   invoices       Invoice[]
   customRoles    CustomRole[]
+  cashClosings   CashClosing[]
 
   @@index([ownerId])
   @@index([parentId])
@@ -611,9 +613,41 @@ model TeamBilling {
   dueDays       Int     @default(14)
   footerNote    String?
   inboundToken  String? @unique
+  // Standard cash the register should be left with after each daily closing.
+  cashStandard  Float   @default(6900)
 
   teamId String @unique
   team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+}
+
+// One daily cash-register closing ("uzávěrka"). Tracks register + safe balances.
+model CashClosing {
+  id            String   @id @default(cuid())
+  date          DateTime @default(now())
+
+  cashStart     Float                    // opening register cash (last close or standard)
+  standard      Float    @default(6900)  // target register cash (snapshot)
+  salesCash     Float    @default(0)     // tržba hotově
+  salesCard     Float    @default(0)     // tržba kartou (evidence only)
+  cashWithdrawn Float    @default(0)     // výběr z kasy za den
+  movements     String   @default("[]")  // JSON [{desc, amount}] (+/-)
+  payouts       String   @default("[]")  // JSON [{desc, amount, source:"cash"|"safe"}]
+  toSafe        Float    @default(0)     // vklad přebytku do trezoru
+  cashEnd       Float                    // konečná hotovost v kase
+  safeStart     Float                    // trezor počáteční
+  safeEnd       Float                    // trezor konečný
+  note          String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  createdById String
+  createdBy   User   @relation("CashClosingCreator", fields: [createdById], references: [id])
+
+  @@index([teamId, date])
 }
 
 model Invoice {
